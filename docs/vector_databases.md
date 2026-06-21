@@ -15,7 +15,7 @@ You can switch the active provider by setting the `VECTOR_DB_PROVIDER` environme
 | **ChromaDB** | `CHROMADB` | (Default) Local persistent vector database stored in `./chroma_db`. Perfect for local deployments and testing. |
 | **In-Memory** | `IN_MEMORY` | A lightweight Python dictionary mock. Useful for environments where dependencies cannot be installed or for CI/CD pipelines. |
 | **PGVector** | `PGVECTOR` | Postgres integration via `pgvector` and `psycopg2`. Uses OpenAI Embeddings. Requires Postgres DB. |
-| **Pinecone** | `PINECONE` | *(Coming Soon)* Cloud-native vector search. |
+| **Pinecone** | `PINECONE` | Cloud-native vector search. Uses OpenAI Embeddings and requires `pinecone-client`. |
 
 ## How to Configure
 
@@ -38,6 +38,17 @@ VECTOR_DB_PROVIDER=PGVECTOR
 POSTGRES_URI=postgresql://sentinel:sentinelpass@localhost:5432/sentinel_db
 ```
 *(Note: PGVector mode requires `OPENAI_API_KEY` to be set in your `.env` as it uses OpenAI to generate embeddings).*
+
+### 3. Pinecone (Cloud)
+If you prefer a fully managed cloud vector database:
+1. Create a free index on [Pinecone](https://www.pinecone.io/) (Dimensions: 1536, Metric: Cosine).
+2. Update your `.env` file to use `PINECONE` and provide your API keys:
+```env
+VECTOR_DB_PROVIDER=PINECONE
+PINECONE_API_KEY=your-pinecone-api-key
+PINECONE_INDEX_NAME=sentinel-healing-memory
+```
+*(Note: Pinecone mode also requires `OPENAI_API_KEY` to generate embeddings).*
 
 ## Adding a Custom Vector Database
 

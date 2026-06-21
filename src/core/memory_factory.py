@@ -20,6 +20,13 @@ try:
 except ImportError:
     PGVECTOR_AVAILABLE = False
 
+try:
+    from pinecone import Pinecone
+
+    PINECONE_AVAILABLE = True
+except ImportError:
+    PINECONE_AVAILABLE = False
+
 
 class BaseMemoryStore(ABC):
     """
@@ -164,6 +171,49 @@ class PGVectorMemoryStore(BaseMemoryStore):
             self.conn.commit()
 
 
+class PineconeMemoryStore(BaseMemoryStore):
+    """
+    Pinecone cloud vector database implementation of the Memory Store.
+    Uses OpenAIEmbeddings to convert text to vectors.
+    """
+
+    def __init__(self):
+        if not PINECONE_AVAILABLE:
+            raise ImportError("pinecone-client is not installed.")
+
+        api_key = os.getenv("PINECONE_API_KEY")
+        index_name = os.getenv("PINECONE_INDEX_NAME", "sentinel-healing-memory")
+
+        if not api_key:
+            raise ValueError("PINECONE_API_KEY is not set in the environment.")
+
+        self.embeddings = OpenAIEmbeddings()
+        self.pc = Pinecone(api_key=api_key)
+        self.index = self.pc.Index(index_name)
+
+    def add_memory(self, doc_id: str, memory_doc: str, metadata: dict) -> None:
+        vector = self.embeddings.embed_query(memory_doc)
+        # Store memory_doc within the metadata so we can retrieve it
+        metadata["memory_doc"] = memory_doc
+        self.index.upsert(
+            vectors=[{"id": doc_id, "values": vector, "metadata": metadata}]
+        )
+
+    def query_memory(self, query_str: str, n_results: int = 1) -> Optional[str]:
+        vector = self.embeddings.embed_query(query_str)
+        response = self.index.query(
+            vector=vector, top_k=n_results, include_metadata=True
+        )
+        if response.matches and len(response.matches) > 0:
+            match = response.matches[0]
+            if match.metadata and "memory_doc" in match.metadata:
+                return match.metadata["memory_doc"]
+        return None
+
+    def delete_memory(self, doc_id: str) -> None:
+        self.index.delete(ids=[doc_id])
+
+
 class MemoryFactory:
     """
     Database Agnostic Factory.
@@ -179,6 +229,8 @@ class MemoryFactory:
             return ChromaMemoryStore()
         elif provider == "PGVECTOR":
             return PGVectorMemoryStore()
+        elif provider == "PINECONE":
+            return PineconeMemoryStore()
         elif provider == "IN_MEMORY":
             return InMemoryMemoryStore()
         else:
