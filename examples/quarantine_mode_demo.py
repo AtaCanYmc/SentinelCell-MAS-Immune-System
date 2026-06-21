@@ -1,5 +1,6 @@
 import asyncio
 import json
+import os
 from rich.console import Console
 from rich.panel import Panel
 from src.agents.validator_agent import SentinelCell
@@ -16,6 +17,8 @@ async def main():
         )
     )
 
+    # Set a short cooldown for the demo
+    os.environ["QUARANTINE_COOLDOWN_SECONDS"] = "5"
     sentinel = SentinelCell()
 
     invalid_payload = json.dumps({"status": "error"})  # Missing message => Invalid
@@ -37,7 +40,9 @@ async def main():
 
     # Now that the system is in quarantine, even valid traffic should be dropped
     console.print("[bold cyan]--- Post-Quarantine Traffic Attempt ---[/bold cyan]")
-    console.print("[dim]Attempting to send a perfectly VALID packet...[/dim]")
+    console.print(
+        "[dim]Attempting to send a perfectly VALID packet immediately...[/dim]"
+    )
 
     result = await sentinel.intercept("GoodBot", "Agent_Beta", valid_payload)
 
@@ -46,6 +51,23 @@ async def main():
 
     console.print(
         "\n[bold green]✅ ASSERTION PASSED:[/bold green] System successfully locked itself down and protected the infrastructure from further damage."
+    )
+
+    console.print(
+        "\n[bold blue]⏳ Waiting for Cooldown period (6 seconds)...[/bold blue]"
+    )
+    await asyncio.sleep(6)
+
+    console.print("\n[bold cyan]--- Health Check Packet ---[/bold cyan]")
+    console.print("[dim]Attempting to send a VALID packet after cooldown...[/dim]")
+
+    # We don't assert the actual result of intercept since the registry might be missing the schema,
+    # but we just want to show that it allows it through.
+    await sentinel.intercept("HealthChecker", "Agent_Beta", valid_payload)
+
+    assert sentinel.quarantine_mode is False, "Failed to exit quarantine mode!"
+    console.print(
+        "\n[bold green]✅ SYSTEM RECOVERED:[/bold green] Quarantine was lifted automatically after cooldown."
     )
 
 

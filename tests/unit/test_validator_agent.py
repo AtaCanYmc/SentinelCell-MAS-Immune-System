@@ -79,3 +79,37 @@ async def test_quarantine_sliding_window(mock_dependencies):
 
     assert cell.quarantine_mode is False
     assert len(cell.error_timestamps) == 1
+
+
+@pytest.mark.asyncio
+async def test_quarantine_cooldown_recovery(mock_dependencies):
+    mock_orchestrator, mock_broadcaster = mock_dependencies
+    mock_orchestrator.intercept.return_value = None
+
+    cell = SentinelCell()
+    cell.quarantine_threshold = 2
+    cell.quarantine_cooldown_seconds = 1  # 1 second cooldown
+    malformed_payload = "NOT EVEN JSON"
+
+    # Trip the breaker
+    await cell.intercept("AgentA", "AgentB", malformed_payload)
+    await cell.intercept("AgentA", "AgentB", malformed_payload)
+
+    assert cell.quarantine_mode is True
+
+    # Immediate request should be blocked
+    res = await cell.intercept("AgentA", "AgentB", '{"valid": "json"}')
+    assert res is None
+    assert cell.quarantine_mode is True
+
+    # Wait for cooldown
+    time.sleep(1.1)
+
+    # Cooldown check should lift quarantine and process the request
+    # Since orchestrator is mocked to return None (failure), it will fail again but quarantine should be lifted before intercept.
+    res = await cell.intercept("AgentA", "AgentB", '{"valid": "json"}')
+    assert res is None
+    # Wait, the 3rd fail will re-trigger quarantine?
+    # Threshold is 2. The 1st failure after cooldown will put 1 error in timestamps.
+    # So it shouldn't trip yet.
+    assert cell.quarantine_mode is False

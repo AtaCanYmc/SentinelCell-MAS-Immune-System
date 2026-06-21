@@ -29,20 +29,42 @@ class SentinelCell:
         self.quarantine_mode = False
         self.quarantine_threshold = 5
         self.error_timestamps = []
+        self.quarantine_cooldown_seconds = int(
+            os.getenv("QUARANTINE_COOLDOWN_SECONDS", "30")
+        )
+        self.quarantine_timestamp = 0.0
 
     async def intercept(self, source: str, target: str, payload: str) -> dict | None:
         """
         Entry point for intercepting and routing traffic through the MAS Immune System.
         """
+        now = time.time()
+
         if self.quarantine_mode:
-            console.print(
-                Panel.fit(
-                    "[bold red]⛔ SYSTEM IN QUARANTINE ⛔[/bold red]\nAll incoming traffic is being dropped automatically.",
-                    border_style="red",
+            # Cool-down Check (Circuit Breaker Half-Open State)
+            if now - self.quarantine_timestamp > self.quarantine_cooldown_seconds:
+                console.print(
+                    Panel.fit(
+                        "[bold green]🔄 COOLDOWN COMPLETE 🔄[/bold green]\nInitiating Health Check... Allowing packet passthrough.",
+                        border_style="green",
+                    )
                 )
-            )
-            await broadcaster.broadcast("SECURITY_ALERT", "QUARANTINE BLOCKED TRAFFIC")
-            return None
+                self.quarantine_mode = False
+                self.error_timestamps.clear()
+                await broadcaster.broadcast(
+                    "SECURITY_ALERT", "QUARANTINE LIFTED - HEALTH CHECK INITIATED"
+                )
+            else:
+                console.print(
+                    Panel.fit(
+                        "[bold red]⛔ SYSTEM IN QUARANTINE ⛔[/bold red]\nAll incoming traffic is being dropped automatically.",
+                        border_style="red",
+                    )
+                )
+                await broadcaster.broadcast(
+                    "SECURITY_ALERT", "QUARANTINE BLOCKED TRAFFIC"
+                )
+                return None
 
         await broadcaster.broadcast(
             "INTERCEPT", f"Source: {source} -> Target: {target}"
@@ -51,21 +73,24 @@ class SentinelCell:
         result = await self.orchestrator.intercept(source, target, payload)
 
         if result is None:
-            now = time.time()
-            self.error_timestamps.append(now)
+            self.error_timestamps.append(time.time())
             # Sliding window of 60 seconds
-            self.error_timestamps = [t for t in self.error_timestamps if now - t < 60]
+            self.error_timestamps = [
+                t for t in self.error_timestamps if time.time() - t < 60
+            ]
 
             if len(self.error_timestamps) >= self.quarantine_threshold:
-                self.quarantine_mode = True
-                console.print(
-                    Panel.fit(
-                        "[bold red]☢️ CRITICAL THREAT LEVEL ☢️[/bold red]\nToo many anomalies detected. Initiating Quarantine Lockdown!",
-                        border_style="red",
+                if not self.quarantine_mode:
+                    self.quarantine_mode = True
+                    self.quarantine_timestamp = time.time()
+                    console.print(
+                        Panel.fit(
+                            "[bold red]☢️ CRITICAL THREAT LEVEL ☢️[/bold red]\nToo many anomalies detected. Initiating Quarantine Lockdown!",
+                            border_style="red",
+                        )
                     )
-                )
-                await broadcaster.broadcast(
-                    "SECURITY_ALERT", "SYSTEM LOCKDOWN: Quarantine Mode Engaged!"
-                )
+                    await broadcaster.broadcast(
+                        "SECURITY_ALERT", "SYSTEM LOCKDOWN: Quarantine Mode Engaged!"
+                    )
 
         return result
