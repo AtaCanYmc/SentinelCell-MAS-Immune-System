@@ -12,7 +12,7 @@ services:
       - cluster.initial_master_nodes=elasticsearch-1,elasticsearch-2
       - xpack.security.enabled=true
       - ELASTIC_PASSWORD=${ELASTICSEARCH_PASSWORD:-supersecret_es_pass}
-      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+      - "ES_JAVA_OPTS=${ES_JAVA_OPTS:--Xms512m -Xmx512m}"
     volumes:
       - elastic_data_1:/usr/share/elasticsearch/data
     restart: unless-stopped
@@ -30,7 +30,7 @@ services:
       - cluster.initial_master_nodes=elasticsearch-1,elasticsearch-2
       - xpack.security.enabled=true
       - ELASTIC_PASSWORD=${ELASTICSEARCH_PASSWORD:-supersecret_es_pass}
-      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+      - "ES_JAVA_OPTS=${ES_JAVA_OPTS:--Xms512m -Xmx512m}"
     volumes:
       - elastic_data_2:/usr/share/elasticsearch/data
     restart: unless-stopped
@@ -65,6 +65,58 @@ services:
       - grafana_data:/var/lib/grafana
     depends_on:
       - prometheus
+    restart: unless-stopped
+    networks:
+      - sentinel_net
+
+  # 5. Node Exporter (Host Metrics)
+  node_exporter:
+    image: prom/node-exporter:latest
+    container_name: sentinelcell_node_exporter
+    volumes:
+      - /proc:/host/proc:ro
+      - /sys:/host/sys:ro
+      - /:/rootfs:ro
+    command:
+      - '--path.procfs=/host/proc'
+      - '--path.rootfs=/rootfs'
+      - '--path.sysfs=/host/sys'
+      - '--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)'
+    restart: unless-stopped
+    networks:
+      - sentinel_net
+
+  # 6. cAdvisor (Container Metrics)
+  cadvisor:
+    image: gcr.io/cadvisor/cadvisor:latest
+    container_name: sentinelcell_cadvisor
+    privileged: true
+    devices:
+      - /dev/kmsg:/dev/kmsg
+    volumes:
+      - /:/rootfs:ro
+      - /var/run:/var/run:ro
+      - /sys:/sys:ro
+      - /var/lib/docker:/var/lib/docker:ro
+      - /dev/disk:/dev/disk:ro
+    restart: unless-stopped
+    networks:
+      - sentinel_net
+
+  # 7. Filebeat (Log Shipper)
+  filebeat:
+    image: docker.elastic.co/beats/filebeat:8.13.0
+    container_name: sentinelcell_filebeat
+    user: root
+    volumes:
+      - ./filebeat.yml:/usr/share/filebeat/filebeat.yml:ro
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    environment:
+      - ELASTICSEARCH_PASSWORD=${ELASTICSEARCH_PASSWORD:-supersecret_es_pass}
+      - ELASTICSEARCH_USER=${ELASTICSEARCH_USER:-elastic}
+    depends_on:
+      - elasticsearch-1
     restart: unless-stopped
     networks:
       - sentinel_net
