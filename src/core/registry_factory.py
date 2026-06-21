@@ -101,6 +101,134 @@ class RedisRegistryStore(BaseRegistryStore):
             raise
 
 
+class SupabaseRegistryStore(BaseRegistryStore):
+    """
+    Supabase (PostgreSQL) backed Schema Registry.
+    """
+
+    def __init__(self):
+        try:
+            from supabase import create_client
+        except ImportError:
+            raise ImportError("Please install 'supabase' to use SupabaseRegistryStore")
+
+        url = os.getenv("SUPABASE_URL")
+        key = os.getenv("SUPABASE_KEY")
+        if not url or not key:
+            raise ValueError("SUPABASE_URL and SUPABASE_KEY must be set in .env")
+
+        self.client = create_client(url, key)
+
+    async def get_schema(self, agent_id: str) -> Optional[str]:
+        try:
+            import asyncio
+
+            response = await asyncio.to_thread(
+                self.client.table("schemas")
+                .select("schema_json")
+                .eq("agent_id", agent_id)
+                .execute
+            )
+            if response.data and len(response.data) > 0:
+                return response.data[0].get("schema_json")
+            return None
+        except Exception as e:
+            logger.error(f"Supabase get_schema error: {e}")
+            return None
+
+    async def update_schema(self, agent_id: str, schema_json: str) -> None:
+        try:
+            import asyncio
+
+            data = {"agent_id": agent_id, "schema_json": schema_json}
+            await asyncio.to_thread(self.client.table("schemas").upsert(data).execute)
+        except Exception as e:
+            logger.error(f"Supabase update_schema error: {e}")
+            raise
+
+
+class MongoRegistryStore(BaseRegistryStore):
+    """
+    MongoDB (NoSQL) backed Schema Registry using Motor (async).
+    """
+
+    def __init__(self):
+        try:
+            from motor.motor_asyncio import AsyncIOMotorClient
+        except ImportError:
+            raise ImportError("Please install 'motor' to use MongoRegistryStore")
+
+        uri = os.getenv("MONGO_URI", "mongodb://localhost:27017")
+        self.client = AsyncIOMotorClient(uri)
+        self.db = self.client.get_database("sentinel")
+        self.collection = self.db.get_collection("schemas")
+
+    async def get_schema(self, agent_id: str) -> Optional[str]:
+        try:
+            doc = await self.collection.find_one({"agent_id": agent_id})
+            if doc:
+                return doc.get("schema_json")
+            return None
+        except Exception as e:
+            logger.error(f"Mongo get_schema error: {e}")
+            return None
+
+    async def update_schema(self, agent_id: str, schema_json: str) -> None:
+        try:
+            await self.collection.update_one(
+                {"agent_id": agent_id},
+                {"$set": {"schema_json": schema_json}},
+                upsert=True,
+            )
+        except Exception as e:
+            logger.error(f"Mongo update_schema error: {e}")
+            raise
+
+
+class FirebaseRegistryStore(BaseRegistryStore):
+    """
+    Firebase (Firestore) backed Schema Registry using firebase-admin async client.
+    """
+
+    def __init__(self):
+        try:
+            import firebase_admin
+            from firebase_admin import credentials, firestore_async
+        except ImportError:
+            raise ImportError(
+                "Please install 'firebase-admin' to use FirebaseRegistryStore"
+            )
+
+        if not firebase_admin._apps:
+            cred_path = os.getenv("FIREBASE_CREDENTIALS_PATH")
+            if cred_path:
+                cred = credentials.Certificate(cred_path)
+                firebase_admin.initialize_app(cred)
+            else:
+                firebase_admin.initialize_app()
+
+        self.db = firestore_async.client()
+
+    async def get_schema(self, agent_id: str) -> Optional[str]:
+        try:
+            doc_ref = self.db.collection("schemas").document(agent_id)
+            doc = await doc_ref.get()
+            if doc.exists:
+                return doc.to_dict().get("schema_json")
+            return None
+        except Exception as e:
+            logger.error(f"Firebase get_schema error: {e}")
+            return None
+
+    async def update_schema(self, agent_id: str, schema_json: str) -> None:
+        try:
+            doc_ref = self.db.collection("schemas").document(agent_id)
+            await doc_ref.set({"schema_json": schema_json})
+        except Exception as e:
+            logger.error(f"Firebase update_schema error: {e}")
+            raise
+
+
 class RegistryFactory:
     """
     Factory to instantiate the appropriate Registry Store based on environment variables.
@@ -119,6 +247,15 @@ class RegistryFactory:
         elif provider == "REDIS":
             logger.info("Initializing Schema Registry: REDIS")
             return RedisRegistryStore()
+        elif provider == "SUPABASE":
+            logger.info("Initializing Schema Registry: SUPABASE")
+            return SupabaseRegistryStore()
+        elif provider == "MONGO":
+            logger.info("Initializing Schema Registry: MONGO")
+            return MongoRegistryStore()
+        elif provider == "FIREBASE":
+            logger.info("Initializing Schema Registry: FIREBASE")
+            return FirebaseRegistryStore()
         else:
             logger.warning(
                 f"Unknown registry provider {provider}, falling back to IN_MEMORY"
