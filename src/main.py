@@ -19,14 +19,11 @@ async def main():
     await sniffer.intercept(
         "Agent_Alpha", "Agent_Beta", '{"message": "Hello Beta", "status": "ok"}'
     )
-
-    await asyncio.sleep(0.5)
+    # Inject semantically invalid traffic (missing message)
     console.print(
-        "\n[dim cyan]Injecting semantically invalid traffic (missing status)...[/dim cyan]"
+        "\n[bold yellow]Injecting semantically invalid traffic (missing message)...[/bold yellow]"
     )
-    await sniffer.intercept(
-        "Agent_Gamma", "Agent_Delta", '{"message": "I am missing the status field"}'
-    )
+    await sniffer.intercept("Agent_Gamma", "Agent_Beta", '{"status": "offline"}')
 
     await asyncio.sleep(0.5)
     console.print("\n[dim cyan]Injecting malformed JSON...[/dim cyan]")

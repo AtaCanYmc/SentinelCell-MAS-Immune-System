@@ -17,14 +17,19 @@ class SentinelCell:
         self.validator = SemanticValidator(mcp_client=self.mcp_client)
         # Initialize SelfHealingEngine with a dummy key for testing
         self.healer = SelfHealingEngine(api_key="dummy_key_for_testing")
+        self.healer.mock_mode = True
 
     async def process(self, target: str, data: dict) -> bool:
         console.print(f"[info][SentinelCell][/info] Validating data for {target}...")
-        is_valid = await self.validator.validate_packet(target, data)
+        is_valid, schema, error_context = await self.validator.validate_and_get_schema(
+            target, data
+        )
         if not is_valid:
             console.print(
                 "[warning][SentinelCell][/warning] Breach detected! Triggering healing..."
             )
-            # We would invoke self.healer here in a real scenario
+            healed_data = await self.healer.heal_packet(schema, data, error_context)
+            if healed_data:
+                return True
             return False
         return True

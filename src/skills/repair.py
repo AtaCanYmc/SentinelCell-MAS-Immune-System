@@ -75,10 +75,36 @@ class SelfHealingEngine:
             )
 
         # Re-Validation using jsonschema
+        import datetime
+        import uuid
+
         try:
             jsonschema.validate(instance=healed_data, schema=schema_json)
+
+            decision_id = f"DECISION-HEAL-{str(uuid.uuid4())[:8].upper()}"
+            log_path = os.path.join(
+                os.getcwd(), ".antigravity", "logs", "agent_decisions.json"
+            )
+            try:
+                with open(log_path, "r") as f:
+                    logs = json.load(f)
+            except Exception:
+                logs = []
+
+            logs.append(
+                {
+                    "id": decision_id,
+                    "timestamp": datetime.datetime.now().isoformat() + "Z",
+                    "action": f"Healed malformed JSON payload for {title}",
+                    "reason": f"Validation Error: {error_context}",
+                }
+            )
+
+            with open(log_path, "w") as f:
+                json.dump(logs, f, indent=2)
+
             console.print(
-                "[bold green][+] Packet Healed Successfully! Semantic Integrity Restored.[/bold green]"
+                f"[bold green][+] Packet Healed Successfully! Logged as {decision_id}. Semantic Integrity Restored.[/bold green]"
             )
             return healed_data
         except jsonschema.ValidationError:
