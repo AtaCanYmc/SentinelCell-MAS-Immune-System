@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="assets/logo.svg" width="120" height="120" alt="SentinelCell Logo">
+  <img src="assets/SentinelCell-logo.png" width="300" alt="SentinelCell Logo">
   <h1>SentinelCell - MAS Immune System</h1>
 
   ![Version](https://img.shields.io/badge/version-0.1.0-blue)
@@ -46,6 +46,10 @@ The orchestration is powered by **LangGraph**, providing a resilient, model-agno
 
 ### Philosophy
 The "Vibe" of SentinelCell is robust resilience wrapped in a futuristic, "Hackerman" aesthetic. It turns silent pipeline failures into observable, self-correcting defense mechanisms.
+
+<div align="center">
+  <img src="assets/SentinelCell-defense.png" alt="SentinelCell Defense Mechanism">
+</div>
 
 ---
 
@@ -105,8 +109,13 @@ flowchart TD
 | **MCP Schema Registry** | Centralized, dynamic schema validation. | Model Context Protocol (MCP) |
 | **Hybrid Gateway** | SDK, FastAPI, Redis MQ, or Envoy proxy support. | Redis, FastAPI, Envoy |
 
-### 🔄 Model Agnostic Fallback (LLMFactory)
+### 🔄 Model Agnostic Fallback (LLMFactory) & Self Healing
 SentinelCell does not rely on a single point of failure. If OpenAI is down, it seamlessly falls back to Anthropic, Groq, or Local Ollama based on your environment configurations.
+
+<div align="center">
+  <img src="assets/SentinelCell-fix.png" alt="SentinelCell Self-Healing Repair">
+</div>
+
 *See details in [docs/langchain_models.md](docs/langchain_models.md).*
 
 ### 💾 Database Agnostic Memory (VectorDBFactory)
