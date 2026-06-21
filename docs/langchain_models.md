@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="../assets/langchain_logo.jpg" width="300" alt="LangChain Integration Logo">
+</p>
+
 # Supported LangChain Models
 
 ![LangChain](https://img.shields.io/badge/LangChain-1C3C3C?style=for-the-badge&logo=langchain&logoColor=white)

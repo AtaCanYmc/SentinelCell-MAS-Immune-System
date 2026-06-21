@@ -13,6 +13,8 @@
   ![OpenAI](https://img.shields.io/badge/Model-OpenAI-green)
   ![Anthropic](https://img.shields.io/badge/Model-Anthropic-blueviolet)
   ![Groq](https://img.shields.io/badge/Model-Groq-f55036)
+  ![DeepSeek](https://img.shields.io/badge/Model-DeepSeek-1C1C1C)
+  ![Gemini](https://img.shields.io/badge/Model-Gemini-8E75B2)
   ![Ollama](https://img.shields.io/badge/Model-Local_Ollama-lightgrey)
 </div>
 
