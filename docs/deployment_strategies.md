@@ -100,7 +100,7 @@ Content-Type: application/json
 
 ---
 
-## 3. Message Queue (Transparent Guardian)
+## 3. Asynchronous Mode (Message Queue Worker)
 **Best for:** Heavy distributed systems, high-throughput asynchronous events (RabbitMQ, Kafka, Redis PubSub).
 
 [![Throughput](https://img.shields.io/badge/Throughput-Massive-success)](#)
@@ -141,3 +141,37 @@ sequenceDiagram
   "data": {"status": "recovered", "message": "Sanitized by Sentinel Worker"}
 }
 ```
+
+---
+
+## 4. Transparent Proxy (Envoy/Iptables)
+**Best for:** Zero-code changes to Legacy Agents. Network traffic is hijacked at the OS or Docker level and forced through SentinelCell.
+
+[![Security](https://img.shields.io/badge/Security-Man_in_the_Middle-red)](#)
+[![Integration](https://img.shields.io/badge/Integration-Network_Layer-blue)](#)
+
+- **How:** Using an Envoy sidecar or OS-level `iptables`, all traffic intended for Agent_Beta is silently intercepted and routed to the SentinelCell gateway.
+- **Benefit:** The ultimate invisible firewall. Neither the sender nor the receiver knows they are being protected by SentinelCell.
+
+### Flow Architecture
+```mermaid
+graph LR
+    subgraph Network Layer
+        A[Agent_Alpha]
+        B[Agent_Beta]
+        S((SentinelCell Proxy))
+    end
+    A -- "Attempts HTTP to Agent_Beta" --> S
+    S -- "Intercepts (Iptables/Envoy)" --> S
+    S -- "Forwards Cleaned Data" --> B
+```
+
+### Example Input -> Output
+**Input (Iptables rule forces traffic to SentinelCell):**
+```bash
+iptables -t nat -A PREROUTING -p tcp --dport 8080 -j DNAT --to-destination <sentinel_ip>:8000
+```
+
+**Output (SentinelCell silently cleans and forwards):**
+- *Agent_Alpha* thinks it connected to `Agent_Beta:8080`.
+- *Agent_Beta* receives a perfectly formatted payload as if nothing happened.
