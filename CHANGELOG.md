@@ -6,6 +6,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to Semantic Versioning.
 
 ### [0.1.0] - 2026-06-21
+- [Fixed] {DECISION-011}: Created `requirements.txt` to resolve GitHub Actions `setup-python` cache missing file error.
 - [Added] {DECISION-010}: Created `.github/workflows/sentinel_ci.yml` implementing the GitHub Actions pipeline (Safety Scan, Unit Tests, Sandbox Integration, Docs Verification).
 - [Added] {DECISION-009}: Created `github_workflow.md` skill to define the CI/CD pipeline strategy and commit enforcement rules.
 - [Changed] {DECISION-008}: Moved `logs/` directory to `.antigravity/logs/` and updated policy files to enforce this. Removed the chevron icon from `assets/logo.svg`.
