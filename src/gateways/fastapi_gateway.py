@@ -5,12 +5,17 @@ from fastapi import FastAPI, Request, HTTPException, WebSocket, WebSocketDisconn
 from fastapi.responses import HTMLResponse
 import redis.asyncio as redis
 from src.agents.validator_agent import SentinelCell
+from prometheus_client import make_asgi_app
 
 app = FastAPI(
     title="SentinelCell Guardian Gateway",
     description="Transparent API Gateway and Live Dashboard for Multi-Agent Systems",
 )
 sentinel = SentinelCell()
+
+# Add Prometheus metrics route
+metrics_app = make_asgi_app()
+app.mount("/metrics", metrics_app)
 
 
 @app.get("/dashboard", response_class=HTMLResponse)

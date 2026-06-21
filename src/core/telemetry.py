@@ -1,5 +1,6 @@
 from pydantic import BaseModel, Field
 from typing import Dict, Any
+from prometheus_client import Counter, Histogram
 
 
 class OTelResource(BaseModel):
@@ -29,3 +30,30 @@ class OpenTelemetryLog(BaseModel):
     Attributes: Dict[str, Any] = Field(
         description="Additional log attributes specific to the event"
     )
+
+
+class SentinelMetrics:
+    """Prometheus metrics for SentinelCell"""
+
+    def __init__(self):
+        self.payload_intercepts = Counter(
+            "sentinelcell_intercepts_total",
+            "Total payloads intercepted by the Immune System",
+            ["source", "target", "status"],
+        )
+        self.healing_success = Counter(
+            "sentinelcell_healing_success_total", "Total payloads successfully healed"
+        )
+        self.healing_failure = Counter(
+            "sentinelcell_healing_failure_total",
+            "Total payloads quarantined after failed healing attempts",
+        )
+        self.latency = Histogram(
+            "sentinelcell_processing_latency_seconds",
+            "Latency of the payload processing pipeline",
+            buckets=(0.1, 0.5, 1.0, 2.5, 5.0, 10.0, float("inf")),
+        )
+
+
+# Global singleton
+metrics = SentinelMetrics()

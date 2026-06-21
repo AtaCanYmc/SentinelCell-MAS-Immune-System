@@ -73,6 +73,16 @@ class SentinelOrchestrator:
         """
         Intercepts communication between agents near-instantly and runs the StateGraph.
         """
+        import time
+        from src.core.telemetry import metrics
+
+        start_time = time.time()
+
+        # Log Intercept
+        metrics.payload_intercepts.labels(
+            source=agent_source, target=agent_target, status="received"
+        ).inc()
+
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]
 
         # Log Interception (Hackerman style)
@@ -112,7 +122,14 @@ class SentinelOrchestrator:
         # Invoke the LangGraph workflow
         final_state = await self.workflow.ainvoke(initial_state)
 
+        # Record latency
+        latency_seconds = time.time() - start_time
+        metrics.latency.observe(latency_seconds)
+
         if final_state.get("is_valid"):
+            if final_state.get("repair_attempts", 0) > 0:
+                metrics.healing_success.inc()
+
             if final_state.get("active_provider"):
                 console.print(
                     f"[info][*] Healed using active provider: {final_state['active_provider']}[/info]"
@@ -122,5 +139,10 @@ class SentinelOrchestrator:
             )
             return final_state["payload"]
         else:
+            if final_state.get("repair_attempts", 0) > 0:
+                metrics.healing_failure.inc()
+            metrics.payload_intercepts.labels(
+                source=agent_source, target=agent_target, status="dropped"
+            ).inc()
             console.print("[danger][!] PACKET REJECTED -> Dropped.[/danger]")
             return None
