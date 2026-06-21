@@ -45,7 +45,7 @@ jobs:
         run: |
           echo "Deploying to Antigravity Sandbox (Verification)..."
           # Verify that core modules can be imported and executed without side-effects
-          python -c "from src.skills.repair import SelfHealingEngine; engine = SelfHealingEngine(api_key='mock'); engine.mock_mode = True; print('Sandbox execution successful.')"
+          python -c "from src.skills.repair import SelfHealingEngine; engine = SelfHealingEngine(); print('Sandbox execution successful.')"
 
       - name: Phase 4 - Docs Verification
         run: |
