@@ -36,7 +36,7 @@ class LLMFactory:
         elif provider == "GROQ":
             return ChatGroq(
                 api_key=SecretStr(os.getenv("GROQ_API_KEY", "dummy_groq_key")),
-                model_name=os.getenv("GROQ_MODEL", "llama3-70b-8192"),
+                model=os.getenv("GROQ_MODEL", "llama3-70b-8192"),
                 temperature=0,
             )
         else:
