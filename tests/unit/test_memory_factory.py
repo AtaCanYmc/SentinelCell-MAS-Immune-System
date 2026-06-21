@@ -37,6 +37,7 @@ def test_memory_providers_init(
     mock_find_spec.return_value = True
     monkeypatch.setenv("CHROMA_DB_DIR", "./fake_chroma")
     monkeypatch.setenv("MEMORY_POSTGRES_URI", "postgresql://fake")
+    monkeypatch.setenv("POSTGRES_URI", "postgresql://fake")
     monkeypatch.setenv("OPENAI_API_KEY", "fake")
     monkeypatch.setenv("PINECONE_API_KEY", "fake")
 
