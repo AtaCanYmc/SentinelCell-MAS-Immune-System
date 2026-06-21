@@ -8,7 +8,7 @@ from src.skills.repair import SelfHealingEngine
 async def test_healer_repair_node_success(mock_factory):
     mock_llm = MagicMock()
     mock_response = MagicMock()
-    mock_response.content = '{"status": "ok", "message": "healed"}'
+    mock_response.content = '```json\n{"status": "ok", "message": "healed"}\n```'
 
     async def mock_ainvoke(*args, **kwargs):
         return mock_response
@@ -19,7 +19,11 @@ async def test_healer_repair_node_success(mock_factory):
     engine = SelfHealingEngine()
     engine.providers = ["OPENAI", "LOCAL_OLLAMA", "ANTHROPIC"]
 
-    # Need to patch _log_decision so we don't write to real files in tests
+    # Mock collection to test ChromaDB retrieval and saving
+    mock_collection = MagicMock()
+    mock_collection.query.return_value = {"documents": [["past memory"]]}
+    engine.collection = mock_collection
+
     with patch.object(engine, "_log_decision") as mock_log:
         state = {
             "repair_attempts": 0,
@@ -34,6 +38,8 @@ async def test_healer_repair_node_success(mock_factory):
         assert result["active_provider"] == "OPENAI"
         assert result["repair_attempts"] == 1
         mock_log.assert_called_once()
+        mock_collection.query.assert_called_once()
+        mock_collection.add.assert_called_once()
 
 
 @pytest.mark.asyncio
@@ -59,7 +65,6 @@ async def test_healer_repair_node_failure(mock_factory):
 
     result = await engine.repair_node(state)
 
-    # Fallback uses attempts % len(providers) -> 1 % 3 -> index 1 -> LOCAL_OLLAMA
     assert "payload" not in result
     assert result["active_provider"] == "LOCAL_OLLAMA"
     assert result["repair_attempts"] == 2
