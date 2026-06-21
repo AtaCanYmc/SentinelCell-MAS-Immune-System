@@ -4,6 +4,15 @@
   # SentinelCell: Database Agnostic Memory
 </div>
 
+<div align="center">
+
+![Python](https://img.shields.io/badge/Python-3776AB?style=for-the-badge&logo=python&logoColor=white)
+![PostgreSQL](https://img.shields.io/badge/PostgreSQL-316192?style=for-the-badge&logo=postgresql&logoColor=white)
+![Pinecone](https://img.shields.io/badge/Pinecone-000000?style=for-the-badge&logo=pinecone&logoColor=white)
+![ChromaDB](https://img.shields.io/badge/Chroma_DB-FF8000?style=for-the-badge)
+
+</div>
+
 SentinelCell uses an **Adaptive RAG** (Retrieval-Augmented Generation) mechanism to store and recall past LLM repair operations. To maximize enterprise readiness, SentinelCell is strictly **Database Agnostic**. It utilizes a Factory Pattern (`MemoryFactory`) allowing developers to swap Vector Databases without changing core agent logic.
 
 ## Supported Providers
@@ -13,9 +22,9 @@ You can switch the active provider by setting the `VECTOR_DB_PROVIDER` environme
 | Provider | Configuration Key | Description |
 | :--- | :--- | :--- |
 | **ChromaDB** | `CHROMADB` | (Default) Local persistent vector database stored in `./chroma_db`. Perfect for local deployments and testing. |
-| **In-Memory** | `IN_MEMORY` | A lightweight Python dictionary mock. Useful for environments where dependencies cannot be installed or for CI/CD pipelines. |
 | **PGVector** | `PGVECTOR` | Postgres integration via `pgvector` and `psycopg2`. Uses OpenAI Embeddings. Requires Postgres DB. |
 | **Pinecone** | `PINECONE` | Cloud-native vector search. Uses OpenAI Embeddings and requires `pinecone-client`. |
+| **In-Memory** | `IN_MEMORY` | A lightweight Python dictionary mock. Useful for environments where dependencies cannot be installed or for CI/CD pipelines. |
 
 ## How to Configure
 
@@ -37,7 +46,8 @@ docker compose -f docker-compose.postgres.yml up -d
 VECTOR_DB_PROVIDER=PGVECTOR
 POSTGRES_URI=postgresql://sentinel:sentinelpass@localhost:5432/sentinel_db
 ```
-*(Note: PGVector mode requires `OPENAI_API_KEY` to be set in your `.env` as it uses OpenAI to generate embeddings).*
+> [!NOTE]
+> PGVector mode requires `OPENAI_API_KEY` to be set in your `.env` as it uses OpenAI to generate embeddings.
 
 ### 3. Pinecone (Cloud)
 If you prefer a fully managed cloud vector database:
@@ -48,7 +58,8 @@ VECTOR_DB_PROVIDER=PINECONE
 PINECONE_API_KEY=your-pinecone-api-key
 PINECONE_INDEX_NAME=sentinel-healing-memory
 ```
-*(Note: Pinecone mode also requires `OPENAI_API_KEY` to generate embeddings).*
+> [!NOTE]
+> Pinecone mode also requires `OPENAI_API_KEY` to generate embeddings.
 
 ## Adding a Custom Vector Database
 
