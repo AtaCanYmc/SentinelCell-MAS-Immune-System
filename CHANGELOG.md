@@ -6,6 +6,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to Semantic Versioning.
 
 ### [0.1.0] - 2026-06-21
+- [Added] {DECISION-014}: Added `.env.example` as a template for required environment variables and created a local `.env` file (ignored by git).
 - [Added] {DECISION-013}: Created `.antigravity/auto_branching_policy.md` to prevent direct commits to `main` and enforce conventional branching (`feature/`, `bugfix/`, `docs/`, `chore/`).
 - [Added] {DECISION-012}: Initialized `pyproject.toml` to serve as the standard Python project configuration, detailing metadata, main dependencies, and pytest options.
 - [Fixed] {DECISION-011}: Created `requirements.txt` to resolve GitHub Actions `setup-python` cache missing file error.
