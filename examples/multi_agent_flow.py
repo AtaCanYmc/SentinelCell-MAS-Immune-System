@@ -1,16 +1,17 @@
 import asyncio
+import json
 from rich.console import Console
-from src.core.orchestrator import SentinelOrchestrator
+from src.agents.validator_agent import SentinelCell
 
 console = Console()
 
 
 class ProducerAgent:
     def emit_data(self):
-        # Emitting malformed data intentionally (missing timestamp)
-        payload = {"data_value": 42, "user": "admin"}
+        # Emitting malformed data intentionally (missing message)
+        payload = {"status": "offline"}
         console.print(f"[magenta][Producer] Emitting Data: {payload}[/magenta]")
-        return payload
+        return json.dumps(payload)
 
 
 class ConsumerAgent:
@@ -31,35 +32,19 @@ async def main():
 
     # 2. SentinelCell Intercepts (Middleware)
     console.print("[yellow][SentinelCell] Intercepting traffic...[/yellow]")
-    orchestrator = SentinelOrchestrator()
-    graph = orchestrator.compile()
+    sentinel = SentinelCell()
 
-    # The Consumer strictly expects a 'timestamp' string alongside 'data_value'
-    strict_schema = {
-        "type": "object",
-        "properties": {
-            "data_value": {"type": "integer"},
-            "timestamp": {"type": "string"},
-        },
-        "required": ["data_value", "timestamp"],
-    }
-
-    state = {
-        "payload": raw_data,
-        "schema_dict": strict_schema,
-        "repair_attempts": 0,
-        "error_context": "",
-        "active_provider": "",
-    }
-
-    result = await graph.ainvoke(state)
+    # The Consumer (Agent_Beta) strictly expects a 'message' string alongside 'status'
+    result = await sentinel.intercept(
+        source="Producer", target="Agent_Beta", payload=raw_data
+    )
 
     # 3. Consumer receives data ONLY if valid/healed
-    if "payload" in result and result.get("error_context") == "":
+    if result:
         console.print(
             "[bold cyan][SentinelCell] Traffic cleared. Forwarding to Consumer...[/bold cyan]"
         )
-        consumer.process_data(result["payload"])
+        consumer.process_data(result)
     else:
         console.print(
             "[bold red][SentinelCell] Traffic blocked. Consumer protected from bad data.[/bold red]"
