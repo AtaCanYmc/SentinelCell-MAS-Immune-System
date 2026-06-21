@@ -7,6 +7,7 @@ try:
 
     CHROMA_AVAILABLE = True
 except ImportError:
+    chromadb = None
     CHROMA_AVAILABLE = False
 
 
