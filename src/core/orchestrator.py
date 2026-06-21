@@ -1,6 +1,6 @@
 import json
 from datetime import datetime
-from typing import TypedDict
+from typing_extensions import TypedDict
 from langgraph.graph import StateGraph, END
 from rich.console import Console
 from rich.panel import Panel
