@@ -103,7 +103,10 @@ class SelfHealingEngine:
         try:
             with open(log_path, "r") as f:
                 logs = json.load(f)
-        except Exception:
+        except Exception as e:
+            console.print(
+                f"[yellow][!] Could not read existing decision logs: {e}[/yellow]"
+            )
             logs = []
 
         logs.append(
