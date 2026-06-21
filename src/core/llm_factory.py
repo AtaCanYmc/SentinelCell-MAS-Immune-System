@@ -27,9 +27,10 @@ class LLMFactory:
                 api_key=SecretStr(
                     os.getenv("ANTHROPIC_API_KEY", "dummy_anthropic_key")
                 ),
-                model=os.getenv("ANTHROPIC_MODEL", "claude-3-haiku-20240307"),
+                model_name=os.getenv("ANTHROPIC_MODEL", "claude-3-haiku-20240307"),
                 temperature=0,
                 timeout=None,
+                stop=None,
             )
         elif provider == "LOCAL_OLLAMA":
             return ChatOllama(model=os.getenv("OLLAMA_MODEL", "llama3"), temperature=0)
