@@ -24,6 +24,7 @@ Every README must contain:
 - **References:** Include links to relevant research papers, articles, or documentation.
 - **Appendix:** Include any additional information, diagrams, or resources that may be helpful for understanding the agent's functionality.
 - **Security Disclaimer:** If the agent interacts with external APIs, include a disclaimer about potential risks.
+- **Example Env Variables:** If applicable, provide example environment variable configurations (without sensitive information) to guide users in setting up their own `.env` files.
 
 ## 2. Style Guidelines
 

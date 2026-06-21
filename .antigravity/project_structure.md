@@ -11,7 +11,6 @@ SentinelCell is a middleware "Immune System" for Multi-Agent Systems (MAS). This
 │   ├── skills/             # Agentic capabilities (healing, traffic control)
 │   └── project_structure.md# This file
 ├── logs/                   # System runtime & audit logs (JSON/Loguru)
-├── registry/               # MCP Server & Schema definitions (Pydantic)
 ├── src/                    # SentinelCell core implementation
 │   ├── __init__.py
 │   ├── main.py                 # The Orchestrator (Entry point for the Multi-Agent System)
@@ -22,7 +21,7 @@ SentinelCell is a middleware "Immune System" for Multi-Agent Systems (MAS). This
 │   │   ├── producer.py         # Producer agent (Data Source)
 │   │   ├── consumer.py         # Consumer agent (Data Receiver)
 │   │   └── validator_agent.py  # The SentinelCell (The "Immune System" agent)
-│   ├── mcp/
+│   ├── mcp_integration/
 │   │   ├── registry.py         # MCP server managing schema definitions
 │   │   └── client.py           # Client implementation for inter-agent communication
 │   ├── antigravity/
@@ -37,4 +36,3 @@ SentinelCell is a middleware "Immune System" for Multi-Agent Systems (MAS). This
 ├── tests/                  # Integrity test suites
 ├── .env                    # Environment variables (GIT IGNORED)
 ├── README.md               # Kaggle competition documentation
-└── main.py                 # Entry point for the Immune System
