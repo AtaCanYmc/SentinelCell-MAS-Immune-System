@@ -12,7 +12,10 @@ async def test_mcp_integration_flow():
         current_dir, "..", "..", "src", "mcp_integration", "registry.py"
     )
 
-    client = SchemaRegistryClient(server_script_path=server_script)
+    # Force the spawned MCP server to use IN_MEMORY registry to prevent connection refused
+    env = {"SCHEMA_REGISTRY_PROVIDER": "IN_MEMORY"}
+
+    client = SchemaRegistryClient(server_script_path=server_script, env_override=env)
     validator = SemanticValidator(mcp_client=client)
 
     # Valid payload

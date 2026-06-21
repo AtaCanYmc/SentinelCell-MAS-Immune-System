@@ -13,12 +13,15 @@ class SchemaRegistryClient:
     Client to fetch agent schemas from the local MCP SchemaRegistry Server via stdio.
     """
 
-    def __init__(self, server_script_path: str):
+    def __init__(self, server_script_path: str, env_override: dict = None):
         env = os.environ.copy()
         project_root = os.path.dirname(
             os.path.dirname(os.path.abspath(server_script_path))
         )
         env["PYTHONPATH"] = project_root
+
+        if env_override:
+            env.update(env_override)
 
         self.server_parameters = StdioServerParameters(
             command=sys.executable, args=["-m", "src.mcp_integration.registry"], env=env
