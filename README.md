@@ -45,19 +45,44 @@ The "Vibe" of SentinelCell is robust resilience wrapped in a futuristic, "Hacker
 ## 3. Architecture (Agentic Architecture)
 
 ```mermaid
-stateDiagram-v2
-    [*] --> validate_node: Payload Intercepted
-    validate_node --> decider_node: Validation Result
+flowchart TD
+    subgraph External[MAS Ecosystem]
+        Producer[Producer Agent]
+        Consumer[Consumer Agent]
+    end
 
-    decider_node --> [*]: Valid / Max Retries Reached
-    decider_node --> repair_node: Invalid
+    subgraph Middleware[SentinelCell - Immune System]
+        Intercept[Traffic Interceptor]
 
-    repair_node --> validate_node: Healed Payload
+        subgraph Orchestrator[LangGraph Orchestrator]
+            direction TB
+            Validate[Validation Node]
+            Decide{Is Valid?}
+            Repair[Repair Node]
 
-    note right of repair_node
-        LLMFactory Fallback Logic
-        Driven by ENV PROVIDER_ORDER
-    end note
+            Validate --> Decide
+            Decide -- Yes --> Log[Log to VectorDB]
+            Decide -- No --> Repair
+            Repair -- Attempt Heal --> Validate
+            Decide -- Max Retries --> Quarantine[Quarantine Payload]
+        end
+
+        subgraph Factories[Agnostic Infrastructure]
+            Registry[(Schema Registry\nRedis, Postgres, Firebase...)]
+            Memory[(Memory Store\nChroma, PGVector, Pinecone)]
+            LLM[[LLM Factory\nOpenAI, Anthropic, Groq, Ollama]]
+        end
+    end
+
+    Producer -- Malformed/Valid Payload --> Intercept
+    Intercept --> Validate
+
+    Validate -. 1. Fetch Schema .-> Registry
+    Repair -. 2. Fallback Generation .-> LLM
+    Log -. 3. Store Anomalies .-> Memory
+
+    Log -- 4a. Forward Clean Payload --> Consumer
+    Quarantine -- 4b. Alert / Drop Payload --> Consumer
 ```
 
 ---
