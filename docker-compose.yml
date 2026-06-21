@@ -1,0 +1,44 @@
+version: '3.8'
+
+services:
+  sentinelcell:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: sentinelcell_agent
+
+    # 1. Resource Constraints
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
+
+    # 2. Network Security & 3. Environment Isolation
+    # Drops all root capabilities to ensure it can't elevate privileges
+    cap_drop:
+      - ALL
+
+    # Read-only root filesystem prevents the agent from modifying the container state
+    read_only: true
+
+    # Map external .env file so secrets are NOT hardcoded in the image
+    env_file:
+      - .env
+
+    # Map only the allowed writable directories
+    volumes:
+      # Persistent logs directory on host
+      - ./logs:/logs
+
+    # Ephemeral temp directory mapping (in memory, destroyed after container stops)
+    tmpfs:
+      - /temp
+
+    # Optional: If you want strict network isolation, uncomment below.
+    # networks:
+    #   - sentinel_net
+
+# networks:
+#   sentinel_net:
+#     internal: false # Set to true to disable internet access entirely

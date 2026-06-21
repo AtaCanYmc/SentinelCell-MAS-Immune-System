@@ -2,5 +2,6 @@
 .venv/
 .env
 .antigravity/logs/
+logs/
 __pycache__/
 *.pyc
