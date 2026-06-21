@@ -124,12 +124,18 @@ class SelfHealingEngine:
             new_memory_id = None
             if self.memory:
                 try:
+                    import time
+
                     doc_id = f"mem-{uuid.uuid4()}"
                     memory_doc = f"Error: {error_context} | Malformed: {json.dumps(malformed_data)} | Fixed: {json.dumps(healed_data)}"
                     self.memory.add_memory(
                         doc_id=doc_id,
                         memory_doc=memory_doc,
-                        metadata={"schema": title, "provider": provider},
+                        metadata={
+                            "schema": title,
+                            "provider": provider,
+                            "timestamp": time.time(),
+                        },
                     )
                     new_memory_id = doc_id
                     console.print(

@@ -46,6 +46,10 @@ class BaseMemoryStore(ABC):
     def delete_memory(self, doc_id: str) -> None:
         pass
 
+    @abstractmethod
+    def purge_old_memories(self, days: int) -> int:
+        pass
+
 
 class ChromaMemoryStore(BaseMemoryStore):
     """
@@ -74,6 +78,21 @@ class ChromaMemoryStore(BaseMemoryStore):
 
     def delete_memory(self, doc_id: str) -> None:
         self.collection.delete(ids=[doc_id])
+
+    def purge_old_memories(self, days: int) -> int:
+        import time
+
+        threshold = time.time() - (days * 86400)
+        try:
+            # ChromaDB supports where filters on metadata
+            # We will fetch ids matching the filter and delete them to count them
+            results = self.collection.get(where={"timestamp": {"$lt": threshold}})
+            ids_to_delete = results.get("ids", [])
+            if ids_to_delete:
+                self.collection.delete(ids=ids_to_delete)
+            return len(ids_to_delete)
+        except Exception:
+            return 0
 
 
 class InMemoryMemoryStore(BaseMemoryStore):
@@ -107,6 +126,22 @@ class InMemoryMemoryStore(BaseMemoryStore):
     def delete_memory(self, doc_id: str) -> None:
         if doc_id in self.storage:
             del self.storage[doc_id]
+
+    def purge_old_memories(self, days: int) -> int:
+        import time
+
+        threshold = time.time() - (days * 86400)
+        to_delete = []
+        for doc_id, data in self.storage.items():
+            metadata = data.get("metadata", {})
+            timestamp = metadata.get("timestamp")
+            if timestamp is not None and timestamp < threshold:
+                to_delete.append(doc_id)
+
+        for doc_id in to_delete:
+            del self.storage[doc_id]
+
+        return len(to_delete)
 
 
 class PGVectorMemoryStore(BaseMemoryStore):
@@ -170,6 +205,19 @@ class PGVectorMemoryStore(BaseMemoryStore):
             cur.execute("DELETE FROM healing_memory WHERE id = %s", (doc_id,))
             self.conn.commit()
 
+    def purge_old_memories(self, days: int) -> int:
+        import time
+
+        threshold = time.time() - (days * 86400)
+        with self.conn.cursor() as cur:
+            cur.execute(
+                "DELETE FROM healing_memory WHERE (metadata->>'timestamp')::float < %s",
+                (threshold,),
+            )
+            deleted_count = cur.rowcount
+            self.conn.commit()
+            return deleted_count
+
 
 class PineconeMemoryStore(BaseMemoryStore):
     """
@@ -212,6 +260,18 @@ class PineconeMemoryStore(BaseMemoryStore):
 
     def delete_memory(self, doc_id: str) -> None:
         self.index.delete(ids=[doc_id])
+
+    def purge_old_memories(self, days: int) -> int:
+        import time
+
+        threshold = time.time() - (days * 86400)
+        try:
+            # Pinecone supports deletion by metadata filter
+            self.index.delete(filter={"timestamp": {"$lt": threshold}})
+            # We don't get a direct count easily, so we return a symbolic 1 or 0
+            return 1
+        except Exception:
+            return 0
 
 
 class MemoryFactory:

@@ -85,3 +85,23 @@ async def intercept_traffic(source: str, target: str, request: Request):
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.delete("/memory/purge")
+async def purge_memory(days: int = 30):
+    """
+    Purges old hallucination corrections from the VectorDB
+    to prevent memory bloat and maintain optimal RAG performance.
+    """
+    try:
+        from src.core.memory_factory import MemoryFactory
+
+        memory_store = MemoryFactory.get_memory_store()
+        deleted_count = memory_store.purge_old_memories(days=days)
+        return {
+            "status": "success",
+            "message": f"Purged memories older than {days} days.",
+            "deleted_count": deleted_count,
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
