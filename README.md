@@ -5,16 +5,16 @@
 ![Python](https://img.shields.io/badge/python-3.11+-blue)
 ![Kaggle Capstone](https://img.shields.io/badge/Kaggle-AI_Agents_Capstone-orange)
 
-## 1. Giriş (Problem Statement)
+## 1. Introduction (Problem Statement)
 Multi-Agent Systems (MAS) rely on fragile, hardcoded communication contracts. When an agent hallucinates or updates its output format, the entire pipeline crashes. There is no centralized authority or "Immune System" to gracefully intercept, detect, and automatically heal semantic breaches before they corrupt downstream consumers.
 
-## 2. Çözüm (Our Proposal)
+## 2. Solution (Our Proposal)
 **SentinelCell** is an intelligent middleware—an "Immune System"—for MAS. It intercepts inter-agent traffic in real-time without introducing latency, validates the data against a centralized SchemaRegistry (powered by MCP), and automatically repairs any malformed JSON payloads using LLM inference (Self-Healing).
 
 ### Philosophy
 The "Vibe" of SentinelCell is robust resilience wrapped in a futuristic, "Hackerman" aesthetic. It turns silent pipeline failures into observable, self-correcting defense mechanisms.
 
-## 3. Mimari (Agentic Architecture)
+## 3. Architecture (Agentic Architecture)
 
 ```mermaid
 graph TD

@@ -11,6 +11,7 @@ Every README must contain:
 - **Skill Documentation:** Reference the corresponding `SKILL.md` file.
 
 ## 2. Style Guidelines
+- **Language:** Use only English for all documentation to maintain global accessibility.
 - **Conciseness:** Keep technical descriptions under 300 words.
 - **Code-First:** Use code blocks for every configuration example.
 - **Safety First:** Always include a "Security Disclaimer" if the agent interacts with external APIs.
@@ -24,3 +25,9 @@ Every README must contain:
 
 ## 4. Maintenance Rule
 If a new skill is added, the agent MUST trigger a README update via the `auto-commit` workflow.
+
+### 5. Language & Tone
+- Use a professional yet approachable tone.
+- Avoid jargon unless it is defined in the documentation.
+- Use active voice and imperative mood for instructions.
+- Use only English for all documentation to maintain global accessibility.
