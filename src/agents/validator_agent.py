@@ -4,6 +4,7 @@ from src.skills.repair import SelfHealingEngine
 from src.core.logger import get_console
 from src.mcp_integration.client import SchemaRegistryClient
 from src.core.orchestrator import SentinelOrchestrator
+from src.core.broadcaster import broadcaster
 
 console = get_console()
 
@@ -26,4 +27,7 @@ class SentinelCell:
         """
         Entry point for intercepting and routing traffic through the MAS Immune System.
         """
+        await broadcaster.broadcast(
+            "INTERCEPT", f"Source: {source} -> Target: {target}"
+        )
         return await self.orchestrator.intercept(source, target, payload)

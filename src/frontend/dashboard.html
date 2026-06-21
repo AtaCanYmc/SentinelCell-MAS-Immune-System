@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SentinelCell Live Dashboard</title>
+    <style>
+        body {
+            background-color: #0D1117;
+            color: #00FF00;
+            font-family: 'Courier New', Courier, monospace;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+        }
+        h1 {
+            color: #58A6FF;
+            text-align: center;
+            border-bottom: 1px solid #30363D;
+            padding-bottom: 10px;
+        }
+        #terminal {
+            flex-grow: 1;
+            background-color: #010409;
+            border: 1px solid #30363D;
+            border-radius: 5px;
+            padding: 15px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+            box-shadow: 0 0 10px rgba(0, 255, 0, 0.2);
+            font-size: 14px;
+        }
+        .log-entry { margin-bottom: 10px; }
+        .log-time { color: #8B949E; margin-right: 10px; }
+        .type-INTERCEPT { color: #58A6FF; }
+        .type-HEAL_START { color: #D2A8FF; }
+        .type-HEAL_SUCCESS { color: #3FB950; font-weight: bold; }
+        .type-HEAL_FAIL { color: #F85149; font-weight: bold; }
+        .pulse { animation: pulse 2s infinite; }
+        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
+    </style>
+</head>
+<body>
+    <h1>🛡️ SentinelCell <span class="pulse">Live</span> Immune System</h1>
+    <div id="terminal"></div>
+
+    <script>
+        const terminal = document.getElementById('terminal');
+        const ws = new WebSocket(`ws://${window.location.host}/ws/logs`);
+
+        ws.onopen = function() {
+            appendLog('SYSTEM', 'Connected to SentinelCell Live Feed...', '#FFF');
+        };
+
+        ws.onmessage = function(event) {
+            try {
+                const data = JSON.parse(event.data);
+                const time = new Date().toLocaleTimeString();
+
+                const entry = document.createElement('div');
+                entry.className = 'log-entry';
+
+                const timeSpan = `<span class="log-time">[${time}]</span>`;
+                const typeSpan = `<span class="type-${data.type}">[${data.type}]</span>`;
+
+                entry.innerHTML = `${timeSpan} ${typeSpan} ${data.content}`;
+                terminal.appendChild(entry);
+
+                // Auto-scroll
+                terminal.scrollTop = terminal.scrollHeight;
+            } catch(e) {
+                appendLog('RAW', event.data, '#888');
+            }
+        };
+
+        ws.onclose = function() {
+            appendLog('SYSTEM', 'Connection lost. Waiting for SentinelCell...', '#F85149');
+        };
+
+        function appendLog(type, content, color) {
+            const time = new Date().toLocaleTimeString();
+            const entry = document.createElement('div');
+            entry.className = 'log-entry';
+            entry.innerHTML = `<span class="log-time">[${time}]</span> <span style="color:${color}">[${type}]</span> ${content}`;
+            terminal.appendChild(entry);
+            terminal.scrollTop = terminal.scrollHeight;
+        }
+    </script>
+</body>
+</html>

@@ -5,6 +5,7 @@ from rich.console import Console
 from rich.panel import Panel
 from dotenv import load_dotenv
 from src.core.llm_factory import LLMFactory
+from src.core.broadcaster import broadcaster
 
 try:
     import chromadb
@@ -63,6 +64,10 @@ class SelfHealingEngine:
                 title=f"[~] Healing Protocol Initiated (Attempt {attempts + 1})",
                 border_style="yellow",
             )
+        )
+        await broadcaster.broadcast(
+            "HEAL_START",
+            f"Attempt {attempts + 1} | Provider: {provider} | Error: {error_context}",
         )
 
         # RAG / Adaptive Learning: Query VectorDB for past experiences
@@ -136,6 +141,10 @@ class SelfHealingEngine:
             console.print(
                 f"[bold green][+] Packet Healed Successfully by {provider}![/bold green]"
             )
+            await broadcaster.broadcast(
+                "HEAL_SUCCESS",
+                f"Fixed payload using {provider}: {json.dumps(healed_data)}",
+            )
 
             return {
                 "payload": healed_data,
@@ -147,6 +156,7 @@ class SelfHealingEngine:
             console.print(
                 f"[bold red][!] Healing Failed with {provider}. Error: {e}[/bold red]"
             )
+            await broadcaster.broadcast("HEAL_FAIL", f"Provider {provider} failed: {e}")
             return {"active_provider": provider, "repair_attempts": attempts + 1}
 
     @staticmethod
