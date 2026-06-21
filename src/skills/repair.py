@@ -6,13 +6,7 @@ from rich.panel import Panel
 from dotenv import load_dotenv
 from src.core.llm_factory import LLMFactory
 from src.core.broadcaster import broadcaster
-
-try:
-    import chromadb
-
-    CHROMA_AVAILABLE = True
-except ImportError:
-    CHROMA_AVAILABLE = False
+from src.core.memory_factory import MemoryFactory
 
 load_dotenv()
 console = Console()
@@ -33,21 +27,15 @@ class SelfHealingEngine:
         else:
             self.providers = ["OPENAI", "LOCAL_OLLAMA", "ANTHROPIC", "GROQ"]
 
-        self.chroma_client = None
-        self.collection = None
+        self.memory = None
 
-        if CHROMA_AVAILABLE:
-            try:
-                db_path = os.path.join(os.getcwd(), "chroma_db")
-                self.chroma_client = chromadb.PersistentClient(path=db_path)
-                self.collection = self.chroma_client.get_or_create_collection(
-                    name="healing_memory"
-                )
-                console.print(
-                    "[dim green][+] Adaptive Learning (ChromaDB) Initialized[/dim green]"
-                )
-            except Exception as e:
-                console.print(f"[dim yellow][!] ChromaDB Init Failed: {e}[/dim yellow]")
+        try:
+            self.memory = MemoryFactory.get_memory_store()
+            console.print(
+                f"[dim green][+] Adaptive Learning ({self.memory.__class__.__name__}) Initialized[/dim green]"
+            )
+        except Exception as e:
+            console.print(f"[dim yellow][!] Memory Init Failed: {e}[/dim yellow]")
 
     async def repair_node(self, state: dict) -> dict:
         attempts = state.get("repair_attempts", 0)
@@ -60,11 +48,11 @@ class SelfHealingEngine:
 
         # --- ADAPTIVE UNLEARNING ---
         # If we are here and have a last_memory_id, it means the previous fix failed the validator!
-        # We must "Unlearn" the hallucination from ChromaDB.
+        # We must "Unlearn" the hallucination from VectorDB.
         last_memory_id = state.get("last_memory_id")
-        if last_memory_id and self.collection:
+        if last_memory_id and self.memory:
             try:
-                self.collection.delete(ids=[last_memory_id])
+                self.memory.delete_memory(last_memory_id)
                 console.print(
                     f"[bold red][!] UNLEARNING: Hallucinated repair {last_memory_id} deleted from VectorDB[/bold red]"
                 )
@@ -85,14 +73,13 @@ class SelfHealingEngine:
 
         # RAG / Adaptive Learning: Query VectorDB for past experiences
         past_experience = ""
-        if self.collection:
+        if self.memory:
             try:
                 query_str = f"Error: {error_context} Schema: {title}"
-                results = self.collection.query(query_texts=[query_str], n_results=1)
-                if results["documents"] and results["documents"][0]:
-                    best_match = results["documents"][0][0]
+                best_match = self.memory.query_memory(query_str)
+                if best_match:
                     # Inject into prompt
-                    past_experience = f"\nPast Experience Found in ChromaDB:\n{best_match}\nUse this as a reference to fix the payload faster and avoid hallucination."
+                    past_experience = f"\nPast Experience Found in VectorDB:\n{best_match}\nUse this as a reference to fix the payload faster and avoid hallucination."
                     console.print(
                         "[cyan][*] Past Experience Retrieved from VectorDB[/cyan]"
                     )
@@ -135,14 +122,14 @@ class SelfHealingEngine:
             self._log_decision(title, error_context, provider)
 
             new_memory_id = None
-            if self.collection:
+            if self.memory:
                 try:
                     doc_id = f"mem-{uuid.uuid4()}"
                     memory_doc = f"Error: {error_context} | Malformed: {json.dumps(malformed_data)} | Fixed: {json.dumps(healed_data)}"
-                    self.collection.add(
-                        documents=[memory_doc],
-                        metadatas=[{"schema": title, "provider": provider}],
-                        ids=[doc_id],
+                    self.memory.add_memory(
+                        doc_id=doc_id,
+                        memory_doc=memory_doc,
+                        metadata={"schema": title, "provider": provider},
                     )
                     new_memory_id = doc_id
                     console.print(

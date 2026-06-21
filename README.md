@@ -153,7 +153,8 @@ Explore our detailed documentation for a deeper dive:
 - **[Examples & Simulations](file:///Users/atacan/ata-codes/SentinelCell-MAS-Immune-System/examples/README.md):** Interactive workflows and demos.
 - **[Deployment Strategies](file:///Users/atacan/ata-codes/SentinelCell-MAS-Immune-System/docs/deployment_strategies.md):** Standalone, Proxy, and Async designs.
 - **[Docker Setup](file:///Users/atacan/ata-codes/SentinelCell-MAS-Immune-System/docs/docker_setup.md):** Network topologies and compose guides.
-- **[Testing & Coverage Guide](file:///Users/atacan/ata-codes/SentinelCell-MAS-Immune-System/docs/testing_guide.md):** CI/CD Enforcement and Coverage details.
+- **[Testing & Coverage Guide](file:///Users/atacan/ata-codes/SentinelCell-MAS-Immune-System/docs/testing_guide.md):** Information on unit tests and CI/CD pipelines.
+- **[Vector Database Setup](file:///Users/atacan/ata-codes/SentinelCell-MAS-Immune-System/docs/vector_databases.md):** Information on our Agnostic VectorDB connections.
 - **[Supported LangChain Models](docs/langchain_models.md)**: Multi-provider fallback orchestration details.
 - **[Architecture Decision Records (ADR)](ADR/)**: Deep dive into the Engineering Decisions and Rationale.
 

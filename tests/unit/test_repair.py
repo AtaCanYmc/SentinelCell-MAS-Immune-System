@@ -19,10 +19,10 @@ async def test_healer_repair_node_success(mock_factory):
     engine = SelfHealingEngine()
     engine.providers = ["OPENAI", "LOCAL_OLLAMA", "ANTHROPIC"]
 
-    # Mock collection to test ChromaDB retrieval and saving
-    mock_collection = MagicMock()
-    mock_collection.query.return_value = {"documents": [["past memory"]]}
-    engine.collection = mock_collection
+    # Mock memory store
+    mock_memory = MagicMock()
+    mock_memory.query_memory.return_value = "past memory"
+    engine.memory = mock_memory
 
     with patch.object(engine, "_log_decision") as mock_log:
         state = {
@@ -39,8 +39,8 @@ async def test_healer_repair_node_success(mock_factory):
         assert result["repair_attempts"] == 1
         assert result["last_memory_id"] is not None
         mock_log.assert_called_once()
-        mock_collection.query.assert_called_once()
-        mock_collection.add.assert_called_once()
+        mock_memory.query_memory.assert_called_once()
+        mock_memory.add_memory.assert_called_once()
 
 
 @pytest.mark.asyncio
@@ -87,9 +87,9 @@ async def test_healer_repair_node_unlearning(mock_factory):
 
     engine = SelfHealingEngine()
 
-    mock_collection = MagicMock()
-    mock_collection.query.return_value = {"documents": []}
-    engine.collection = mock_collection
+    mock_memory = MagicMock()
+    mock_memory.query_memory.return_value = None
+    engine.memory = mock_memory
 
     with patch.object(engine, "_log_decision"):
         state = {
@@ -103,6 +103,6 @@ async def test_healer_repair_node_unlearning(mock_factory):
         result = await engine.repair_node(state)
 
         # It should delete the last memory
-        mock_collection.delete.assert_called_once_with(ids=["mem-12345"])
+        mock_memory.delete_memory.assert_called_once_with("mem-12345")
         assert result["last_memory_id"] is not None
         assert result["last_memory_id"].startswith("mem-")
