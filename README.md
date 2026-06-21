@@ -68,6 +68,10 @@ stateDiagram-v2
 SentinelCell does not rely on a single point of failure. If OpenAI is down, it seamlessly falls back to Anthropic, Groq, or Local Ollama based on your environment configurations.
 *See details in [docs/langchain_models.md](docs/langchain_models.md).*
 
+### 💾 Database Agnostic Memory (VectorDBFactory)
+Our Adaptive RAG engine is fully decoupled from the underlying storage. You can seamlessly switch between **ChromaDB**, **PostgreSQL (PGVector)**, **Pinecone**, or **In-Memory** datastores simply by updating your environment variable.
+*See details in [Vector Database Setup](file:///Users/atacan/ata-codes/SentinelCell-MAS-Immune-System/docs/vector_databases.md) and [ADR 004](file:///Users/atacan/ata-codes/SentinelCell-MAS-Immune-System/ADR/adr-004-database-agnostic-memory.md).*
+
 ### 🛡️ Strict Container Security
 Agents run within a fortified Docker Sandbox obeying the Principle of Least Privilege:
 - **0.5 vCPU** & **512MB RAM** hard limits to prevent runaway agents.
