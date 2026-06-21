@@ -1,5 +1,9 @@
 # SentinelCell Docker Setup
 
+![Docker](https://img.shields.io/badge/Docker-2496ED?style=for-the-badge&logo=docker&logoColor=white)
+![Docker Compose](https://img.shields.io/badge/Docker_Compose-2496ED?style=for-the-badge&logo=docker&logoColor=white)
+![Security Strict](https://img.shields.io/badge/Security-Strict_Sandbox-red?style=for-the-badge)
+
 This document provides a guide on how to build, run, and manage the SentinelCell MAS Immune System within its secure, containerized environment.
 
 ## Prerequisites

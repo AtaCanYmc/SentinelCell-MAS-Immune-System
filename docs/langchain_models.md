@@ -1,5 +1,10 @@
 # Supported LangChain Models
 
+![LangChain](https://img.shields.io/badge/LangChain-1C3C3C?style=for-the-badge&logo=langchain&logoColor=white)
+![OpenAI](https://img.shields.io/badge/OpenAI-412991?style=for-the-badge&logo=openai&logoColor=white)
+![Anthropic](https://img.shields.io/badge/Anthropic-CA8F74?style=for-the-badge&logo=anthropic&logoColor=black)
+![Ollama](https://img.shields.io/badge/Ollama-black?style=for-the-badge&logo=ollama&logoColor=white)
+
 The **SentinelCell MAS Immune System** is designed to be completely **Model Agnostic**. It utilizes the LangChain ecosystem to seamlessly switch between various Large Language Models (LLMs) depending on availability, rate limits, or user preference.
 
 The fallback and priority mechanism is dynamically managed via the `PROVIDER_ORDER` environment variable.
