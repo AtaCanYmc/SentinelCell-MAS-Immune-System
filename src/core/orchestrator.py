@@ -29,6 +29,7 @@ class AgentState(TypedDict):
     is_valid: bool
     active_provider: str | None
     repair_attempts: int
+    last_memory_id: str | None
 
 
 class SentinelOrchestrator:
@@ -105,6 +106,7 @@ class SentinelOrchestrator:
             "is_valid": False,
             "active_provider": None,
             "repair_attempts": 0,
+            "last_memory_id": None,
         }
 
         # Invoke the LangGraph workflow

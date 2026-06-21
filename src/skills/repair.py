@@ -58,6 +58,19 @@ class SelfHealingEngine:
         provider = self.providers[attempts % len(self.providers)]
         title = schema_json.get("title", "UnknownSchema")
 
+        # --- ADAPTIVE UNLEARNING ---
+        # If we are here and have a last_memory_id, it means the previous fix failed the validator!
+        # We must "Unlearn" the hallucination from ChromaDB.
+        last_memory_id = state.get("last_memory_id")
+        if last_memory_id and self.collection:
+            try:
+                self.collection.delete(ids=[last_memory_id])
+                console.print(
+                    f"[bold red][!] UNLEARNING: Hallucinated repair {last_memory_id} deleted from VectorDB[/bold red]"
+                )
+            except Exception as e:
+                console.print(f"[dim yellow][!] Unlearning Failed: {e}[/dim yellow]")
+
         console.print(
             Panel(
                 f"Target Schema: {title}\nError: {error_context}\nProvider: {provider}",
@@ -121,6 +134,7 @@ class SelfHealingEngine:
             # Logging & Adaptive Learning (Save to VectorDB)
             self._log_decision(title, error_context, provider)
 
+            new_memory_id = None
             if self.collection:
                 try:
                     doc_id = f"mem-{uuid.uuid4()}"
@@ -130,6 +144,7 @@ class SelfHealingEngine:
                         metadatas=[{"schema": title, "provider": provider}],
                         ids=[doc_id],
                     )
+                    new_memory_id = doc_id
                     console.print(
                         "[dim magenta][+] New experience saved to VectorDB[/dim magenta]"
                     )
@@ -150,6 +165,7 @@ class SelfHealingEngine:
                 "payload": healed_data,
                 "active_provider": provider,
                 "repair_attempts": attempts + 1,
+                "last_memory_id": new_memory_id,
             }
 
         except Exception as e:
@@ -157,7 +173,11 @@ class SelfHealingEngine:
                 f"[bold red][!] Healing Failed with {provider}. Error: {e}[/bold red]"
             )
             await broadcaster.broadcast("HEAL_FAIL", f"Provider {provider} failed: {e}")
-            return {"active_provider": provider, "repair_attempts": attempts + 1}
+            return {
+                "active_provider": provider,
+                "repair_attempts": attempts + 1,
+                "last_memory_id": None,
+            }
 
     @staticmethod
     def _log_decision(title: str, error_context: str, provider: str):

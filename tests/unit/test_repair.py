@@ -37,6 +37,7 @@ async def test_healer_repair_node_success(mock_factory):
         assert result["payload"] == {"status": "ok", "message": "healed"}
         assert result["active_provider"] == "OPENAI"
         assert result["repair_attempts"] == 1
+        assert result["last_memory_id"] is not None
         mock_log.assert_called_once()
         mock_collection.query.assert_called_once()
         mock_collection.add.assert_called_once()
@@ -68,3 +69,40 @@ async def test_healer_repair_node_failure(mock_factory):
     assert "payload" not in result
     assert result["active_provider"] == "LOCAL_OLLAMA"
     assert result["repair_attempts"] == 2
+    assert result["last_memory_id"] is None
+
+
+@pytest.mark.asyncio
+@patch("src.skills.repair.LLMFactory")
+async def test_healer_repair_node_unlearning(mock_factory):
+    mock_llm = MagicMock()
+    mock_response = MagicMock()
+    mock_response.content = '```json\n{"status": "ok", "message": "healed again"}\n```'
+
+    async def mock_ainvoke(*args, **kwargs):
+        return mock_response
+
+    mock_llm.ainvoke = mock_ainvoke
+    mock_factory.get_llm.return_value = mock_llm
+
+    engine = SelfHealingEngine()
+
+    mock_collection = MagicMock()
+    mock_collection.query.return_value = {"documents": []}
+    engine.collection = mock_collection
+
+    with patch.object(engine, "_log_decision"):
+        state = {
+            "repair_attempts": 1,
+            "schema_dict": {"title": "TestSchema"},
+            "payload": {"status": "ok"},
+            "error_context": "Missing message",
+            "last_memory_id": "mem-12345",
+        }
+
+        result = await engine.repair_node(state)
+
+        # It should delete the last memory
+        mock_collection.delete.assert_called_once_with(ids=["mem-12345"])
+        assert result["last_memory_id"] is not None
+        assert result["last_memory_id"].startswith("mem-")
