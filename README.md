@@ -150,7 +150,7 @@ SentinelCell enforces strict execution boundaries:
 - **[Changelog Policy](.antigravity/auto_changelog_policy.md)**: AI-assisted safe committing.
 - **[Readme Standards](.antigravity/readme_standards.md)**: Strict English documentation.
 
-### 🛠️ Internal Skills
+### 🛠️ Capability Matrix
 Agentic capabilities are defined in `.antigravity/skills/`:
 - **[Traffic Control](.antigravity/skills/traffic_control.md)**: Non-intrusive async interception.
 - **[Self-Healing](.antigravity/skills/healing.md)**: LangChain-powered dynamic JSON recovery.
