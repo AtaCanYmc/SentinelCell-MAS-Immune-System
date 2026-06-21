@@ -10,6 +10,16 @@ except ImportError:
     chromadb = None
     CHROMA_AVAILABLE = False
 
+try:
+    import psycopg2
+    from pgvector.psycopg2 import register_vector
+    from langchain_openai import OpenAIEmbeddings
+    import json
+
+    PGVECTOR_AVAILABLE = True
+except ImportError:
+    PGVECTOR_AVAILABLE = False
+
 
 class BaseMemoryStore(ABC):
     """
@@ -92,6 +102,68 @@ class InMemoryMemoryStore(BaseMemoryStore):
             del self.storage[doc_id]
 
 
+class PGVectorMemoryStore(BaseMemoryStore):
+    """
+    PostgreSQL (PGVector) implementation of the Memory Store.
+    Uses OpenAIEmbeddings to convert text to vectors before inserting/querying.
+    """
+
+    def __init__(self):
+        if not PGVECTOR_AVAILABLE:
+            raise ImportError(
+                "psycopg2, pgvector, or langchain_openai is not installed."
+            )
+
+        self.uri = os.getenv("POSTGRES_URI")
+        if not self.uri:
+            raise ValueError("POSTGRES_URI is not set in the environment.")
+
+        self.embeddings = OpenAIEmbeddings()
+        self.conn = psycopg2.connect(self.uri)
+        register_vector(self.conn)
+        self._init_db()
+
+    def _init_db(self):
+        with self.conn.cursor() as cur:
+            cur.execute("CREATE EXTENSION IF NOT EXISTS vector")
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS healing_memory (
+                    id VARCHAR(255) PRIMARY KEY,
+                    memory_doc TEXT,
+                    metadata JSONB,
+                    embedding vector(1536)
+                )
+            """)
+            self.conn.commit()
+
+    def add_memory(self, doc_id: str, memory_doc: str, metadata: dict) -> None:
+        vector = self.embeddings.embed_query(memory_doc)
+        with self.conn.cursor() as cur:
+            cur.execute(
+                "INSERT INTO healing_memory (id, memory_doc, metadata, embedding) VALUES (%s, %s, %s, %s)",
+                (doc_id, memory_doc, json.dumps(metadata), vector),
+            )
+            self.conn.commit()
+
+    def query_memory(self, query_str: str, n_results: int = 1) -> Optional[str]:
+        vector = self.embeddings.embed_query(query_str)
+        with self.conn.cursor() as cur:
+            # <=> is cosine distance in pgvector
+            cur.execute(
+                "SELECT memory_doc FROM healing_memory ORDER BY embedding <=> %s LIMIT %s",
+                (vector, n_results),
+            )
+            result = cur.fetchone()
+            if result:
+                return result[0]
+        return None
+
+    def delete_memory(self, doc_id: str) -> None:
+        with self.conn.cursor() as cur:
+            cur.execute("DELETE FROM healing_memory WHERE id = %s", (doc_id,))
+            self.conn.commit()
+
+
 class MemoryFactory:
     """
     Database Agnostic Factory.
@@ -105,6 +177,8 @@ class MemoryFactory:
 
         if provider == "CHROMADB":
             return ChromaMemoryStore()
+        elif provider == "PGVECTOR":
+            return PGVectorMemoryStore()
         elif provider == "IN_MEMORY":
             return InMemoryMemoryStore()
         else:
