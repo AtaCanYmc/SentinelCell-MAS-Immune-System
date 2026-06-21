@@ -1,26 +1,26 @@
 # SentinelCell Examples
 
-Bu dizin, **SentinelCell MAS Immune System** mimarisinin yeteneklerini uygulamalı olarak anlamanızı sağlayacak canlı demolar içermektedir.
+This directory contains live demonstrations to help you understand the capabilities of the **SentinelCell MAS Immune System** architecture hands-on.
 
-Aşağıdaki örnek scriptleri doğrudan terminalden çalıştırabilirsiniz. Çalıştırmadan önce proje dizininde olduğunuzdan ve `.env` dosyanızda ilgili LLM API anahtarlarının yapılandırıldığından emin olun. Gerekli Python yolunu (`PYTHONPATH`) ayarlamak için komutların başında `PYTHONPATH=.` bulundurmayı unutmayın.
+You can run the example scripts below directly from the terminal. Before running them, ensure you are in the project root directory and your `.env` file is properly configured with the respective LLM API keys. Do not forget to prefix your commands with `PYTHONPATH=.` to set the necessary Python path.
 
-## Örnekler
+## Examples
 
 ### 1. Basic Usage (`basic_usage.py`)
-En temel "Hello World" tarzı kullanım senaryosudur. Kasten eksik alanlara sahip bir JSON payload'u oluşturulur ve LangGraph tabanlı `SentinelOrchestrator`'a verilir. Ajanın bu veriyi nasıl onaylamadığını (validate) ve ardından nasıl Self-Healing (kendini iyileştirme) mekanizmasıyla düzelttiğini gösterir.
+This is the most fundamental "Hello World" style usage scenario. An intentionally malformed JSON payload (missing the required 'message' field) is created and passed to the LangGraph-based `SentinelCell`. It demonstrates how the agent rejects the payload (validation) and subsequently corrects it using the Self-Healing mechanism.
 ```bash
 PYTHONPATH=. python examples/basic_usage.py
 ```
 
 ### 2. Multi-Agent Flow (`multi_agent_flow.py`)
-Klasik bir Producer-Consumer (Üretici-Tüketici) modeli üzerinde SentinelCell'in bir ara katman (middleware/bağışıklık sistemi) olarak nasıl çalıştığını gösterir.
-Üretici hatalı veri gönderir; tüketici ise sadece temiz veri kabul etmektedir. SentinelCell araya girer, onarımı sağlar ve tüketiciye temiz veriyi ulaştırır.
+Demonstrates how SentinelCell acts as an intermediary layer (middleware/immune system) within a classic Producer-Consumer model.
+The Producer emits faulty data; the Consumer strictly accepts clean data. SentinelCell intercepts the traffic, heals the payload, and delivers the clean data to the Consumer.
 ```bash
 PYTHONPATH=. python examples/multi_agent_flow.py
 ```
 
 ### 3. Custom Skill Demo (`custom_skill_demo.py`)
-SentinelCell'in üzerine nasıl özel bir "Skill" (Yetenek) node'u inşa edilebileceğini gösterir. Bu örnekte, şifre içeren hassas bir payload'u algılayıp şifreleri "******" olarak maskeleyen bir `Sanitizer` (Temizleyici) node'unun LangGraph state machine'ine nasıl eklendiği kurgulanmıştır.
+Shows how to build and integrate a custom "Skill" node on top of SentinelCell. In this example, a `Sanitizer` node is constructed and added to the LangGraph state machine. It detects sensitive payloads containing a password and masks the password as "******".
 ```bash
 PYTHONPATH=. python examples/custom_skill_demo.py
 ```
