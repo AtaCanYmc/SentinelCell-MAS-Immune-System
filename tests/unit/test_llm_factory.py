@@ -1,7 +1,6 @@
 import pytest
 from src.core.llm_factory import LLMFactory
 from langchain_openai import ChatOpenAI
-from langchain_anthropic import ChatAnthropic
 from langchain_ollama import ChatOllama
 from langchain_groq import ChatGroq
 
@@ -11,9 +10,16 @@ def test_get_llm_openai():
     assert isinstance(llm, ChatOpenAI)
 
 
-def test_get_llm_anthropic():
+def test_get_llm_anthropic(monkeypatch):
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "test")
     llm = LLMFactory.get_llm("ANTHROPIC")
-    assert isinstance(llm, ChatAnthropic)
+    assert type(llm).__name__ == "ChatAnthropic"
+
+
+def test_get_llm_gemini(monkeypatch):
+    monkeypatch.setenv("GEMINI_API_KEY", "test")
+    llm = LLMFactory.get_llm("GEMINI")
+    assert type(llm).__name__ == "ChatGoogleGenerativeAI"
 
 
 def test_get_llm_groq():

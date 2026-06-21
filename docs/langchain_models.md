@@ -3,6 +3,7 @@
 ![LangChain](https://img.shields.io/badge/LangChain-1C3C3C?style=for-the-badge&logo=langchain&logoColor=white)
 ![OpenAI](https://img.shields.io/badge/OpenAI-412991?style=for-the-badge&logo=openai&logoColor=white)
 ![Anthropic](https://img.shields.io/badge/Anthropic-CA8F74?style=for-the-badge&logo=anthropic&logoColor=black)
+![Gemini](https://img.shields.io/badge/Google%20Gemini-8E75B2?style=for-the-badge&logo=googlegemini&logoColor=white)
 ![Ollama](https://img.shields.io/badge/Ollama-black?style=for-the-badge&logo=ollama&logoColor=white)
 
 The **SentinelCell MAS Immune System** is designed to be completely **Model Agnostic**. It utilizes the LangChain ecosystem to seamlessly switch between various Large Language Models (LLMs) depending on availability, rate limits, or user preference.
@@ -27,7 +28,13 @@ The fallback and priority mechanism is dynamically managed via the `PROVIDER_ORD
 - **Environment Variables**: `GROQ_API_KEY`, `GROQ_MODEL`
 - **Use Case**: Provides lightning-fast inference using LPUs. Ideal for environments where near-instant network interception and packet healing are critical.
 
-## 4. Local Ollama (`LOCAL_OLLAMA`)
+## 4. Google Gemini (`GEMINI`)
+- **Integration**: `langchain-google-genai` (`ChatGoogleGenerativeAI`)
+- **Default Model**: `gemini-1.5-flash`
+- **Environment Variables**: `GEMINI_API_KEY`, `GEMINI_MODEL`
+- **Use Case**: Very fast and highly capable model for multimodal processing and JSON healing. A strong competitor to OpenAI and Anthropic.
+
+## 5. Local Ollama (`LOCAL_OLLAMA`)
 - **Integration**: `langchain-ollama` (`ChatOllama`)
 - **Default Model**: `llama3`
 - **Environment Variables**: `OLLAMA_MODEL` (No API key required for local execution)

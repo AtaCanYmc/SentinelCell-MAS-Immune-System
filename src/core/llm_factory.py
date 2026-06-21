@@ -4,6 +4,7 @@ from langchain_openai import ChatOpenAI
 from langchain_anthropic import ChatAnthropic
 from langchain_ollama import ChatOllama
 from langchain_groq import ChatGroq
+from langchain_google_genai import ChatGoogleGenerativeAI
 from langchain_core.language_models.chat_models import BaseChatModel
 
 
@@ -38,6 +39,14 @@ class LLMFactory:
             return ChatGroq(
                 api_key=SecretStr(os.getenv("GROQ_API_KEY", "dummy_groq_key")),
                 model=os.getenv("GROQ_MODEL", "llama3-70b-8192"),
+                temperature=0,
+            )
+        elif provider == "GEMINI":
+            return ChatGoogleGenerativeAI(
+                model=os.getenv("GEMINI_MODEL", "gemini-1.5-flash"),
+                google_api_key=SecretStr(
+                    os.getenv("GEMINI_API_KEY", "dummy_gemini_key")
+                ),
                 temperature=0,
             )
         else:
