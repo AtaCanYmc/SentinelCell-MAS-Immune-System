@@ -1,23 +1,43 @@
 version: '3.8'
 
 services:
-  # 1. Elasticsearch (Agnostic Log Sink)
-  elasticsearch:
+  # 1. Elasticsearch Node 1 (Master/Data)
+  elasticsearch-1:
     image: docker.elastic.co/elasticsearch/elasticsearch:8.13.0
-    container_name: sentinelcell_elasticsearch
+    container_name: sentinelcell_elasticsearch_1
     environment:
-      - discovery.type=single-node
-      - xpack.security.enabled=false
+      - node.name=elasticsearch-1
+      - cluster.name=sentinel-es-cluster
+      - discovery.seed_hosts=elasticsearch-2
+      - cluster.initial_master_nodes=elasticsearch-1,elasticsearch-2
+      - xpack.security.enabled=true
+      - ELASTIC_PASSWORD=${ELASTICSEARCH_PASSWORD:-supersecret_es_pass}
       - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
-    ports:
-      - "9200:9200"
     volumes:
-      - elastic_data:/usr/share/elasticsearch/data
+      - elastic_data_1:/usr/share/elasticsearch/data
     restart: unless-stopped
     networks:
       - sentinel_net
 
-  # 2. Prometheus (Time-Series Metrics Scraper)
+  # 2. Elasticsearch Node 2 (Data/HA)
+  elasticsearch-2:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.13.0
+    container_name: sentinelcell_elasticsearch_2
+    environment:
+      - node.name=elasticsearch-2
+      - cluster.name=sentinel-es-cluster
+      - discovery.seed_hosts=elasticsearch-1
+      - cluster.initial_master_nodes=elasticsearch-1,elasticsearch-2
+      - xpack.security.enabled=true
+      - ELASTIC_PASSWORD=${ELASTICSEARCH_PASSWORD:-supersecret_es_pass}
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+    volumes:
+      - elastic_data_2:/usr/share/elasticsearch/data
+    restart: unless-stopped
+    networks:
+      - sentinel_net
+
+  # 3. Prometheus (Time-Series Metrics Scraper)
   prometheus:
     image: prom/prometheus:latest
     container_name: sentinelcell_prometheus
@@ -27,19 +47,18 @@ services:
     command:
       - '--config.file=/etc/prometheus/prometheus.yml'
       - '--storage.tsdb.path=/prometheus'
-    ports:
-      - "9090:9090"
+    # Removed ports 9090 to isolate from host.
     restart: unless-stopped
     networks:
       - sentinel_net
 
-  # 3. Grafana (Dashboards)
+  # 4. Grafana (Dashboards)
   grafana:
     image: grafana/grafana:latest
     container_name: sentinelcell_grafana
     environment:
-      - GF_SECURITY_ADMIN_USER=admin
-      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_SECURITY_ADMIN_USER=${GRAFANA_ADMIN_USER:-admin}
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD:-supersecret_grafana_pass}
     ports:
       - "3000:3000"
     volumes:
@@ -51,7 +70,8 @@ services:
       - sentinel_net
 
 volumes:
-  elastic_data:
+  elastic_data_1:
+  elastic_data_2:
   prom_data:
   grafana_data:
 

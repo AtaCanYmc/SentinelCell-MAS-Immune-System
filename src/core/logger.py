@@ -52,7 +52,10 @@ class ElasticsearchSink(LogSink):
     """Sends JSON logs to an Elasticsearch index."""
 
     def __init__(
-        self, enabled=False, url="http://localhost:9200", index_name="sentinel-logs"
+        self,
+        enabled=False,
+        url="http://elasticsearch-1:9200",
+        index_name="sentinel-logs",
     ):
         self.enabled = enabled
         self.index_name = index_name
@@ -62,7 +65,13 @@ class ElasticsearchSink(LogSink):
             try:
                 from elasticsearch import Elasticsearch
 
-                self.es = Elasticsearch(url)
+                es_user = os.getenv("ELASTICSEARCH_USER", "elastic")
+                es_pass = os.getenv("ELASTICSEARCH_PASSWORD")
+
+                if es_pass:
+                    self.es = Elasticsearch(url, basic_auth=(es_user, es_pass))
+                else:
+                    self.es = Elasticsearch(url)
             except Exception:
                 self.enabled = False
 
@@ -104,7 +113,7 @@ _agnostic_console = AgnosticLogger(
         FileSink(),
         ElasticsearchSink(
             enabled=os.getenv("ELASTICSEARCH_ENABLED", "false").lower() == "true",
-            url=os.getenv("ELASTICSEARCH_URL", "http://localhost:9200"),
+            url=os.getenv("ELASTICSEARCH_URL", "http://elasticsearch-1:9200"),
         ),
     ]
 )
