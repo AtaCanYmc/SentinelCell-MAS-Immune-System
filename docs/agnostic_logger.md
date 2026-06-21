@@ -27,9 +27,9 @@ SentinelCell natively uses the [Rich](https://github.com/Textualize/rich) librar
 - **Behavior**: Uses Regex (`\[/?([a-z0-9_ ]+)\]`) to automatically strip all Rich markup tags before writing. It prepends an ISO 8601 UTC timestamp to every entry.
 - **Use Case**: Persistent storage, historical debugging, and file-beat ingestion.
 
-### 🌐 ElasticsearchSink (Stub)
+### 🌐 ElasticsearchSink
 - **Purpose**: Sends logs as structured JSON to a remote Elasticsearch cluster (or any ELK stack).
-- **Behavior**: Activated via the `ELASTICSEARCH_ENABLED=true` environment variable. Strips Rich markup and formats the log as a JSON payload (`{"timestamp": "...", "message": "..."}`).
+- **Behavior**: Activated via the `ELASTICSEARCH_ENABLED=true` environment variable. It connects to the cluster defined by `ELASTICSEARCH_URL` (default: `http://localhost:9200`) using the official `elasticsearch-py` client. It strips Rich markup and indexes the log as a JSON payload (`{"timestamp": "...", "message": "..."}`).
 - **Use Case**: Centralized monitoring, alerting, and observability dashboards.
 
 ## 3. How It Works
@@ -48,7 +48,7 @@ console.print("[danger][!] MALFORMED JSON DETECTED[/danger]")
 2. It loops through the registered sinks:
    - **ConsoleSink** receives it and prints a colored red string to the terminal.
    - **FileSink** intercepts it, strips the `[danger]` tags, and appends `[2026-06-21T18:40:00Z] [!] MALFORMED JSON DETECTED` to the `.log` file.
-   - **ElasticsearchSink** (if enabled) fires an HTTP POST request with the JSON payload to the logging server.
+   - **ElasticsearchSink** (if enabled) uses the official `elasticsearch-py` client to index the JSON payload directly into the logging cluster.
 
 ## 4. Extending the Logger
 
