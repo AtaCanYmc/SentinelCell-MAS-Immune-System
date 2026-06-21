@@ -152,6 +152,7 @@ class SelfHealingEngine:
     @staticmethod
     def _log_decision(title: str, error_context: str, provider: str):
         import time
+        from src.core.telemetry import OpenTelemetryLog, OTelResource
 
         decision_id = f"DECISION-HEAL-{str(uuid.uuid4())[:8].upper()}"
         log_path = os.path.join(
@@ -163,25 +164,27 @@ class SelfHealingEngine:
         except Exception:
             logs = []
 
-        # OpenTelemetry standard JSON log format
-        otel_log = {
-            "Timestamp": int(time.time() * 1e9),
-            "TraceId": uuid.uuid4().hex,
-            "SpanId": uuid.uuid4().hex[:16],
-            "TraceFlags": 1,
-            "SeverityText": "INFO",
-            "SeverityNumber": 9,
-            "Body": "Healed malformed JSON payload",
-            "Resource": {"service.name": "SentinelCell.ImmuneSystem"},
-            "Attributes": {
+        # Enforce strict OpenTelemetry standard via Pydantic Schema
+        otel_log = OpenTelemetryLog(
+            Timestamp=int(time.time() * 1e9),
+            TraceId=uuid.uuid4().hex,
+            SpanId=uuid.uuid4().hex[:16],
+            TraceFlags=1,
+            SeverityText="INFO",
+            SeverityNumber=9,
+            Body="Healed malformed JSON payload",
+            Resource=OTelResource(
+                attributes={"service.name": "SentinelCell.ImmuneSystem"}
+            ),
+            Attributes={
                 "decision.id": decision_id,
                 "target.schema": title,
                 "llm.provider": provider,
                 "validation.error": error_context,
             },
-        }
+        )
 
-        logs.append(otel_log)
+        logs.append(otel_log.model_dump())
 
         os.makedirs(os.path.dirname(log_path), exist_ok=True)
         with open(log_path, "w") as f:
