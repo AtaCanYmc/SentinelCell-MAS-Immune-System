@@ -1,9 +1,12 @@
-# SentinelCell - MAS Immune System
+<div align="center">
+  <img src="assets/logo.svg" width="120" height="120" alt="SentinelCell Logo">
+  <h1>SentinelCell - MAS Immune System</h1>
 
-![Version](https://img.shields.io/badge/version-0.1.0-blue)
-![Build](https://img.shields.io/badge/build-passing-brightgreen)
-![Python](https://img.shields.io/badge/python-3.11+-blue)
-![Kaggle Capstone](https://img.shields.io/badge/Kaggle-AI_Agents_Capstone-orange)
+  ![Version](https://img.shields.io/badge/version-0.1.0-blue)
+  ![Build](https://img.shields.io/badge/build-passing-brightgreen)
+  ![Python](https://img.shields.io/badge/python-3.11+-blue)
+  ![Kaggle Capstone](https://img.shields.io/badge/Kaggle-AI_Agents_Capstone-orange)
+</div>
 
 ## 1. Introduction (Problem Statement)
 Multi-Agent Systems (MAS) rely on fragile, hardcoded communication contracts. When an agent hallucinates or updates its output format, the entire pipeline crashes. There is no centralized authority or "Immune System" to gracefully intercept, detect, and automatically heal semantic breaches before they corrupt downstream consumers.
@@ -58,6 +61,32 @@ SentinelCell is equipped with several agentic capabilities defined in `.antigrav
 - **[Security Compliance](.antigravity/skills/security_compliance.md)**: Environment isolation and sanitization.
 
 ## Sandbox Policy
-SentinelCell enforces strict execution boundaries. All agentic auto-commits and tests are verified within an Antigravity sandbox. No sensitive variables (`.env`) are ever exposed or committed.
+SentinelCell enforces strict execution boundaries. All agentic auto-commits and tests are verified within an Antigravity sandbox. No sensitive variables (`.env`) are ever exposed or committed. See our full policy in [.antigravity/auto_commit_policy.md](.antigravity/auto_commit_policy.md).
 
 > **Security Disclaimer:** SentinelCell interacts with external LLM APIs (e.g., Gemini) for self-healing. Ensure your `.env` is properly secured and never commit API keys to version control. The agent treats all incoming traffic as untrusted until validated by the SchemaRegistry.
+
+## Additional Information
+
+### Changelog Reference
+Track the evolution of our MAS Immune System in the [CHANGELOG.md](CHANGELOG.md).
+
+### Contribution Guidelines
+We welcome contributions to strengthen the Immune System! Read our guidelines in [CONTRIBUTING.md](CONTRIBUTING.md).
+
+### License Information
+This project is licensed under the MIT License. See [LICENSE](LICENSE) for more details.
+
+### Contact Information
+For questions or vulnerabilities, please open an issue or reach out to the core maintainers.
+
+### Acknowledgments
+- Built for the **Kaggle AI Agents: Intensive Vibe Coding Capstone Project**.
+- Powered by `rich` for the Hackerman aesthetic.
+- Schema registry capabilities driven by the official Model Context Protocol (MCP).
+
+### References
+- [Model Context Protocol (MCP) Official Specs](https://modelcontextprotocol.io/)
+- [Kaggle Capstone Details](https://www.kaggle.com/)
+
+### Appendix
+*SentinelCell was developed as an "Agents for Good" track submission, providing a self-correcting foundation for future society-scale AI infrastructure.*
