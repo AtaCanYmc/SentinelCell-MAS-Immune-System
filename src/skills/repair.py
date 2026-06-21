@@ -95,7 +95,8 @@ class SelfHealingEngine:
             )
             return {"active_provider": provider, "repair_attempts": attempts + 1}
 
-    def _log_decision(self, title: str, error_context: str, provider: str):
+    @staticmethod
+    def _log_decision(title: str, error_context: str, provider: str):
         decision_id = f"DECISION-HEAL-{str(uuid.uuid4())[:8].upper()}"
         log_path = os.path.join(
             os.getcwd(), ".antigravity", "logs", "agent_decisions.json"
