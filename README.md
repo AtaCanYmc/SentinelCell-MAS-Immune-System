@@ -77,9 +77,11 @@ Agents run within a fortified Docker Sandbox obeying the Principle of Least Priv
 Semantic validation isn't hardcoded. SentinelCell queries a centralized Model Context Protocol (MCP) server dynamically to enforce the correct contract for the target agent.
 
 ### 🌉 Hybrid Deployment Architecture
-SentinelCell adapts to your environment constraints with two modes:
+SentinelCell adapts to your environment constraints with several powerful modes:
 1. **Middleware Mode (SDK)**: Tight integration for low-latency agent loops.
-2. **Guardian Mode (Gateway/Proxy)**: A FastAPI gateway for transparent legacy agent protection.
+2. **Guardian Mode (FastAPI Gateway)**: A reverse proxy for transparent legacy agent protection.
+3. **Asynchronous Mode (Redis MQ Worker)**: A background worker listening to message queues for distributed systems.
+4. **Transparent Proxy (Envoy)**: Layer 7 interception with zero code changes in your agents.
 *Read our [Deployment Strategies](docs/deployment_strategies.md) for a deep dive.*
 
 ---
@@ -112,11 +114,11 @@ pip install -r requirements.txt
 python src/mcp_server.py &
 ```
 
-### Option B: Secure Docker Execution (Recommended)
-SentinelCell is fully containerized. To run it within the secure sandbox defined by our policies:
+### Option B: Secure Docker Execution (Hybrid Gateways)
+SentinelCell is fully containerized. Running the compose file spins up the **FastAPI Gateway**, **Redis MQ Worker**, **Envoy Proxy**, and **Redis** instance simultaneously within the secure sandbox defined by our policies:
 ```bash
 docker compose up -d --build
-docker stats sentinelcell_agent # To verify strict CPU/RAM limits
+docker stats # To verify strict CPU/RAM limits on the SentinelCell gateways
 ```
 
 ---
