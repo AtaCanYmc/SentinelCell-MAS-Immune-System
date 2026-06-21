@@ -14,6 +14,7 @@ x-sentinel-constraints: &sentinel-constraints
     - .env
   volumes:
     - ./logs:/logs
+    - ./chroma_db:/app/chroma_db
   tmpfs:
     - /temp
 
