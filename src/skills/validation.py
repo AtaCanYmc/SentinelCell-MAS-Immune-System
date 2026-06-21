@@ -7,6 +7,24 @@ from src.mcp_integration.client import SchemaRegistryClient
 console = Console()
 
 
+class SecuritySanitizer:
+    MALICIOUS_PATTERNS = [
+        "ignore previous",
+        "system prompt",
+        "external_ip",
+        "eval(",
+        "exec(",
+    ]
+
+    @classmethod
+    def check_payload(cls, data: dict) -> str | None:
+        data_str = str(data).lower()
+        for pattern in cls.MALICIOUS_PATTERNS:
+            if pattern in data_str:
+                return f"SECURITY_BREACH: Adversarial Prompt Injection Detected (Pattern: '{pattern}')"
+        return None
+
+
 class SemanticValidator:
     """
     Semantic Integrity Engine based on JSON Schema (via MCP).
@@ -62,10 +80,20 @@ class SemanticValidator:
         """
         Helper for healer: Returns (is_valid, schema_dict, error_context)
         """
+        # 1. Get Schema
         schema = await self._get_schema(agent_target)
         if not schema:
             return True, None, None
 
+        # 2. Active Security Shield (Sanitizer)
+        from src.core.broadcaster import broadcaster
+
+        security_error = SecuritySanitizer.check_payload(data)
+        if security_error:
+            await broadcaster.broadcast("SECURITY_ALERT", security_error)
+            return False, schema, security_error
+
+        # 3. Schema Validation
         try:
             jsonschema.validate(instance=data, schema=schema)
             return True, schema, None
