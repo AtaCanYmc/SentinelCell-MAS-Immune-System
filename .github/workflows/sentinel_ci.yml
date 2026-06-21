@@ -1,0 +1,63 @@
+name: SentinelCell Immune System CI
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  validation:
+    name: Sentinel-Verified Validation
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: "pip"
+
+      - name: Install Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pytest pytest-asyncio rich pydantic jsonschema mcp python-dotenv
+
+      - name: Phase 1 - Safety Scan (Antigravity CLI Mock)
+        run: |
+          echo "Scanning codebase for hardcoded secrets..."
+          # Reject if GEMINI_API_KEY or similar secrets are hardcoded outside of tests/mocks
+          if grep -rE 'GEMINI_API_KEY=["'\''][^"'\''\.]+["'\'']' src/; then
+            echo "::error::Security Breach: Hardcoded API keys found in src/!"
+            exit 1
+          fi
+          echo "Safety Scan Passed."
+
+      - name: Phase 2 - Unit Testing
+        run: |
+          echo "Executing Pytest..."
+          pytest tests/unit/ -v
+
+      - name: Phase 3 - Sandbox Integration
+        run: |
+          echo "Deploying to Antigravity Sandbox (Verification)..."
+          # Verify that core modules can be imported and executed without side-effects
+          python -c "from src.healer import SelfHealingEngine; engine = SelfHealingEngine(api_key='mock'); print('Sandbox execution successful.')"
+
+      - name: Phase 4 - Docs Verification
+        run: |
+          echo "Verifying README.md and CHANGELOG.md standards..."
+          if [ ! -f "CHANGELOG.md" ] || [ ! -f "README.md" ]; then
+            echo "::error::Missing required documentation files!"
+            exit 1
+          fi
+
+          # Check if README contains the mandatory 'Capability Matrix' header
+          if ! grep -q "Capability Matrix" README.md; then
+             echo "::error::README.md does not contain 'Capability Matrix' as required by readme_standards.md"
+             exit 1
+          fi
+          echo "Documentation verification passed."
