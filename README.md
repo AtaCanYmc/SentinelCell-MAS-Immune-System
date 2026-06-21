@@ -74,15 +74,15 @@ flowchart TD
         end
     end
 
-    Producer -- Malformed/Valid Payload --> Intercept
+    Producer -->|Malformed/Valid Payload| Intercept
     Intercept --> Validate
 
-    Validate -. 1. Fetch Schema .-> Registry
-    Repair -. 2. Fallback Generation .-> LLM
-    Log -. 3. Store Anomalies .-> Memory
+    Validate -.->|1. Fetch Schema| Registry
+    Repair -.->|2. Fallback Generation| LLM
+    Log -.->|3. Store Anomalies| Memory
 
-    Log -- 4a. Forward Clean Payload --> Consumer
-    Quarantine -- 4b. Alert / Drop Payload --> Consumer
+    Log -->|4a. Forward Clean Payload| Consumer
+    Quarantine -->|4b. Alert / Drop Payload| Consumer
 ```
 
 ---
