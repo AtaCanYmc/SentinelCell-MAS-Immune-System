@@ -125,24 +125,31 @@ docker stats # To verify strict CPU/RAM limits on the SentinelCell gateways
 
 ## 6. Live Examples & Demos
 
-We provide live simulations showing the Immune System in action. Once your `.env` is ready, run these from the root directory:
+We provide live simulations showing the Immune System in action. Once your `.env` is ready, run these from the root directory.
 
-- **Basic Validation & Healing**:
-  `PYTHONPATH=. python examples/basic_usage.py`
-- **Producer-Consumer Interception Flow**:
-  `PYTHONPATH=. python examples/multi_agent_flow.py`
-- **Custom Security Skills (Sanitizer)**:
-  `PYTHONPATH=. python examples/custom_skill_demo.py`
+*Be sure to read the comprehensive **[Examples Documentation](examples/README.md)** for architecture diagrams and I/O examples of each simulation.*
 
-*Read the [Examples README](examples/README.md) for more info.*
+### Core Capabilities Simulations
+- **🐒 Chaos Monkey Simulation**: `PYTHONPATH=. python examples/chaos_monkey.py`
+- **🛡️ Adversarial Security Injection**: `PYTHONPATH=. python examples/security_injection_demo.py`
+- **⏱️ Latency & Performance Benchmark**: `PYTHONPATH=. python examples/latency_benchmark.py`
+- **🚦 MQ Distributed Architecture Demo**: `PYTHONPATH=. python examples/mq_simulation_demo.py`
+- **🛑 Emergency Quarantine Mode**: `PYTHONPATH=. python examples/quarantine_mode_demo.py`
+
+### Basic Integration Demos
+- **Basic Validation & Healing**: `PYTHONPATH=. python examples/basic_usage.py`
+- **Producer-Consumer Interception Flow**: `PYTHONPATH=. python examples/multi_agent_flow.py`
+- **Custom Security Skills (Sanitizer)**: `PYTHONPATH=. python examples/custom_skill_demo.py`
 
 ---
 
 ## 7. Documentation & Policies
 
 ### 📖 Technical Docs
-- [Supported LangChain Models](docs/langchain_models.md)
-- [Docker Setup & Monitoring](docs/docker_setup.md)
+- **[Deployment Strategies](docs/deployment_strategies.md)**: Deep dive into SDK, API Gateway, and MQ architecture modes.
+- **[Docker Setup & Monitoring](docs/docker_setup.md)**: Details on the sandbox environment, resource caps, and compose setups.
+- **[Supported LangChain Models](docs/langchain_models.md)**: Multi-provider fallback orchestration details.
+- **[Architecture Decision Records (ADR)](ADR/)**: Deep dive into the Engineering Decisions and Rationale.
 
 ### ⚖️ Policies
 SentinelCell enforces strict execution boundaries:
