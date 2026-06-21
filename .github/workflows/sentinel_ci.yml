@@ -36,10 +36,10 @@ jobs:
           fi
           echo "Safety Scan Passed."
 
-      - name: Phase 2 - Unit Testing
+      - name: Phase 2 - Unit Testing & Coverage Control
         run: |
-          echo "Executing Pytest..."
-          pytest tests/unit/ -v
+          echo "Executing Pytest and verifying coverage >= 60%..."
+          pytest tests/unit/ -v --cov=src --cov-fail-under=60 --cov-report=term-missing --cov-report=xml
 
       - name: Phase 3 - Sandbox Integration
         run: |
