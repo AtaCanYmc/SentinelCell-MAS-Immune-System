@@ -8,6 +8,13 @@
   ![Docker](https://img.shields.io/badge/docker-containerized-2496ED?logo=docker)
   ![Kaggle Capstone](https://img.shields.io/badge/Kaggle-AI_Agents_Capstone-orange)
 
+  <!-- Infrastructure & Observability Badges -->
+  ![Redis](https://img.shields.io/badge/Redis-Messaging-red)
+  ![PostgreSQL](https://img.shields.io/badge/PostgreSQL-Vector_DB-336791)
+  ![Elasticsearch](https://img.shields.io/badge/Elasticsearch-Log_Sink-005571)
+  ![Prometheus](https://img.shields.io/badge/Prometheus-Telemetry-e6522c)
+  ![Grafana](https://img.shields.io/badge/Grafana-Dashboards-F46800)
+
   <!-- LLM Provider & Framework Badges -->
   ![LangGraph](https://img.shields.io/badge/LangGraph-State_Machine-orange)
   ![OpenAI](https://img.shields.io/badge/Model-OpenAI-green)
@@ -89,13 +96,27 @@ flowchart TD
 
 ## 4. Core Features
 
+| Feature | Description | Stack / Tech |
+|---------|-------------|--------------|
+| **Model Agnostic Fallback** | Seamless fallback if an LLM provider fails. | OpenAI, Anthropic, Groq, DeepSeek, Gemini, Ollama |
+| **Database Agnostic Memory** | Adaptive RAG decoupled from underlying storage. | ChromaDB, PGVector, Pinecone, In-Memory |
+| **Agnostic Log Sink** | Multi-destination logging (Console, File, ELK). | `rich`, `elasticsearch-py` |
+| **Time-Series Telemetry** | Success/Failure rates and Latency tracking. | Prometheus, Grafana, FastAPI `/metrics` |
+| **MCP Schema Registry** | Centralized, dynamic schema validation. | Model Context Protocol (MCP) |
+| **Hybrid Gateway** | SDK, FastAPI, Redis MQ, or Envoy proxy support. | Redis, FastAPI, Envoy |
+
 ### 🔄 Model Agnostic Fallback (LLMFactory)
 SentinelCell does not rely on a single point of failure. If OpenAI is down, it seamlessly falls back to Anthropic, Groq, or Local Ollama based on your environment configurations.
 *See details in [docs/langchain_models.md](docs/langchain_models.md).*
 
 ### 💾 Database Agnostic Memory (VectorDBFactory)
 Our Adaptive RAG engine is fully decoupled from the underlying storage. You can seamlessly switch between **ChromaDB**, **PostgreSQL (PGVector)**, **Pinecone**, or **In-Memory** datastores simply by updating your environment variable.
-*See details in [Vector Database Setup](file:///Users/atacan/ata-codes/SentinelCell-MAS-Immune-System/docs/vector_databases.md) and [ADR 004](file:///Users/atacan/ata-codes/SentinelCell-MAS-Immune-System/ADR/adr-004-database-agnostic-memory.md).*
+*See details in [Vector Database Setup](docs/vector_databases.md) and [ADR 004](ADR/adr-004-database-agnostic-memory.md).*
+
+### 📊 Agnostic Logger & Time-Series Telemetry
+- **Log Sink Pattern**: Terminal logs (`rich` format) fan-out to local text files and remote **Elasticsearch** clusters simultaneously.
+- **Prometheus Export**: Tracks payload intercepts, self-healing success rates, quarantine drops, and LLM processing latency via a `/metrics` endpoint.
+*See details in [Agnostic Logger Docs](docs/agnostic_logger.md).*
 
 ### 🛡️ Strict Container Security
 Agents run within a fortified Docker Sandbox obeying the Principle of Least Privilege:
@@ -179,12 +200,13 @@ We provide live simulations showing the Immune System in action. Once your `.env
 ### 📖 Technical Docs
 
 Explore our detailed documentation for a deeper dive:
-- **[Examples & Simulations](file:///Users/atacan/ata-codes/SentinelCell-MAS-Immune-System/examples/README.md):** Interactive workflows and demos.
-- **[Deployment Strategies](file:///Users/atacan/ata-codes/SentinelCell-MAS-Immune-System/docs/deployment_strategies.md):** Standalone, Proxy, and Async designs.
-- **[Docker Setup](file:///Users/atacan/ata-codes/SentinelCell-MAS-Immune-System/docs/docker_setup.md):** Network topologies and compose guides.
-- **[Testing & Coverage Guide](file:///Users/atacan/ata-codes/SentinelCell-MAS-Immune-System/docs/testing_guide.md):** Information on unit tests and CI/CD pipelines.
-- **[Vector Database Setup](file:///Users/atacan/ata-codes/SentinelCell-MAS-Immune-System/docs/vector_databases.md):** Information on our Agnostic VectorDB connections.
-- **[Schema Registry Setup](file:///Users/atacan/ata-codes/SentinelCell-MAS-Immune-System/docs/schema_registry.md):** Information on our Agnostic MCP Registry connections.
+- **[Examples & Simulations](examples/README.md):** Interactive workflows and demos.
+- **[Deployment Strategies](docs/deployment_strategies.md):** Standalone, Proxy, and Async designs.
+- **[Docker Setup](docs/docker_setup.md):** Network topologies and compose guides.
+- **[Testing & Coverage Guide](docs/testing_guide.md):** Information on unit tests and CI/CD pipelines.
+- **[Vector Database Setup](docs/vector_databases.md):** Information on our Agnostic VectorDB connections.
+- **[Schema Registry Setup](docs/schema_registry.md):** Information on our Agnostic MCP Registry connections.
+- **[Agnostic Logger & Telemetry](docs/agnostic_logger.md)**: Log Sink implementations for Elasticsearch and Prometheus metrics.
 - **[Supported LangChain Models](docs/langchain_models.md)**: Multi-provider fallback orchestration details.
 - **[Architecture Decision Records (ADR)](ADR/)**: Deep dive into the Engineering Decisions and Rationale.
 
