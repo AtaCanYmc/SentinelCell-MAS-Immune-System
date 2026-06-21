@@ -9,7 +9,9 @@ console = get_console()
 async def run_dummy_traffic():
     console.print(
         Panel(
-            "[bold bright_green]Initializing SentinelCell MAS Immune System (LangGraph Orchestrator)...[/bold bright_green]",
+            "[bold bright_green]"
+            "Initializing SentinelCell MAS Immune System (LangGraph Orchestrator)..."
+            "[/bold bright_green]",
             border_style="green",
         )
     )
