@@ -47,9 +47,10 @@ The orchestration is powered by **LangGraph**, providing a resilient, model-agno
 ### Philosophy
 The "Vibe" of SentinelCell is robust resilience wrapped in a futuristic, "Hackerman" aesthetic. It turns silent pipeline failures into observable, self-correcting defense mechanisms.
 
-<div align="center">
-  <img src="assets/SentinelCell-defense.png" alt="SentinelCell Defense Mechanism">
-</div>
+<p align="center">
+  <img src="assets/SentinelCell-defense.png" width="48%" alt="SentinelCell Defense Mechanism">
+  <img src="assets/SentinelCell-fix.png" width="48%" alt="SentinelCell Self-Healing Repair">
+</p>
 
 ---
 
@@ -111,10 +112,6 @@ flowchart TD
 
 ### 🔄 Model Agnostic Fallback (LLMFactory) & Self Healing
 SentinelCell does not rely on a single point of failure. If OpenAI is down, it seamlessly falls back to Anthropic, Groq, or Local Ollama based on your environment configurations.
-
-<div align="center">
-  <img src="assets/SentinelCell-fix.png" alt="SentinelCell Self-Healing Repair">
-</div>
 
 *See details in [docs/langchain_models.md](docs/langchain_models.md).*
 
