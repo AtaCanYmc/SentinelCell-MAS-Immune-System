@@ -179,7 +179,7 @@ class PineconeMemoryStore(BaseMemoryStore):
 
     def __init__(self):
         if not PINECONE_AVAILABLE:
-            raise ImportError("pinecone-client is not installed.")
+            raise ImportError("pinecone is not installed.")
 
         api_key = os.getenv("PINECONE_API_KEY")
         index_name = os.getenv("PINECONE_INDEX_NAME", "sentinel-healing-memory")

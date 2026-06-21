@@ -23,7 +23,7 @@ You can switch the active provider by setting the `VECTOR_DB_PROVIDER` environme
 | :--- | :--- | :--- |
 | **ChromaDB** | `CHROMADB` | (Default) Local persistent vector database stored in `./chroma_db`. Perfect for local deployments and testing. |
 | **PGVector** | `PGVECTOR` | Postgres integration via `pgvector` and `psycopg2`. Uses OpenAI Embeddings. Requires Postgres DB. |
-| **Pinecone** | `PINECONE` | Cloud-native vector search. Uses OpenAI Embeddings and requires `pinecone-client`. |
+| **Pinecone** | `PINECONE` | Cloud-native vector search. Uses OpenAI Embeddings and requires `pinecone`. |
 | **In-Memory** | `IN_MEMORY` | A lightweight Python dictionary mock. Useful for environments where dependencies cannot be installed or for CI/CD pipelines. |
 
 ## How to Configure
