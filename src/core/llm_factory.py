@@ -1,4 +1,5 @@
 import os
+from pydantic import SecretStr
 from langchain_openai import ChatOpenAI
 from langchain_anthropic import ChatAnthropic
 from langchain_ollama import ChatOllama
@@ -17,13 +18,15 @@ class LLMFactory:
         provider = provider.upper()
         if provider == "OPENAI":
             return ChatOpenAI(
-                api_key=os.getenv("OPENAI_API_KEY", "dummy_openai_key"),
+                api_key=SecretStr(os.getenv("OPENAI_API_KEY", "dummy_openai_key")),
                 model=os.getenv("OPENAI_MODEL", "gpt-4o-mini"),
                 temperature=0,
             )
         elif provider == "ANTHROPIC":
             return ChatAnthropic(
-                api_key=os.getenv("ANTHROPIC_API_KEY", "dummy_anthropic_key"),
+                api_key=SecretStr(
+                    os.getenv("ANTHROPIC_API_KEY", "dummy_anthropic_key")
+                ),
                 model_name=os.getenv("ANTHROPIC_MODEL", "claude-3-haiku-20240307"),
                 temperature=0,
             )
@@ -31,7 +34,7 @@ class LLMFactory:
             return ChatOllama(model=os.getenv("OLLAMA_MODEL", "llama3"), temperature=0)
         elif provider == "GROQ":
             return ChatGroq(
-                api_key=os.getenv("GROQ_API_KEY", "dummy_groq_key"),
+                api_key=SecretStr(os.getenv("GROQ_API_KEY", "dummy_groq_key")),
                 model_name=os.getenv("GROQ_MODEL", "llama3-70b-8192"),
                 temperature=0,
             )
