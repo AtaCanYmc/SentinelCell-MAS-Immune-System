@@ -76,6 +76,12 @@ Agents run within a fortified Docker Sandbox obeying the Principle of Least Priv
 ### 🔌 MCP Schema Registry
 Semantic validation isn't hardcoded. SentinelCell queries a centralized Model Context Protocol (MCP) server dynamically to enforce the correct contract for the target agent.
 
+### 🌉 Hybrid Deployment Architecture
+SentinelCell adapts to your environment constraints with two modes:
+1. **Middleware Mode (SDK)**: Tight integration for low-latency agent loops.
+2. **Guardian Mode (Gateway/Proxy)**: A FastAPI gateway for transparent legacy agent protection.
+*Read our [Deployment Strategies](docs/deployment_strategies.md) for a deep dive.*
+
 ---
 
 ## 5. Setup & Deployment
