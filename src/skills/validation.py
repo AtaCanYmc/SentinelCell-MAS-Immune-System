@@ -31,20 +31,47 @@ class SemanticValidator:
     """
 
     def __init__(self, mcp_client: SchemaRegistryClient):
+        import os
+
         self.mcp_client = mcp_client
-        self._cache = {}  # In-memory cache for ultra-fast near-instant validation
+        self._cache = {}  # In-memory cache: {agent_target: {"schema": dict, "expires_at": float}}
+        self.cache_ttl = int(os.getenv("SCHEMA_CACHE_TTL_SECONDS", "300"))
 
     async def _get_schema(self, agent_target: str) -> dict | None:
+        import time
+
+        now = time.time()
+
         if agent_target in self._cache:
-            return self._cache[agent_target]
+            cache_entry = self._cache[agent_target]
+            if now < cache_entry["expires_at"]:
+                return cache_entry["schema"]
 
         # Fetch from MCP server
         console.print(
             f"[dim]Fetching schema from MCP Registry for {agent_target}...[/dim]"
         )
         schema = await self.mcp_client.fetch_schema(agent_target)
-        self._cache[agent_target] = schema
+
+        # Update cache
+        self._cache[agent_target] = {
+            "schema": schema,
+            "expires_at": now + self.cache_ttl,
+        }
         return schema
+
+    def clear_cache(self, agent_target: str = None):
+        """
+        Clears the schema cache. If agent_target is provided, clears only that target.
+        """
+        if agent_target:
+            self._cache.pop(agent_target, None)
+            console.print(
+                f"[dim cyan][*] Cache cleared for agent: {agent_target}[/dim cyan]"
+            )
+        else:
+            self._cache.clear()
+            console.print("[dim cyan][*] Schema cache completely purged[/dim cyan]")
 
     async def validate_packet(self, agent_target: str, data: dict) -> bool:
         """

@@ -105,3 +105,23 @@ async def purge_memory(days: int = 30):
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.post("/schema/refresh")
+async def refresh_schema(agent_target: str = None):
+    """
+    Purges the local schema cache for a specific agent, or all agents if none provided.
+    This guarantees instant consistency for the next payload without waiting for TTL.
+    """
+    try:
+        if agent_target:
+            sentinel.validator.clear_cache(agent_target)
+            return {
+                "status": "success",
+                "message": f"Schema cache cleared for {agent_target}",
+            }
+        else:
+            sentinel.validator.clear_cache()
+            return {"status": "success", "message": "All schema caches cleared"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
