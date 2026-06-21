@@ -14,6 +14,8 @@ services:
     volumes:
       - elastic_data:/usr/share/elasticsearch/data
     restart: unless-stopped
+    networks:
+      - sentinel_net
 
   # 2. Prometheus (Time-Series Metrics Scraper)
   prometheus:
@@ -28,6 +30,8 @@ services:
     ports:
       - "9090:9090"
     restart: unless-stopped
+    networks:
+      - sentinel_net
 
   # 3. Grafana (Dashboards)
   grafana:
@@ -43,8 +47,15 @@ services:
     depends_on:
       - prometheus
     restart: unless-stopped
+    networks:
+      - sentinel_net
 
 volumes:
   elastic_data:
   prom_data:
   grafana_data:
+
+networks:
+  sentinel_net:
+    external: true
+    name: sentinel_net

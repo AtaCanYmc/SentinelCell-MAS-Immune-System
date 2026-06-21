@@ -26,6 +26,8 @@ services:
       dockerfile: Dockerfile
     container_name: sentinelcell_fastapi
     command: ["uvicorn", "src.gateways.fastapi_gateway:app", "--host", "0.0.0.0", "--port", "8000"]
+    networks:
+      - sentinel_net
     <<: *sentinel-constraints
 
   # 2. Redis MQ Worker (Async Mode)
@@ -35,24 +37,11 @@ services:
       dockerfile: Dockerfile
     container_name: sentinelcell_redis_worker
     command: ["python", "-m", "src.gateways.redis_mq"]
-    depends_on:
-      - redis
+    networks:
+      - sentinel_net
     <<: *sentinel-constraints
 
-  # Infrastructure: Redis for MQ
-  redis:
-    image: redis:7-alpine
-    container_name: sentinelcell_redis
-    ports:
-      - "6379:6379"
-
-  # 3. Transparent Proxy (Envoy)
-  envoy_proxy:
-    image: envoyproxy/envoy:v1.27-latest
-    container_name: sentinelcell_envoy
-    ports:
-      - "8080:8080" # Agents send traffic here instead of directly to each other
-    volumes:
-      - ./envoy/envoy.yaml:/etc/envoy/envoy.yaml:ro
-    depends_on:
-      - fastapi_gateway
+networks:
+  sentinel_net:
+    name: sentinel_net
+    external: true
