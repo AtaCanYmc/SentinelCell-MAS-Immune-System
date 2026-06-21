@@ -3,6 +3,9 @@
 ## Overview
 This policy defines the rules for automated Pull Requests (PR) and merging procedures. SentinelCell agents are empowered to propose changes, but the integration into the `main` branch follows a "Human-in-the-Loop" (HITL) gatekeeping model.
 
+### Branching
+Read `.antigravity/auto_branching_policy.md` file to generate branch.
+
 ## 1. Automated PR Creation
 - **Trigger:** Once a branch (feature, bugfix, or chore) has passed all local `pytest` and `Antigravity` sandbox verifications.
 - **PR Content:** The agent MUST generate a PR body containing:
