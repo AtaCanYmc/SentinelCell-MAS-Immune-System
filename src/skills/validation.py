@@ -71,3 +71,27 @@ class SemanticValidator:
             return True, schema, None
         except jsonschema.ValidationError as e:
             return False, schema, e.message
+
+    async def validate_node(self, state: dict) -> dict:
+        """
+        LangGraph node execution for validation.
+        """
+        target = state.get("agent_target", "")
+        data = state.get("payload", {})
+        console.print(f"[info][SentinelCell][/info] Validating data for {target}...")
+        is_valid, schema, error_context = await self.validate_and_get_schema(
+            target, data
+        )
+        if not is_valid:
+            console.print(
+                Panel(
+                    f"[bold red]Validation Error:[/bold red]\n{error_context}",
+                    title="[!] Schema Mismatch",
+                    border_style="red",
+                )
+            )
+        return {
+            "is_valid": is_valid,
+            "schema_dict": schema,
+            "error_context": error_context,
+        }

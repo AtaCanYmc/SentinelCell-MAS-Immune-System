@@ -1,11 +1,12 @@
-import asyncio
 import json
+from datetime import datetime
+from typing import TypedDict
+from langgraph.graph import StateGraph, END
 from rich.console import Console
 from rich.panel import Panel
 from rich.text import Text
 from rich.theme import Theme
-from datetime import datetime
-from typing import Callable, Awaitable, Any
+
 
 # Hackerman theme for rich
 custom_theme = Theme(
@@ -20,22 +21,56 @@ custom_theme = Theme(
 console = Console(theme=custom_theme)
 
 
-class TrafficSniffer:
+class AgentState(TypedDict):
+    agent_target: str
+    payload: dict
+    schema_dict: dict | None
+    error_context: str | None
+    is_valid: bool
+    active_provider: str | None
+    repair_attempts: int
+
+
+class SentinelOrchestrator:
     """
-    Asynchronous Interceptor for Multi-Agent Systems.
-    Captures JSON data flows non-intrusively.
+    Model Agnostic Orchestrator using LangGraph.
     """
 
-    def __init__(
-        self, validation_callback: Callable[[str, dict], Awaitable[bool]] = None
-    ):
-        self.validation_callback = validation_callback
+    def __init__(self, validator, healer):
+        self.validator = validator
+        self.healer = healer
+
+        # Build LangGraph
+        graph = StateGraph(AgentState)
+
+        graph.add_node("validate", self.validator.validate_node)
+        graph.add_node("repair", self.healer.repair_node)
+
+        graph.set_entry_point("validate")
+
+        # Decider Logic
+        def decider_node(state: AgentState):
+            if state.get("is_valid"):
+                return "end"
+            if state.get("repair_attempts", 0) >= 3:
+                console.print(
+                    "[bold red][!] Max repair attempts reached. Packet is unrecoverable.[/bold red]"
+                )
+                return "end"
+            return "repair"
+
+        graph.add_conditional_edges(
+            "validate", decider_node, {"end": END, "repair": "repair"}
+        )
+
+        graph.add_edge("repair", "validate")
+        self.workflow = graph.compile()
 
     async def intercept(
         self, agent_source: str, agent_target: str, payload: str
-    ) -> Any:
+    ) -> dict | None:
         """
-        Intercepts communication between agents near-instantly.
+        Intercepts communication between agents near-instantly and runs the StateGraph.
         """
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]
 
@@ -52,67 +87,38 @@ class TrafficSniffer:
             )
         )
 
-        # Non-intrusive async parse
         try:
             data = json.loads(payload)
         except json.JSONDecodeError as e:
             console.print(f"[danger][!] CRITICAL MALFORMED JSON DETECTED:[/danger] {e}")
-            # Here we would normally route to Healing Protocol instead of dropping
             console.print("[warning][~] Routing to Self-Healing Engine...[/warning]")
+            # Pass as generic dict so it can be healed
+            data = {"_raw_unparsed_payload": payload}
+
+        initial_state = {
+            "agent_target": agent_target,
+            "payload": data,
+            "schema_dict": None,
+            "error_context": "Invalid JSON format"
+            if "_raw_unparsed_payload" in data
+            else None,
+            "is_valid": False,
+            "active_provider": None,
+            "repair_attempts": 0,
+        }
+
+        # Invoke the LangGraph workflow
+        final_state = await self.workflow.ainvoke(initial_state)
+
+        if final_state.get("is_valid"):
+            if final_state.get("active_provider"):
+                console.print(
+                    f"[info][*] Healed using active provider: {final_state['active_provider']}[/info]"
+                )
+            console.print(
+                "[success][+] PACKET VALID -> Allowing passthrough...[/success]"
+            )
+            return final_state["payload"]
+        else:
+            console.print("[danger][!] PACKET REJECTED -> Dropped.[/danger]")
             return None
-
-        if self.validation_callback:
-            console.print("[info][*] Passing packet to Semantic Validator...[/info]")
-            is_valid = await self.validation_callback(agent_target, data)
-            if not is_valid:
-                console.print(
-                    "[warning][!] SEMANTIC BREACH DETECTED -> Triggering Healing Protocol...[/warning]"
-                )
-                # Healing logic will be invoked here
-            else:
-                console.print(
-                    "[success][+] PACKET VALID -> Allowing passthrough...[/success]"
-                )
-
-        return data
-
-
-# Dummy test execution
-async def run_dummy_traffic():
-    console.print(
-        Panel(
-            "[bold bright_green]Initializing SentinelCell MAS Immune System...[/bold bright_green]",
-            border_style="green",
-        )
-    )
-
-    # Mock validator
-    async def mock_validator(target: str, data: dict) -> bool:
-        await asyncio.sleep(0.01)  # Simulate quick validation
-        return "status" in data
-
-    sniffer = TrafficSniffer(validation_callback=mock_validator)
-
-    await asyncio.sleep(1)
-    console.print("\n[dim cyan]Injecting valid traffic...[/dim cyan]")
-    await sniffer.intercept(
-        "Agent_Alpha", "Agent_Beta", '{"message": "Hello Beta", "status": "ok"}'
-    )
-
-    await asyncio.sleep(0.5)
-    console.print(
-        "\n[dim cyan]Injecting semantically invalid traffic (missing status)...[/dim cyan]"
-    )
-    await sniffer.intercept(
-        "Agent_Gamma", "Agent_Delta", '{"message": "I am missing the status field"}'
-    )
-
-    await asyncio.sleep(0.5)
-    console.print("\n[dim cyan]Injecting malformed JSON...[/dim cyan]")
-    await sniffer.intercept(
-        "Agent_Omega", "Agent_Zeta", '{"corrupted_data": "missing_keys",'
-    )
-
-
-if __name__ == "__main__":
-    asyncio.run(run_dummy_traffic())

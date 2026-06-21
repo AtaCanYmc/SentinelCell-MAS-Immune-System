@@ -1,9 +1,11 @@
 import os
 import json
-import jsonschema
+import datetime
+import uuid
 from rich.console import Console
 from rich.panel import Panel
 from dotenv import load_dotenv
+from src.core.llm_factory import LLMFactory
 
 load_dotenv()
 console = Console()
@@ -11,104 +13,100 @@ console = Console()
 
 class SelfHealingEngine:
     """
-    Self-Healing Engine that intercepts ValidationError exceptions
-    and repairs JSON payloads using LLM inference based on defined JSON schemas.
+    Self-Healing Engine that repairs JSON payloads using LLM inference (LangChain).
+    Implements a LangGraph node with Fallback Logic.
     """
 
-    def __init__(self, api_key: str = None):
-        self.api_key = api_key or os.getenv("GEMINI_API_KEY")
-        if not self.api_key:
-            console.print(
-                "[dim yellow][~] No GEMINI_API_KEY found in .env. Self-Healing will use offline/mock mode.[/dim yellow]"
-            )
-            self.mock_mode = True
-        else:
-            self.mock_mode = False
-            # To be implemented: initialize real LLM client using google-genai
-            # self.client = genai.Client(api_key=self.api_key)
+    def __init__(self):
+        # We will try OPENAI first, then fallback to LOCAL_OLLAMA
+        self.providers = ["OPENAI", "LOCAL_OLLAMA", "ANTHROPIC"]
 
-    async def heal_packet(
-        self, schema_json: dict, malformed_data: dict, error_context: str
-    ) -> dict | None:
+    async def repair_node(self, state: dict) -> dict:
         """
-        Attempts to heal a malformed data packet.
-        Returns the sanitized data if successful, None if beyond repair.
+        LangGraph node execution for self-healing.
         """
+        attempts = state.get("repair_attempts", 0)
+        schema_json = state.get("schema_dict", {})
+        malformed_data = state.get("payload", {})
+        error_context = state.get("error_context", "Unknown Error")
+
+        # Determine provider based on attempt count (Fallback mechanism)
+        provider = self.providers[attempts % len(self.providers)]
+
         title = schema_json.get("title", "UnknownSchema")
         console.print(
             Panel(
-                f"Target Schema: {title}\nError: {error_context}",
-                title="[~] Healing Protocol Initiated",
+                f"Target Schema: {title}\nError: {error_context}\nProvider: {provider}",
+                title=f"[~] Healing Protocol Initiated (Attempt {attempts + 1})",
                 border_style="yellow",
             )
         )
+        console.print(
+            f"[dim cyan][*] LLM Inference applied via {provider}...[/dim cyan]"
+        )
 
-        if self.mock_mode:
-            console.print("[dim cyan][*] Offline Mock Inference applied...[/dim cyan]")
-            healed_data = malformed_data.copy()
-            # Simple offline mock fix for StatusContract
-            if (
-                title == "StatusContract"
-                and "status" in healed_data
-                and "message" not in healed_data
-            ):
-                healed_data["message"] = (
-                    f"Auto-healed context for status: {healed_data['status']}"
-                )
-        else:
+        try:
+            llm = LLMFactory.get_llm(provider)
             prompt = f"""
             You are a Semantic Healing Agent.
             Contract Schema: {json.dumps(schema_json)}
             Malformed Data: {json.dumps(malformed_data)}
             Validation Error: {error_context}
 
-            Return ONLY the corrected JSON payload. Do not include markdown blocks.
+            Return ONLY the corrected JSON payload. Do not include markdown blocks or any text other than the valid JSON.
             """
-            console.print("[dim cyan][*] LLM Inference applied...[/dim cyan]")
-            # Real LLM call would go here using the prompt
-            console.print(f"[dim]Prepared Prompt:[/dim]\n{prompt}")
 
-            # response = self.client.models.generate_content(...)
-            # healed_data = json.loads(response.text)
-            healed_data = (
-                malformed_data  # Fallback for now if real LLM is not fully integrated
+            response = await llm.ainvoke(prompt)
+
+            # Clean response text in case LLM added markdown backticks
+            cleaned_text = response.content.strip()
+            if cleaned_text.startswith("```json"):
+                cleaned_text = cleaned_text[7:]
+            if cleaned_text.startswith("```"):
+                cleaned_text = cleaned_text[3:]
+            if cleaned_text.endswith("```"):
+                cleaned_text = cleaned_text[:-3]
+            cleaned_text = cleaned_text.strip()
+
+            healed_data = json.loads(cleaned_text)
+
+            # Log the successful healing attempt to agent_decisions.json
+            self._log_decision(title, error_context, provider)
+            console.print(
+                f"[bold green][+] Packet Healed Successfully by {provider}![/bold green]"
             )
 
-        # Re-Validation using jsonschema
-        import datetime
-        import uuid
+            return {
+                "payload": healed_data,
+                "active_provider": provider,
+                "repair_attempts": attempts + 1,
+            }
 
+        except Exception as e:
+            console.print(
+                f"[bold red][!] Healing Failed with {provider}. Error: {e}[/bold red]"
+            )
+            return {"active_provider": provider, "repair_attempts": attempts + 1}
+
+    def _log_decision(self, title: str, error_context: str, provider: str):
+        decision_id = f"DECISION-HEAL-{str(uuid.uuid4())[:8].upper()}"
+        log_path = os.path.join(
+            os.getcwd(), ".antigravity", "logs", "agent_decisions.json"
+        )
         try:
-            jsonschema.validate(instance=healed_data, schema=schema_json)
+            with open(log_path, "r") as f:
+                logs = json.load(f)
+        except Exception:
+            logs = []
 
-            decision_id = f"DECISION-HEAL-{str(uuid.uuid4())[:8].upper()}"
-            log_path = os.path.join(
-                os.getcwd(), ".antigravity", "logs", "agent_decisions.json"
-            )
-            try:
-                with open(log_path, "r") as f:
-                    logs = json.load(f)
-            except Exception:
-                logs = []
+        logs.append(
+            {
+                "id": decision_id,
+                "timestamp": datetime.datetime.now().isoformat() + "Z",
+                "action": f"Healed malformed JSON payload for {title} using {provider}",
+                "reason": f"Validation Error: {error_context}",
+            }
+        )
 
-            logs.append(
-                {
-                    "id": decision_id,
-                    "timestamp": datetime.datetime.now().isoformat() + "Z",
-                    "action": f"Healed malformed JSON payload for {title}",
-                    "reason": f"Validation Error: {error_context}",
-                }
-            )
-
-            with open(log_path, "w") as f:
-                json.dump(logs, f, indent=2)
-
-            console.print(
-                f"[bold green][+] Packet Healed Successfully! Logged as {decision_id}. Semantic Integrity Restored.[/bold green]"
-            )
-            return healed_data
-        except jsonschema.ValidationError:
-            console.print(
-                "[bold red][!] Healing Failed. Data beyond repair.[/bold red]"
-            )
-            return None
+        with open(log_path, "w") as f:
+            json.dump(logs, f, indent=2)

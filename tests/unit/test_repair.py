@@ -1,31 +1,63 @@
 import pytest
+from unittest.mock import patch, MagicMock
 from src.skills.repair import SelfHealingEngine
-from registry.base_contracts import StatusContract
 
 
 @pytest.mark.asyncio
-async def test_healer_mock_success():
-    engine = SelfHealingEngine(api_key="dummy")
-    engine.mock_mode = True  # Forces mock mode even if .env exists
-    malformed_data = {"status": "ok"}  # Missing 'message'
-    error_context = "Missing required field: 'message'"
-    schema_json = StatusContract.model_json_schema()
+@patch("src.skills.repair.LLMFactory")
+async def test_healer_repair_node_success(mock_factory):
+    mock_llm = MagicMock()
+    mock_response = MagicMock()
+    mock_response.content = '{"status": "ok", "message": "healed"}'
 
-    healed_data = await engine.heal_packet(schema_json, malformed_data, error_context)
+    async def mock_ainvoke(*args, **kwargs):
+        return mock_response
 
-    assert healed_data is not None
-    assert "message" in healed_data
-    assert healed_data["message"] == "Auto-healed context for status: ok"
+    mock_llm.ainvoke = mock_ainvoke
+    mock_factory.get_llm.return_value = mock_llm
+
+    engine = SelfHealingEngine()
+
+    # Need to patch _log_decision so we don't write to real files in tests
+    with patch.object(engine, "_log_decision") as mock_log:
+        state = {
+            "repair_attempts": 0,
+            "schema_dict": {"title": "TestSchema"},
+            "payload": {"status": "ok"},
+            "error_context": "Missing message",
+        }
+
+        result = await engine.repair_node(state)
+
+        assert result["payload"] == {"status": "ok", "message": "healed"}
+        assert result["active_provider"] == "OPENAI"
+        assert result["repair_attempts"] == 1
+        mock_log.assert_called_once()
 
 
 @pytest.mark.asyncio
-async def test_healer_mock_failure():
-    engine = SelfHealingEngine(api_key=None)
-    malformed_data = {"completely": "wrong"}
-    error_context = "Missing required fields"
-    schema_json = StatusContract.model_json_schema()
+@patch("src.skills.repair.LLMFactory")
+async def test_healer_repair_node_failure(mock_factory):
+    mock_llm = MagicMock()
 
-    # Mock healer only fixes specific things, this should fail re-validation
-    healed_data = await engine.heal_packet(schema_json, malformed_data, error_context)
+    async def mock_ainvoke(*args, **kwargs):
+        raise Exception("LLM Timeout")
 
-    assert healed_data is None
+    mock_llm.ainvoke = mock_ainvoke
+    mock_factory.get_llm.return_value = mock_llm
+
+    engine = SelfHealingEngine()
+
+    state = {
+        "repair_attempts": 1,
+        "schema_dict": {"title": "TestSchema"},
+        "payload": {"status": "ok"},
+        "error_context": "Missing message",
+    }
+
+    result = await engine.repair_node(state)
+
+    # Fallback uses attempts % len(providers) -> 1 % 3 -> index 1 -> LOCAL_OLLAMA
+    assert "payload" not in result
+    assert result["active_provider"] == "LOCAL_OLLAMA"
+    assert result["repair_attempts"] == 2
