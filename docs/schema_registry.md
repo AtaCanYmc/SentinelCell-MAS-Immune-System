@@ -8,6 +8,8 @@
 
 ![Python](https://img.shields.io/badge/Python-3776AB?style=for-the-badge&logo=python&logoColor=white)
 ![Redis](https://img.shields.io/badge/redis-%23DD0031.svg?style=for-the-badge&logo=redis&logoColor=white)
+![PostgreSQL](https://img.shields.io/badge/PostgreSQL-316192?style=for-the-badge&logo=postgresql&logoColor=white)
+![SQLite](https://img.shields.io/badge/SQLite-07405E?style=for-the-badge&logo=sqlite&logoColor=white)
 ![Supabase](https://img.shields.io/badge/Supabase-3ECF8E?style=for-the-badge&logo=supabase&logoColor=white)
 ![MongoDB](https://img.shields.io/badge/MongoDB-%234ea94b.svg?style=for-the-badge&logo=mongodb&logoColor=white)
 ![Firebase](https://img.shields.io/badge/Firebase-039BE5?style=for-the-badge&logo=Firebase&logoColor=white)
@@ -24,6 +26,8 @@ You can switch the active provider by setting the `SCHEMA_REGISTRY_PROVIDER` env
 | Provider | Configuration Key | Description |
 | :--- | :--- | :--- |
 | **Redis** | `REDIS` | (Recommended) Distributed, enterprise-ready store. Guarantees strong consistency across multi-node setups. |
+| **PostgreSQL** | `POSTGRES` | Local/Remote standard PostgreSQL database via `psycopg2`. Shares connection with PGVector if available. |
+| **SQLite** | `SQLITE` | Fast relational local persistence. No extra dependencies required. |
 | **Supabase** | `SUPABASE` | PostgreSQL-backed cloud database. Perfect for global distributed agent synchronization. |
 | **MongoDB** | `MONGO` | NoSQL document database. Native JSON handling via `motor` async client. |
 | **Firebase** | `FIREBASE` | Serverless document store (Firestore). Great for massive real-time scaling without infrastructure. |
@@ -41,7 +45,24 @@ SCHEMA_REGISTRY_PROVIDER=REDIS
 REDIS_URL=redis://localhost:6379
 ```
 
-### 2. Supabase (PostgreSQL Cloud)
+### 2. PostgreSQL (Local/Remote)
+1. Ensure `psycopg2-binary` is installed (already included if using PGVector).
+2. Update `.env`:
+```env
+SCHEMA_REGISTRY_PROVIDER=POSTGRES
+SCHEMA_POSTGRES_URI=postgresql://sentinel:sentinelpass@localhost:5432/sentinel_db
+```
+*(If `SCHEMA_POSTGRES_URI` is not set, it will fallback to using `POSTGRES_URI`)*.
+
+### 3. SQLite (Local SQL)
+1. No external dependencies required!
+2. Update `.env`:
+```env
+SCHEMA_REGISTRY_PROVIDER=SQLITE
+SQLITE_DB_PATH=schemas.db
+```
+
+### 4. Supabase (PostgreSQL Cloud)
 1. Ensure `supabase` is installed (`pip install supabase`).
 2. Create a table named `schemas` with `agent_id` (Primary Key, text) and `schema_json` (text) columns.
 3. Update `.env`:
@@ -51,7 +72,7 @@ SUPABASE_URL=https://your-project.supabase.co
 SUPABASE_KEY=your-anon-or-service-key
 ```
 
-### 3. MongoDB (NoSQL)
+### 5. MongoDB (NoSQL)
 1. Ensure `motor` is installed (`pip install motor`).
 2. Update `.env`:
 ```env
@@ -59,7 +80,7 @@ SCHEMA_REGISTRY_PROVIDER=MONGO
 MONGO_URI=mongodb+srv://user:pass@cluster.mongodb.net/
 ```
 
-### 4. Firebase (Firestore)
+### 6. Firebase (Firestore)
 1. Ensure `firebase-admin` is installed (`pip install firebase-admin`).
 2. Update `.env` with the path to your service account JSON file:
 ```env
@@ -67,7 +88,7 @@ SCHEMA_REGISTRY_PROVIDER=FIREBASE
 FIREBASE_CREDENTIALS_PATH=/path/to/serviceAccountKey.json
 ```
 
-### 5. File (Persistent Local)
+### 7. File (Persistent Local)
 If you want schemas to persist across reboots but don't want to spin up a database:
 1. Update your `.env` file:
 ```env
@@ -76,7 +97,7 @@ SCHEMA_REGISTRY_PROVIDER=FILE
 > [!NOTE]
 > File mode creates a `schemas.json` file in the root directory.
 
-### 6. In-Memory (Ephemeral)
+### 8. In-Memory (Ephemeral)
 For lightning-fast unit testing where data persistence isn't required:
 ```env
 SCHEMA_REGISTRY_PROVIDER=IN_MEMORY

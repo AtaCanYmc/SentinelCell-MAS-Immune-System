@@ -229,6 +229,154 @@ class FirebaseRegistryStore(BaseRegistryStore):
             raise
 
 
+class SqliteRegistryStore(BaseRegistryStore):
+    """
+    SQLite backed local relational Schema Registry.
+    Built-in to Python, requires no external dependencies.
+    """
+
+    def __init__(self):
+        self.db_path = os.getenv("SQLITE_DB_PATH", "schemas.db")
+        self._init_db()
+
+    def _init_db(self):
+        import sqlite3
+
+        with sqlite3.connect(self.db_path) as conn:
+            cursor = conn.cursor()
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS schemas (
+                    agent_id TEXT PRIMARY KEY,
+                    schema_json TEXT NOT NULL
+                )
+            """)
+            conn.commit()
+
+    async def get_schema(self, agent_id: str) -> Optional[str]:
+        try:
+            import sqlite3
+            import asyncio
+
+            def _fetch():
+                with sqlite3.connect(self.db_path) as conn:
+                    cursor = conn.cursor()
+                    cursor.execute(
+                        "SELECT schema_json FROM schemas WHERE agent_id = ?",
+                        (agent_id,),
+                    )
+                    row = cursor.fetchone()
+                    return row[0] if row else None
+
+            return await asyncio.to_thread(_fetch)
+        except Exception as e:
+            logger.error(f"SQLite get_schema error: {e}")
+            return None
+
+    async def update_schema(self, agent_id: str, schema_json: str) -> None:
+        try:
+            import sqlite3
+            import asyncio
+
+            def _update():
+                with sqlite3.connect(self.db_path) as conn:
+                    cursor = conn.cursor()
+                    cursor.execute(
+                        """
+                        INSERT INTO schemas (agent_id, schema_json)
+                        VALUES (?, ?)
+                        ON CONFLICT(agent_id)
+                        DO UPDATE SET schema_json=excluded.schema_json
+                    """,
+                        (agent_id, schema_json),
+                    )
+                    conn.commit()
+
+            await asyncio.to_thread(_update)
+        except Exception as e:
+            logger.error(f"SQLite update_schema error: {e}")
+            raise
+
+
+class PostgresRegistryStore(BaseRegistryStore):
+    """
+    Local PostgreSQL backed Schema Registry using psycopg2.
+    """
+
+    def __init__(self):
+        import importlib.util
+
+        if importlib.util.find_spec("psycopg2") is None:
+            raise ImportError(
+                "Please install 'psycopg2-binary' to use PostgresRegistryStore"
+            )
+
+        self.uri = os.getenv("SCHEMA_POSTGRES_URI") or os.getenv("POSTGRES_URI")
+        if not self.uri:
+            raise ValueError("SCHEMA_POSTGRES_URI or POSTGRES_URI must be set in .env")
+
+        self._init_db()
+
+    def _init_db(self):
+        import psycopg2
+
+        try:
+            with psycopg2.connect(self.uri) as conn:
+                with conn.cursor() as cursor:
+                    cursor.execute("""
+                        CREATE TABLE IF NOT EXISTS mcp_schemas (
+                            agent_id VARCHAR(255) PRIMARY KEY,
+                            schema_json TEXT NOT NULL
+                        )
+                    """)
+                conn.commit()
+        except Exception as e:
+            logger.error(f"Postgres _init_db error: {e}")
+
+    async def get_schema(self, agent_id: str) -> Optional[str]:
+        try:
+            import psycopg2
+            import asyncio
+
+            def _fetch():
+                with psycopg2.connect(self.uri) as conn:
+                    with conn.cursor() as cursor:
+                        cursor.execute(
+                            "SELECT schema_json FROM mcp_schemas WHERE agent_id = %s",
+                            (agent_id,),
+                        )
+                        row = cursor.fetchone()
+                        return row[0] if row else None
+
+            return await asyncio.to_thread(_fetch)
+        except Exception as e:
+            logger.error(f"Postgres get_schema error: {e}")
+            return None
+
+    async def update_schema(self, agent_id: str, schema_json: str) -> None:
+        try:
+            import psycopg2
+            import asyncio
+
+            def _update():
+                with psycopg2.connect(self.uri) as conn:
+                    with conn.cursor() as cursor:
+                        cursor.execute(
+                            """
+                            INSERT INTO mcp_schemas (agent_id, schema_json)
+                            VALUES (%s, %s)
+                            ON CONFLICT (agent_id)
+                            DO UPDATE SET schema_json = EXCLUDED.schema_json
+                        """,
+                            (agent_id, schema_json),
+                        )
+                    conn.commit()
+
+            await asyncio.to_thread(_update)
+        except Exception as e:
+            logger.error(f"Postgres update_schema error: {e}")
+            raise
+
+
 class RegistryFactory:
     """
     Factory to instantiate the appropriate Registry Store based on environment variables.
@@ -256,6 +404,12 @@ class RegistryFactory:
         elif provider == "FIREBASE":
             logger.info("Initializing Schema Registry: FIREBASE")
             return FirebaseRegistryStore()
+        elif provider == "SQLITE":
+            logger.info("Initializing Schema Registry: SQLITE")
+            return SqliteRegistryStore()
+        elif provider == "POSTGRES":
+            logger.info("Initializing Schema Registry: POSTGRES")
+            return PostgresRegistryStore()
         else:
             logger.warning(
                 f"Unknown registry provider {provider}, falling back to IN_MEMORY"
