@@ -17,7 +17,7 @@ async def intercept_traffic(source: str, target: str, request: Request):
     try:
         raw_body = (await request.body()).decode("utf-8")
         result = await sentinel.intercept(
-            agent_source=source, agent_target=target, payload=raw_body
+            source=source, target=target, payload=raw_body
         )
 
         if result is None:

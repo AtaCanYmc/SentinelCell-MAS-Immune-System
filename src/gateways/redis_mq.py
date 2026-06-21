@@ -37,7 +37,7 @@ async def mq_worker():
                         payload = json.dumps(payload)
 
                     result = await sentinel.intercept(
-                        agent_source=source, agent_target=target, payload=payload
+                        source=source, target=target, payload=payload
                     )
 
                     if result:
