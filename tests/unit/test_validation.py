@@ -1,5 +1,5 @@
 import pytest
-from src.validator import SemanticValidator
+from src.skills.validation import SemanticValidator
 from registry.base_contracts import StatusContract
 
 

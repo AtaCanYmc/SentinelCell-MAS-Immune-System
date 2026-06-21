@@ -1,14 +1,16 @@
 import os
 import pytest
-from src.mcp_client import SchemaRegistryClient
-from src.validator import SemanticValidator
+from src.mcp_integration.client import SchemaRegistryClient
+from src.skills.validation import SemanticValidator
 
 
 @pytest.mark.asyncio
 async def test_mcp_integration_flow():
-    # Construct absolute path to mcp_server.py
+    # Construct absolute path to registry.py
     current_dir = os.path.dirname(os.path.abspath(__file__))
-    server_script = os.path.join(current_dir, "..", "..", "src", "mcp_server.py")
+    server_script = os.path.join(
+        current_dir, "..", "..", "src", "mcp_integration", "registry.py"
+    )
 
     client = SchemaRegistryClient(server_script_path=server_script)
     validator = SemanticValidator(mcp_client=client)

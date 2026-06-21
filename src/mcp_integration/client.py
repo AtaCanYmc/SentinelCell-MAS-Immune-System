@@ -5,6 +5,9 @@ from mcp import ClientSession, StdioServerParameters
 from mcp.client.stdio import stdio_client
 
 
+import sys
+
+
 class SchemaRegistryClient:
     """
     Client to fetch agent schemas from the local MCP SchemaRegistry Server via stdio.
@@ -18,7 +21,7 @@ class SchemaRegistryClient:
         env["PYTHONPATH"] = project_root
 
         self.server_parameters = StdioServerParameters(
-            command="python", args=[server_script_path], env=env
+            command=sys.executable, args=["-m", "src.mcp_integration.registry"], env=env
         )
 
     @asynccontextmanager

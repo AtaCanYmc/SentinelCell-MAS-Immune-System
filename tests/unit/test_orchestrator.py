@@ -1,6 +1,6 @@
 import pytest
 import json
-from src.listener import TrafficSniffer
+from src.core.orchestrator import TrafficSniffer
 
 
 @pytest.mark.asyncio

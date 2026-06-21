@@ -2,7 +2,7 @@ import asyncio
 import jsonschema
 from rich.console import Console
 from rich.panel import Panel
-from src.mcp_client import SchemaRegistryClient
+from src.mcp_integration.client import SchemaRegistryClient
 
 console = Console()
 

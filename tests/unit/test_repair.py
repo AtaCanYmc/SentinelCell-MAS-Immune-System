@@ -1,11 +1,12 @@
 import pytest
-from src.healer import SelfHealingEngine
+from src.skills.repair import SelfHealingEngine
 from registry.base_contracts import StatusContract
 
 
 @pytest.mark.asyncio
 async def test_healer_mock_success():
-    engine = SelfHealingEngine(api_key=None)  # Forces mock mode
+    engine = SelfHealingEngine(api_key="dummy")
+    engine.mock_mode = True  # Forces mock mode even if .env exists
     malformed_data = {"status": "ok"}  # Missing 'message'
     error_context = "Missing required field: 'message'"
     schema_json = StatusContract.model_json_schema()
