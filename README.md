@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="assets/SentinelCell-logo.png" width="300" alt="SentinelCell Logo">
+  <img src="assets/SentinelCell-logo.png" width="300" alt="SentinelCell Logo" style="border-radius: 50%;">
   <h1>SentinelCell - MAS Immune System</h1>
 
   ![Version](https://img.shields.io/badge/version-0.1.0-blue)
