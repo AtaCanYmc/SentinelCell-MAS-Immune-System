@@ -1,6 +1,5 @@
 import os
 import json
-import datetime
 import uuid
 from rich.console import Console
 from rich.panel import Panel
@@ -152,6 +151,8 @@ class SelfHealingEngine:
 
     @staticmethod
     def _log_decision(title: str, error_context: str, provider: str):
+        import time
+
         decision_id = f"DECISION-HEAL-{str(uuid.uuid4())[:8].upper()}"
         log_path = os.path.join(
             os.getcwd(), ".antigravity", "logs", "agent_decisions.json"
@@ -162,14 +163,25 @@ class SelfHealingEngine:
         except Exception:
             logs = []
 
-        logs.append(
-            {
-                "id": decision_id,
-                "timestamp": datetime.datetime.now().isoformat() + "Z",
-                "action": f"Healed malformed JSON payload for {title} using {provider}",
-                "reason": f"Validation Error: {error_context}",
-            }
-        )
+        # OpenTelemetry standard JSON log format
+        otel_log = {
+            "Timestamp": int(time.time() * 1e9),
+            "TraceId": uuid.uuid4().hex,
+            "SpanId": uuid.uuid4().hex[:16],
+            "TraceFlags": 1,
+            "SeverityText": "INFO",
+            "SeverityNumber": 9,
+            "Body": "Healed malformed JSON payload",
+            "Resource": {"service.name": "SentinelCell.ImmuneSystem"},
+            "Attributes": {
+                "decision.id": decision_id,
+                "target.schema": title,
+                "llm.provider": provider,
+                "validation.error": error_context,
+            },
+        }
+
+        logs.append(otel_log)
 
         os.makedirs(os.path.dirname(log_path), exist_ok=True)
         with open(log_path, "w") as f:
