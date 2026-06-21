@@ -12,9 +12,9 @@ Currently, SentinelCell is in rapid development (version `0.1.0`). We provide se
 SentinelCell utilizes the Antigravity Sandbox to test all intercepted JSON payloads, execute unit tests, and evaluate self-healing code. This execution boundary ensures that even if an Agent hallucinates malicious code, the underlying host system remains protected.
 
 ## API Key Protection
-The Self-Healing Engine interfaces with external LLM providers (e.g., Google Gemini).
+The Self-Healing Engine interfaces with external LLM providers via LangChain (e.g., OpenAI, Anthropic, or Local Ollama).
 **Never commit your `.env` file to version control.**
-We have included a `.env.example` file and configured `.gitignore` to prevent accidental exposure of your `GEMINI_API_KEY`. If a key is accidentally committed, revoke it immediately via your provider's dashboard.
+We have included a `.env.example` file and configured `.gitignore` to prevent accidental exposure of your `OPENAI_API_KEY` or `ANTHROPIC_API_KEY`. If a key is accidentally committed, revoke it immediately via your provider's dashboard. For maximum privacy, configure the orchestrator to fallback exclusively to `LOCAL_OLLAMA`.
 
 ## Reporting a Vulnerability
 

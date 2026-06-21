@@ -22,8 +22,9 @@ We enforce a "Human-in-the-Loop" gatekeeping mechanism. AI Agents cannot merge t
 For detailed rules, see [.antigravity/auto_pr_merge_policy.md](.antigravity/auto_pr_merge_policy.md).
 
 ## 3. Code & Documentation
+- **Architecture**: The core orchestrator uses **LangGraph**. Ensure any new nodes return a valid `AgentState`.
 - **Language**: All documentation and code comments must be exclusively in **English**.
-- **Tests**: Ensure that any new components are covered by unit tests in `tests/`.
+- **Tests**: Ensure that any new components are covered by unit tests in `tests/` using Pytest.
 - **Aesthetic**: CLI output should utilize the `rich` library and maintain our "Hackerman" theme colors.
 
 Thank you for helping us make Multi-Agent Systems robust and resilient!
