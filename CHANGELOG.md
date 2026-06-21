@@ -6,6 +6,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to Semantic Versioning.
 
 ### [0.1.0] - 2026-06-21
+- [Fixed] {DECISION-018}: Corrected outdated `src.healer` import to `src.skills.repair` in `.github/workflows/sentinel_ci.yml` Sandbox verification step following the modular refactoring.
 - [Added] {DECISION-017}: Drafted `SECURITY.md` and `CONTRIBUTING.md` and updated `README.md` to fully comply with `.antigravity/readme_standards.md`.
 - [Changed] {DECISION-016}: Refactored the documented `src/` directory hierarchy in `.antigravity/project_structure.md` to introduce modules for `core`, `agents`, `mcp`, `antigravity`, `skills`, and `utils`.
 - [Changed] {DECISION-015}: Refactored the documented `src/` directory hierarchy in `.antigravity/project_structure.md` to introduce modules for `core`, `agents`, `mcp`, `antigravity`, `skills`, and `utils`.
