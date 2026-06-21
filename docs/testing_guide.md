@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="../assets/logo.svg" width="120" height="120" alt="SentinelCell Logo">
+</p>
+
 # 🧪 SentinelCell Testing & Coverage Guide
 
 ![Coverage](https://img.shields.io/badge/Coverage-65%25-brightgreen?style=for-the-badge&logo=pytest)
