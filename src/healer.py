@@ -1,6 +1,6 @@
 import os
 import json
-from pydantic import BaseModel, ValidationError
+import jsonschema
 from rich.console import Console
 from rich.panel import Panel
 from dotenv import load_dotenv
@@ -12,7 +12,7 @@ console = Console()
 class SelfHealingEngine:
     """
     Self-Healing Engine that intercepts ValidationError exceptions
-    and repairs JSON payloads using LLM inference based on defined Pydantic schemas.
+    and repairs JSON payloads using LLM inference based on defined JSON schemas.
     """
 
     def __init__(self, api_key: str = None):
@@ -28,28 +28,27 @@ class SelfHealingEngine:
             # self.client = genai.Client(api_key=self.api_key)
 
     async def heal_packet(
-        self, schema_class: type[BaseModel], malformed_data: dict, error_context: str
+        self, schema_json: dict, malformed_data: dict, error_context: str
     ) -> dict | None:
         """
         Attempts to heal a malformed data packet.
         Returns the sanitized data if successful, None if beyond repair.
         """
+        title = schema_json.get("title", "UnknownSchema")
         console.print(
             Panel(
-                f"Target Schema: {schema_class.__name__}\nError: {error_context}",
+                f"Target Schema: {title}\nError: {error_context}",
                 title="[~] Healing Protocol Initiated",
                 border_style="yellow",
             )
         )
-
-        schema_json = schema_class.model_json_schema()
 
         if self.mock_mode:
             console.print("[dim cyan][*] Offline Mock Inference applied...[/dim cyan]")
             healed_data = malformed_data.copy()
             # Simple offline mock fix for StatusContract
             if (
-                schema_class.__name__ == "StatusContract"
+                title == "StatusContract"
                 and "status" in healed_data
                 and "message" not in healed_data
             ):
@@ -75,14 +74,14 @@ class SelfHealingEngine:
                 malformed_data  # Fallback for now if real LLM is not fully integrated
             )
 
-        # Re-Validation
+        # Re-Validation using jsonschema
         try:
-            schema_class(**healed_data)
+            jsonschema.validate(instance=healed_data, schema=schema_json)
             console.print(
                 "[bold green][+] Packet Healed Successfully! Semantic Integrity Restored.[/bold green]"
             )
             return healed_data
-        except ValidationError:
+        except jsonschema.ValidationError:
             console.print(
                 "[bold red][!] Healing Failed. Data beyond repair.[/bold red]"
             )

@@ -3,11 +3,16 @@ from src.validator import SemanticValidator
 from registry.base_contracts import StatusContract
 
 
+class MockMCPClient:
+    async def fetch_schema(self, agent_id: str):
+        if agent_id == "Agent_Beta":
+            return StatusContract.model_json_schema()
+        return None
+
+
 @pytest.fixture
 def validator():
-    # Mock schema registry
-    registry = {"Agent_Beta": StatusContract}
-    return SemanticValidator(schema_registry=registry)
+    return SemanticValidator(mcp_client=MockMCPClient())
 
 
 @pytest.mark.asyncio
@@ -27,6 +32,5 @@ async def test_validate_packet_invalid(validator):
 @pytest.mark.asyncio
 async def test_validate_packet_no_schema(validator):
     data = {"random": "data"}
-    # Agent_Gamma has no contract in the registry
     result = await validator.validate_packet("Agent_Gamma", data)
     assert result is True
