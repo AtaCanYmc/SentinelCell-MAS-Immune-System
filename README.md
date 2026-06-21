@@ -5,6 +5,7 @@
   ![Version](https://img.shields.io/badge/version-0.1.0-blue)
   ![Build](https://img.shields.io/badge/build-passing-brightgreen)
   ![Python](https://img.shields.io/badge/python-3.11+-blue)
+  ![Docker](https://img.shields.io/badge/docker-containerized-2496ED?logo=docker)
   ![Kaggle Capstone](https://img.shields.io/badge/Kaggle-AI_Agents_Capstone-orange)
 
   <!-- LLM Provider & Framework Badges -->
@@ -19,19 +20,25 @@
 - [1. Introduction (Problem Statement)](#1-introduction-problem-statement)
 - [2. Solution (Our Proposal)](#2-solution-our-proposal)
 - [3. Architecture (Agentic Architecture)](#3-architecture-agentic-architecture)
-- [Setup & Deployment](#setup--deployment)
-- [Capability Matrix & Skill Documentation](#capability-matrix--skill-documentation)
-- [Sandbox Policy](#sandbox-policy)
-- [Additional Information](#additional-information)
+- [4. Core Features](#4-core-features)
+- [5. Setup & Deployment](#5-setup--deployment)
+- [6. Live Examples & Demos](#6-live-examples--demos)
+- [7. Documentation & Policies](#7-documentation--policies)
+
+---
 
 ## 1. Introduction (Problem Statement)
 Multi-Agent Systems (MAS) rely on fragile, hardcoded communication contracts. When an agent hallucinates or updates its output format, the entire pipeline crashes. There is no centralized authority or "Immune System" to gracefully intercept, detect, and automatically heal semantic breaches before they corrupt downstream consumers.
 
 ## 2. Solution (Our Proposal)
-**SentinelCell** is an intelligent middleware—an "Immune System"—for MAS. It intercepts inter-agent traffic in real-time, validates the data against a centralized SchemaRegistry (powered by MCP), and automatically repairs any malformed JSON payloads. The orchestration is powered by **LangGraph**, providing a resilient, model-agnostic (OpenAI, Anthropic, Groq, Local Ollama) state machine with built-in cloud-to-local fallback mechanisms.
+**SentinelCell** is an intelligent middleware—an "Immune System"—for MAS. It intercepts inter-agent traffic in real-time, validates the data against a centralized SchemaRegistry (powered by MCP), and automatically repairs any malformed JSON payloads.
+
+The orchestration is powered by **LangGraph**, providing a resilient, model-agnostic state machine with built-in cloud-to-local fallback mechanisms.
 
 ### Philosophy
 The "Vibe" of SentinelCell is robust resilience wrapped in a futuristic, "Hackerman" aesthetic. It turns silent pipeline failures into observable, self-correcting defense mechanisms.
+
+---
 
 ## 3. Architecture (Agentic Architecture)
 
@@ -51,75 +58,35 @@ stateDiagram-v2
     end note
 ```
 
-## Setup & Deployment
+---
 
+## 4. Core Features
+
+### 🔄 Model Agnostic Fallback (LLMFactory)
+SentinelCell does not rely on a single point of failure. If OpenAI is down, it seamlessly falls back to Anthropic, Groq, or Local Ollama based on your environment configurations.
+*See details in [docs/langchain_models.md](docs/langchain_models.md).*
+
+### 🛡️ Strict Container Security
+Agents run within a fortified Docker Sandbox obeying the Principle of Least Privilege:
+- **0.5 vCPU** & **512MB RAM** hard limits to prevent runaway agents.
+- **Read-Only root filesystem** ensuring the environment cannot be tampered with.
+- **Drop All Capabilities** to prevent privilege escalation.
+*See our [Container Policy](container_policy.md) and [Docker Setup](docs/docker_setup.md).*
+
+### 🔌 MCP Schema Registry
+Semantic validation isn't hardcoded. SentinelCell queries a centralized Model Context Protocol (MCP) server dynamically to enforce the correct contract for the target agent.
+
+---
+
+## 5. Setup & Deployment
+
+### Environment Configuration
+To ensure the model-agnostic Self-Healing engine operates correctly, configure your environment variables:
 ```bash
-# 1. Clone the repository
-git clone https://github.com/your-username/SentinelCell.git
-cd SentinelCell
-
-# 2. Setup the environment
-python -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
-
-# 3. Configure environment variables
-# MUST create .env and add API keys for self-healing
 cp .env.example .env
-# Edit .env with your keys
-
-# 4. Run the SchemaRegistry MCP Server
-python src/mcp_server.py &
-
-# 5. Run the SentinelCell Sniffer Demo
-python src/main.py
 ```
-
-## Capability Matrix & Skill Documentation
-SentinelCell is equipped with several agentic capabilities defined in `.antigravity/skills/`:
-- **[Traffic Control](.antigravity/skills/traffic_control.md)**: Non-intrusive async interception.
-- **[Self-Healing](.antigravity/skills/healing.md)**: LangChain-powered dynamic JSON recovery with fallback.
-- **[MCP Registry](.antigravity/skills/mcp_registry.md)**: Centralized schema resolution using Model Context Protocol.
-- **[Security Compliance](.antigravity/skills/security_compliance.md)**: Environment isolation and sanitization.
-- **[GitHub Workflow](.antigravity/skills/github_workflow.md)**: CI/CD integration and PR verification.
-
-## Sandbox Policy
-SentinelCell enforces strict execution boundaries. All agentic auto-commits and tests are verified within an Antigravity sandbox. No sensitive variables (`.env`) are ever exposed or committed. See our full policy in [.antigravity/auto_changelog_policy.md](.antigravity/auto_changelog_policy.md).
-
-> **Security Disclaimer:** SentinelCell interacts with external LLM APIs (OpenAI, Anthropic, Groq) for self-healing. Ensure your `.env` is properly secured and never commit API keys to version control. The agent treats all incoming traffic as untrusted until validated by the SchemaRegistry.
-
-## Additional Information
-
-### Changelog Reference
-Track the evolution of our MAS Immune System in the [CHANGELOG.md](CHANGELOG.md).
-
-### Contribution Guidelines
-We welcome contributions to strengthen the Immune System! Read our guidelines in [CONTRIBUTING.md](CONTRIBUTING.md).
-
-### License Information
-This project is licensed under the MIT License. See [LICENSE](LICENSE) for more details.
-
-### Contact Information
-For questions or vulnerabilities, please open an issue or reach out to the core maintainers.
-
-### Acknowledgments
-- Built for the **Kaggle AI Agents: Intensive Vibe Coding Capstone Project**.
-- Powered by `rich` for the Hackerman aesthetic.
-- Schema registry capabilities driven by the official Model Context Protocol (MCP).
-- Orchestration powered by **LangGraph** and **LangChain**.
-
-### References
-- [Model Context Protocol (MCP) Official Specs](https://modelcontextprotocol.io/)
-- [LangGraph Documentation](https://langchain-ai.github.io/langgraph/)
-- [Kaggle Capstone Details](https://www.kaggle.com/)
-
-### Appendix
-*SentinelCell was developed as an "Agents for Good" track submission, providing a self-correcting foundation for future society-scale AI infrastructure.*
-
-### Example Env Variables
-To ensure the model-agnostic Self-Healing engine operates correctly, you need to configure your environment variables:
-```bash
-# Fallback Priority Order (comma separated)
+Edit `.env` and set your preferred fallback priority order:
+```env
 PROVIDER_ORDER=OPENAI,GROQ,LOCAL_OLLAMA,ANTHROPIC
 
 OPENAI_API_KEY=your_openai_key_here
@@ -127,3 +94,66 @@ ANTHROPIC_API_KEY=your_anthropic_key_here
 GROQ_API_KEY=your_groq_key_here
 # Ollama runs locally, usually on http://localhost:11434
 ```
+
+### Option A: Local Execution
+```bash
+# Setup the environment
+python -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+
+# Run the SchemaRegistry MCP Server in background
+python src/mcp_server.py &
+```
+
+### Option B: Secure Docker Execution (Recommended)
+SentinelCell is fully containerized. To run it within the secure sandbox defined by our policies:
+```bash
+docker compose up -d --build
+docker stats sentinelcell_agent # To verify strict CPU/RAM limits
+```
+
+---
+
+## 6. Live Examples & Demos
+
+We provide live simulations showing the Immune System in action. Once your `.env` is ready, run these from the root directory:
+
+- **Basic Validation & Healing**:
+  `PYTHONPATH=. python examples/basic_usage.py`
+- **Producer-Consumer Interception Flow**:
+  `PYTHONPATH=. python examples/multi_agent_flow.py`
+- **Custom Security Skills (Sanitizer)**:
+  `PYTHONPATH=. python examples/custom_skill_demo.py`
+
+*Read the [Examples README](examples/README.md) for more info.*
+
+---
+
+## 7. Documentation & Policies
+
+### 📖 Technical Docs
+- [Supported LangChain Models](docs/langchain_models.md)
+- [Docker Setup & Monitoring](docs/docker_setup.md)
+
+### ⚖️ Policies
+SentinelCell enforces strict execution boundaries:
+- **[Container Policy](container_policy.md)**: Resource limits and network isolation.
+- **[Changelog Policy](.antigravity/auto_changelog_policy.md)**: AI-assisted safe committing.
+- **[Readme Standards](.antigravity/readme_standards.md)**: Strict English documentation.
+
+### 🛠️ Internal Skills
+Agentic capabilities are defined in `.antigravity/skills/`:
+- **[Traffic Control](.antigravity/skills/traffic_control.md)**: Non-intrusive async interception.
+- **[Self-Healing](.antigravity/skills/healing.md)**: LangChain-powered dynamic JSON recovery.
+- **[MCP Registry](.antigravity/skills/mcp_registry.md)**: Centralized schema resolution.
+
+---
+
+### Acknowledgments & References
+- Built for the **Kaggle AI Agents: Intensive Vibe Coding Capstone Project**.
+- Powered by `rich` for the Hackerman aesthetic.
+- [Model Context Protocol (MCP) Official Specs](https://modelcontextprotocol.io/)
+- [LangGraph Documentation](https://langchain-ai.github.io/langgraph/)
+
+> **Security Disclaimer:** Ensure your `.env` is properly secured and never commit API keys to version control. The agent treats all incoming traffic as untrusted until validated by the MCP SchemaRegistry.
