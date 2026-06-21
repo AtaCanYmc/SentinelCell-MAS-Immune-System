@@ -68,9 +68,10 @@ SentinelCell is equipped with several agentic capabilities defined in `.antigrav
 - **[Self-Healing](.antigravity/skills/healing.md)**: LLM-powered dynamic JSON recovery.
 - **[MCP Registry](.antigravity/skills/mcp_registry.md)**: Centralized schema resolution using Model Context Protocol.
 - **[Security Compliance](.antigravity/skills/security_compliance.md)**: Environment isolation and sanitization.
+- **[GitHub Workflow](.antigravity/skills/github_workflow.md)**: CI/CD integration and PR verification.
 
 ## Sandbox Policy
-SentinelCell enforces strict execution boundaries. All agentic auto-commits and tests are verified within an Antigravity sandbox. No sensitive variables (`.env`) are ever exposed or committed. See our full policy in [.antigravity/auto_commit_policy.md](.antigravity/auto_commit_policy.md).
+SentinelCell enforces strict execution boundaries. All agentic auto-commits and tests are verified within an Antigravity sandbox. No sensitive variables (`.env`) are ever exposed or committed. See our full policy in [.antigravity/auto_changelog_policy.md](.antigravity/auto_changelog_policy.md).
 
 > **Security Disclaimer:** SentinelCell interacts with external LLM APIs (e.g., Gemini) for self-healing. Ensure your `.env` is properly secured and never commit API keys to version control. The agent treats all incoming traffic as untrusted until validated by the SchemaRegistry.
 
@@ -99,3 +100,10 @@ For questions or vulnerabilities, please open an issue or reach out to the core 
 
 ### Appendix
 *SentinelCell was developed as an "Agents for Good" track submission, providing a self-correcting foundation for future society-scale AI infrastructure.*
+
+### Example Env Variables
+To ensure the Self-Healing engine operates correctly, you need to configure your environment variables. Do NOT commit your actual keys. Instead, use `.env.example` as a template to create your `.env` file:
+```bash
+# Example .env file contents
+GEMINI_API_KEY=your_google_gemini_api_key_here
+```
