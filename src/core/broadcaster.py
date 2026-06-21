@@ -1,6 +1,9 @@
 import os
 import json
+import logging
 import redis.asyncio as redis
+
+logger = logging.getLogger(__name__)
 
 
 class LogBroadcaster:
@@ -17,9 +20,9 @@ class LogBroadcaster:
         payload = {"type": message_type, "content": content}
         try:
             await self.client.publish("sentinel.logs", json.dumps(payload))
-        except Exception:
-            # Fail silently to avoid interrupting the main immune system loop
-            pass
+        except Exception as e:
+            # Log the error but do not raise it to avoid interrupting the main immune system loop
+            logger.error("Failed to broadcast log to Redis: %s", e)
 
 
 broadcaster = LogBroadcaster()
