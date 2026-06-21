@@ -1,44 +1,57 @@
 version: '3.8'
 
+# Reusable security constraints for SentinelCell agents
+x-sentinel-constraints: &sentinel-constraints
+  deploy:
+    resources:
+      limits:
+        cpus: '0.5'
+        memory: 512M
+  cap_drop:
+    - ALL
+  read_only: true
+  env_file:
+    - .env
+  volumes:
+    - ./logs:/logs
+  tmpfs:
+    - /temp
+
 services:
-  sentinelcell:
+  # 1. FastAPI Gateway (Guardian Mode)
+  fastapi_gateway:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: sentinelcell_agent
+    container_name: sentinelcell_fastapi
+    command: ["uvicorn", "src.gateways.fastapi_gateway:app", "--host", "0.0.0.0", "--port", "8000"]
+    <<: *sentinel-constraints
 
-    # 1. Resource Constraints
-    deploy:
-      resources:
-        limits:
-          cpus: '0.5'
-          memory: 512M
+  # 2. Redis MQ Worker (Async Mode)
+  redis_worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: sentinelcell_redis_worker
+    command: ["python", "-m", "src.gateways.redis_mq"]
+    depends_on:
+      - redis
+    <<: *sentinel-constraints
 
-    # 2. Network Security & 3. Environment Isolation
-    # Drops all root capabilities to ensure it can't elevate privileges
-    cap_drop:
-      - ALL
+  # Infrastructure: Redis for MQ
+  redis:
+    image: redis:7-alpine
+    container_name: sentinelcell_redis
+    ports:
+      - "6379:6379"
 
-    # Read-only root filesystem prevents the agent from modifying the container state
-    read_only: true
-
-    # Map external .env file so secrets are NOT hardcoded in the image
-    env_file:
-      - .env
-
-    # Map only the allowed writable directories
+  # 3. Transparent Proxy (Envoy)
+  envoy_proxy:
+    image: envoyproxy/envoy:v1.27-latest
+    container_name: sentinelcell_envoy
+    ports:
+      - "8080:8080" # Agents send traffic here instead of directly to each other
     volumes:
-      # Persistent logs directory on host
-      - ./logs:/logs
-
-    # Ephemeral temp directory mapping (in memory, destroyed after container stops)
-    tmpfs:
-      - /temp
-
-    # Optional: If you want strict network isolation, uncomment below.
-    # networks:
-    #   - sentinel_net
-
-# networks:
-#   sentinel_net:
-#     internal: false # Set to true to disable internet access entirely
+      - ./envoy/envoy.yaml:/etc/envoy/envoy.yaml:ro
+    depends_on:
+      - fastapi_gateway

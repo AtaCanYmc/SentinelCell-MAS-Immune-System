@@ -13,3 +13,6 @@ langchain-community>=0.0.20
 langchain-ollama>=0.1.0
 langchain-groq>=0.1.0
 pytest-asyncio>=0.21.0
+fastapi>=0.100.0
+uvicorn>=0.23.0
+redis>=5.0.0
