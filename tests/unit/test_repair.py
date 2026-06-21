@@ -17,6 +17,7 @@ async def test_healer_repair_node_success(mock_factory):
     mock_factory.get_llm.return_value = mock_llm
 
     engine = SelfHealingEngine()
+    engine.providers = ["OPENAI", "LOCAL_OLLAMA", "ANTHROPIC"]
 
     # Need to patch _log_decision so we don't write to real files in tests
     with patch.object(engine, "_log_decision") as mock_log:
@@ -47,6 +48,7 @@ async def test_healer_repair_node_failure(mock_factory):
     mock_factory.get_llm.return_value = mock_llm
 
     engine = SelfHealingEngine()
+    engine.providers = ["OPENAI", "LOCAL_OLLAMA", "ANTHROPIC"]
 
     state = {
         "repair_attempts": 1,

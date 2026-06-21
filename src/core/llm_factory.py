@@ -2,6 +2,7 @@ import os
 from langchain_openai import ChatOpenAI
 from langchain_anthropic import ChatAnthropic
 from langchain_ollama import ChatOllama
+from langchain_groq import ChatGroq
 from langchain_core.language_models.chat_models import BaseChatModel
 
 
@@ -28,5 +29,11 @@ class LLMFactory:
             )
         elif provider == "LOCAL_OLLAMA":
             return ChatOllama(model=os.getenv("OLLAMA_MODEL", "llama3"), temperature=0)
+        elif provider == "GROQ":
+            return ChatGroq(
+                api_key=os.getenv("GROQ_API_KEY", "dummy_groq_key"),
+                model_name=os.getenv("GROQ_MODEL", "llama3-70b-8192"),
+                temperature=0,
+            )
         else:
             raise ValueError(f"Unsupported LLM provider: {provider}")

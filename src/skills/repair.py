@@ -18,8 +18,15 @@ class SelfHealingEngine:
     """
 
     def __init__(self):
-        # We will try OPENAI first, then fallback to LOCAL_OLLAMA
-        self.providers = ["OPENAI", "LOCAL_OLLAMA", "ANTHROPIC"]
+        # We will try providers based on the ENV configuration
+        env_order = os.getenv("PROVIDER_ORDER")
+        if env_order:
+            self.providers = [
+                p.strip().upper() for p in env_order.split(",") if p.strip()
+            ]
+        else:
+            # Default fallback order if not specified
+            self.providers = ["OPENAI", "LOCAL_OLLAMA", "ANTHROPIC", "GROQ"]
 
     async def repair_node(self, state: dict) -> dict:
         """

@@ -11,6 +11,7 @@
   ![LangGraph](https://img.shields.io/badge/LangGraph-State_Machine-orange)
   ![OpenAI](https://img.shields.io/badge/Model-OpenAI-green)
   ![Anthropic](https://img.shields.io/badge/Model-Anthropic-blueviolet)
+  ![Groq](https://img.shields.io/badge/Model-Groq-f55036)
   ![Ollama](https://img.shields.io/badge/Model-Local_Ollama-lightgrey)
 </div>
 
@@ -27,7 +28,7 @@
 Multi-Agent Systems (MAS) rely on fragile, hardcoded communication contracts. When an agent hallucinates or updates its output format, the entire pipeline crashes. There is no centralized authority or "Immune System" to gracefully intercept, detect, and automatically heal semantic breaches before they corrupt downstream consumers.
 
 ## 2. Solution (Our Proposal)
-**SentinelCell** is an intelligent middleware—an "Immune System"—for MAS. It intercepts inter-agent traffic in real-time, validates the data against a centralized SchemaRegistry (powered by MCP), and automatically repairs any malformed JSON payloads. The orchestration is powered by **LangGraph**, providing a resilient, model-agnostic (OpenAI, Anthropic, Local Ollama) state machine with built-in cloud-to-local fallback mechanisms.
+**SentinelCell** is an intelligent middleware—an "Immune System"—for MAS. It intercepts inter-agent traffic in real-time, validates the data against a centralized SchemaRegistry (powered by MCP), and automatically repairs any malformed JSON payloads. The orchestration is powered by **LangGraph**, providing a resilient, model-agnostic (OpenAI, Anthropic, Groq, Local Ollama) state machine with built-in cloud-to-local fallback mechanisms.
 
 ### Philosophy
 The "Vibe" of SentinelCell is robust resilience wrapped in a futuristic, "Hackerman" aesthetic. It turns silent pipeline failures into observable, self-correcting defense mechanisms.
@@ -45,10 +46,8 @@ stateDiagram-v2
     repair_node --> validate_node: Healed Payload
 
     note right of repair_node
-        LLMFactory Fallback Logic:
-        1. OPENAI
-        2. LOCAL_OLLAMA
-        3. ANTHROPIC
+        LLMFactory Fallback Logic
+        Driven by ENV PROVIDER_ORDER
     end note
 ```
 
@@ -87,7 +86,7 @@ SentinelCell is equipped with several agentic capabilities defined in `.antigrav
 ## Sandbox Policy
 SentinelCell enforces strict execution boundaries. All agentic auto-commits and tests are verified within an Antigravity sandbox. No sensitive variables (`.env`) are ever exposed or committed. See our full policy in [.antigravity/auto_changelog_policy.md](.antigravity/auto_changelog_policy.md).
 
-> **Security Disclaimer:** SentinelCell interacts with external LLM APIs (OpenAI, Anthropic) for self-healing. Ensure your `.env` is properly secured and never commit API keys to version control. The agent treats all incoming traffic as untrusted until validated by the SchemaRegistry.
+> **Security Disclaimer:** SentinelCell interacts with external LLM APIs (OpenAI, Anthropic, Groq) for self-healing. Ensure your `.env` is properly secured and never commit API keys to version control. The agent treats all incoming traffic as untrusted until validated by the SchemaRegistry.
 
 ## Additional Information
 
@@ -120,7 +119,11 @@ For questions or vulnerabilities, please open an issue or reach out to the core 
 ### Example Env Variables
 To ensure the model-agnostic Self-Healing engine operates correctly, you need to configure your environment variables:
 ```bash
+# Fallback Priority Order (comma separated)
+PROVIDER_ORDER=OPENAI,GROQ,LOCAL_OLLAMA,ANTHROPIC
+
 OPENAI_API_KEY=your_openai_key_here
 ANTHROPIC_API_KEY=your_anthropic_key_here
+GROQ_API_KEY=your_groq_key_here
 # Ollama runs locally, usually on http://localhost:11434
 ```
