@@ -13,10 +13,27 @@ SentinelCell is a middleware "Immune System" for Multi-Agent Systems (MAS). This
 ├── logs/                   # System runtime & audit logs (JSON/Loguru)
 ├── registry/               # MCP Server & Schema definitions (Pydantic)
 ├── src/                    # SentinelCell core implementation
-│   ├── listener.py         # Interception logic (Sniffer)
-│   ├── validator.py        # Semantic integrity engine
-│   ├── healer.py           # LLM-based self-healing module
-│   └── dashboard.py        # Rich-based live terminal UI
+│   ├── __init__.py
+│   ├── main.py                 # The Orchestrator (Entry point for the Multi-Agent System)
+│   ├── core/
+│   │   ├── orchestrator.py     # Manages the Agentic Loop and workflow DAGs
+│   │   └── logger.py           # Handles logging for agent_decisions.json
+│   ├── agents/
+│   │   ├── producer.py         # Producer agent (Data Source)
+│   │   ├── consumer.py         # Consumer agent (Data Receiver)
+│   │   └── validator_agent.py  # The SentinelCell (The "Immune System" agent)
+│   ├── mcp/
+│   │   ├── registry.py         # MCP server managing schema definitions
+│   │   └── client.py           # Client implementation for inter-agent communication
+│   ├── antigravity/
+│   │   ├── sandbox.py          # Wrapper for Antigravity CLI (Execution isolation)
+│   │   └── integrity.py        # Logic to verify sandbox-executed code/data
+│   ├── skills/
+│   │   ├── base.py             # Abstract BaseSkill interface
+│   │   ├── validation.py       # Implementation of validation logic
+│   │   └── repair.py           # Implementation of self-healing logic
+│   └── utils/
+│       └── schema_tools.py     # Pydantic models and helper functions
 ├── tests/                  # Integrity test suites
 ├── .env                    # Environment variables (GIT IGNORED)
 ├── README.md               # Kaggle competition documentation
