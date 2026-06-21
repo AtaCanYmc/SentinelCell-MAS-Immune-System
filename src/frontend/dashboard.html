@@ -3,91 +3,528 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>SentinelCell Live Dashboard</title>
+    <title>SentinelCell Monitoring Center</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
     <style>
-        body {
-            background-color: #0D1117;
-            color: #00FF00;
-            font-family: 'Courier New', Courier, monospace;
+        :root {
+            --bg-color: #0b0f19;
+            --glass-bg: rgba(20, 27, 45, 0.7);
+            --glass-border: rgba(255, 255, 255, 0.08);
+            --neon-blue: #00d2ff;
+            --neon-purple: #9d4edd;
+            --neon-green: #39ff14;
+            --neon-red: #ff3366;
+            --text-primary: #e2e8f0;
+            --text-secondary: #94a3b8;
+        }
+
+        * {
+            box-sizing: border-box;
             margin: 0;
-            padding: 20px;
+            padding: 0;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            background-image:
+                radial-gradient(circle at 15% 50%, rgba(0, 210, 255, 0.08) 0%, transparent 50%),
+                radial-gradient(circle at 85% 30%, rgba(157, 78, 221, 0.08) 0%, transparent 50%);
+            color: var(--text-primary);
+            font-family: 'Inter', sans-serif;
+            height: 100vh;
+            overflow: hidden;
             display: flex;
             flex-direction: column;
-            height: 100vh;
         }
-        h1 {
-            color: #58A6FF;
-            text-align: center;
-            border-bottom: 1px solid #30363D;
-            padding-bottom: 10px;
+
+        /* Glassmorphism Classes */
+        .glass-panel {
+            background: var(--glass-bg);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid var(--glass-border);
+            border-radius: 16px;
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
         }
-        #terminal {
-            flex-grow: 1;
-            background-color: #010409;
-            border: 1px solid #30363D;
-            border-radius: 5px;
-            padding: 15px;
+
+        /* Header Layout */
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px 40px;
+            border-bottom: 1px solid var(--glass-border);
+        }
+
+        .logo-container {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+
+        .logo-container h1 {
+            font-size: 24px;
+            font-weight: 700;
+            letter-spacing: 1px;
+            background: linear-gradient(90deg, var(--neon-blue), var(--neon-purple));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .status-badge {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            padding: 8px 16px;
+            background: rgba(57, 255, 20, 0.1);
+            color: var(--neon-green);
+            border: 1px solid rgba(57, 255, 20, 0.3);
+            border-radius: 50px;
+            transition: all 0.3s ease;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            background-color: var(--neon-green);
+            border-radius: 50%;
+            box-shadow: 0 0 10px var(--neon-green);
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(0.95); opacity: 0.8; }
+            50% { transform: scale(1.2); opacity: 1; box-shadow: 0 0 15px var(--neon-green); }
+            100% { transform: scale(0.95); opacity: 0.8; }
+        }
+
+        /* Main Content Layout */
+        main {
+            flex: 1;
+            padding: 30px 40px;
+            display: flex;
+            flex-direction: column;
+            gap: 30px;
             overflow-y: auto;
-            white-space: pre-wrap;
-            box-shadow: 0 0 10px rgba(0, 255, 0, 0.2);
+        }
+
+        /* Metrics Row */
+        .metrics-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 20px;
+        }
+
+        .metric-card {
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            position: relative;
+            overflow: hidden;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .metric-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 12px 40px 0 rgba(0, 0, 0, 0.4);
+        }
+
+        .metric-title {
+            font-size: 14px;
+            color: var(--text-secondary);
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .metric-value {
+            font-size: 36px;
+            font-weight: 700;
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .metric-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 4px;
+            height: 100%;
+        }
+
+        .card-blue::before { background: var(--neon-blue); }
+        .card-blue .metric-value { color: var(--neon-blue); }
+
+        .card-purple::before { background: var(--neon-purple); }
+        .card-purple .metric-value { color: var(--neon-purple); }
+
+        .card-green::before { background: var(--neon-green); }
+        .card-green .metric-value { color: var(--neon-green); }
+
+        .card-red::before { background: var(--neon-red); }
+        .card-red .metric-value { color: var(--neon-red); }
+
+        /* Tables & Lists */
+        .content-grid {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 20px;
+            flex: 1;
+            min-height: 0; /* Important for scroll */
+        }
+
+        .panel-header {
+            padding: 20px;
+            border-bottom: 1px solid var(--glass-border);
+            font-weight: 600;
+            font-size: 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .table-container {
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .table-scroll {
+            flex: 1;
+            overflow-y: auto;
+            padding: 0 20px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            text-align: left;
+        }
+
+        th {
+            position: sticky;
+            top: 0;
+            background: var(--glass-bg);
+            backdrop-filter: blur(12px);
+            padding: 15px 10px;
+            color: var(--text-secondary);
+            font-weight: 600;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            z-index: 10;
+        }
+
+        td {
+            padding: 15px 10px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
             font-size: 14px;
         }
-        .log-entry { margin-bottom: 10px; }
-        .log-time { color: #8B949E; margin-right: 10px; }
-        .type-INTERCEPT { color: #58A6FF; }
-        .type-HEAL_START { color: #D2A8FF; }
-        .type-HEAL_SUCCESS { color: #3FB950; font-weight: bold; }
-        .type-HEAL_FAIL { color: #F85149; font-weight: bold; }
-        .type-SECURITY_ALERT { color: #FF0000; font-weight: bold; background: rgba(255,0,0,0.2); padding: 2px 5px; border-radius: 3px; }
-        .pulse { animation: pulse 2s infinite; }
-        @keyframes pulse { 0% { opacity: 1; } 50% { opacity: 0.5; } 100% { opacity: 1; } }
+
+        tr:last-child td {
+            border-bottom: none;
+        }
+
+        tr {
+            transition: background-color 0.2s ease;
+        }
+
+        tr:hover {
+            background-color: rgba(255, 255, 255, 0.03);
+        }
+
+        .time-cell {
+            color: var(--text-secondary);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 13px;
+        }
+
+        .badge {
+            padding: 4px 10px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+        }
+
+        .badge-intercept { background: rgba(0, 210, 255, 0.15); color: var(--neon-blue); border: 1px solid rgba(0, 210, 255, 0.3); }
+        .badge-heal { background: rgba(157, 78, 221, 0.15); color: var(--neon-purple); border: 1px solid rgba(157, 78, 221, 0.3); }
+        .badge-success { background: rgba(57, 255, 20, 0.15); color: var(--neon-green); border: 1px solid rgba(57, 255, 20, 0.3); }
+        .badge-alert { background: rgba(255, 51, 102, 0.15); color: var(--neon-red); border: 1px solid rgba(255, 51, 102, 0.3); }
+        .badge-system { background: rgba(255, 255, 255, 0.1); color: var(--text-primary); border: 1px solid rgba(255, 255, 255, 0.2); }
+
+        .terminal-container {
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            background: rgba(0, 0, 0, 0.4);
+        }
+
+        #terminal {
+            flex: 1;
+            padding: 20px;
+            overflow-y: auto;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 13px;
+            line-height: 1.6;
+            color: #a3b8cc;
+        }
+
+        .term-line {
+            margin-bottom: 4px;
+            word-wrap: break-word;
+        }
+
+        .term-time {
+            color: #5c7080;
+            margin-right: 10px;
+        }
+
+        /* Scrollbar styling */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        /* New Row Animation */
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(-10px); background-color: rgba(255, 255, 255, 0.1); }
+            to { opacity: 1; transform: translateY(0); background-color: transparent; }
+        }
+        .new-row {
+            animation: slideIn 0.5s ease-out forwards;
+        }
     </style>
 </head>
 <body>
-    <h1>🛡️ SentinelCell <span class="pulse">Live</span> Immune System</h1>
-    <div id="terminal"></div>
+    <header>
+        <div class="logo-container">
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M12 2L3 6V11C3 16.55 6.84 21.74 12 23C17.16 21.74 21 16.55 21 11V6L12 2Z" stroke="url(#paint0_linear)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M12 11L12 16" stroke="url(#paint0_linear)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M12 7L12 7.01" stroke="url(#paint0_linear)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                <defs>
+                    <linearGradient id="paint0_linear" x1="3" y1="2" x2="21" y2="23" gradientUnits="userSpaceOnUse">
+                        <stop stop-color="#00D2FF"/>
+                        <stop offset="1" stop-color="#9D4EDD"/>
+                    </linearGradient>
+                </defs>
+            </svg>
+            <h1>SentinelCell Guardian</h1>
+        </div>
+        <div class="status-badge" id="conn-status">
+            <div class="status-dot" id="conn-dot"></div>
+            <span id="conn-text">Listening</span>
+        </div>
+    </header>
+
+    <main>
+        <div class="metrics-grid">
+            <div class="glass-panel metric-card card-blue">
+                <div class="metric-title">Payloads Intercepted</div>
+                <div class="metric-value" id="count-intercepts">0</div>
+            </div>
+            <div class="glass-panel metric-card card-purple">
+                <div class="metric-title">Healing Operations</div>
+                <div class="metric-value" id="count-heals">0</div>
+            </div>
+            <div class="glass-panel metric-card card-green">
+                <div class="metric-title">Successful Heals</div>
+                <div class="metric-value" id="count-success">0</div>
+            </div>
+            <div class="glass-panel metric-card card-red">
+                <div class="metric-title">Security Threats Blocked</div>
+                <div class="metric-value" id="count-alerts">0</div>
+            </div>
+        </div>
+
+        <div class="content-grid">
+            <div class="glass-panel table-container">
+                <div class="panel-header">
+                    Live Event Stream
+                </div>
+                <div class="table-scroll">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th style="width: 15%">Time</th>
+                                <th style="width: 20%">Event Type</th>
+                                <th style="width: 65%">Details</th>
+                            </tr>
+                        </thead>
+                        <tbody id="events-table-body">
+                            <!-- Rows injected here -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <div class="glass-panel terminal-container">
+                <div class="panel-header" style="border-bottom-color: rgba(255,255,255,0.05); background: rgba(0,0,0,0.2);">
+                    Raw Engine Output
+                </div>
+                <div id="terminal">
+                    <!-- Raw logs injected here -->
+                </div>
+            </div>
+        </div>
+    </main>
 
     <script>
-        const terminal = document.getElementById('terminal');
+        // State
+        const counters = {
+            INTERCEPT: 0,
+            HEAL_START: 0,
+            HEAL_SUCCESS: 0,
+            SECURITY_ALERT: 0
+        };
+
+        const DOM = {
+            intercepts: document.getElementById('count-intercepts'),
+            heals: document.getElementById('count-heals'),
+            success: document.getElementById('count-success'),
+            alerts: document.getElementById('count-alerts'),
+            tableBody: document.getElementById('events-table-body'),
+            terminal: document.getElementById('terminal'),
+            connStatus: document.getElementById('conn-status'),
+            connDot: document.getElementById('conn-dot'),
+            connText: document.getElementById('conn-text')
+        };
+
+        // Helpers
+        function getBadgeClass(type) {
+            if (type.includes('INTERCEPT')) return 'badge-intercept';
+            if (type.includes('START') || type.includes('ATTEMPT')) return 'badge-heal';
+            if (type.includes('SUCCESS') || type.includes('HEALED')) return 'badge-success';
+            if (type.includes('FAIL') || type.includes('ERROR') || type.includes('ALERT') || type.includes('DROP')) return 'badge-alert';
+            return 'badge-system';
+        }
+
+        function updateCounters(type) {
+            if (type.includes('INTERCEPT')) {
+                counters.INTERCEPT++;
+                DOM.intercepts.innerText = counters.INTERCEPT;
+            } else if (type.includes('HEAL_START') || type.includes('REPAIR_ATTEMPT')) {
+                counters.HEAL_START++;
+                DOM.heals.innerText = counters.HEAL_START;
+            } else if (type.includes('SUCCESS') || type.includes('HEALED')) {
+                counters.HEAL_SUCCESS++;
+                DOM.success.innerText = counters.HEAL_SUCCESS;
+            } else if (type.includes('SECURITY_ALERT') || type.includes('QUARANTINE')) {
+                counters.SECURITY_ALERT++;
+                DOM.alerts.innerText = counters.SECURITY_ALERT;
+            }
+        }
+
+        function addTableRow(time, type, content) {
+            const tr = document.createElement('tr');
+            tr.className = 'new-row';
+
+            const badgeClass = getBadgeClass(type);
+
+            // Limit content length for table
+            let displayContent = content;
+            if (displayContent.length > 100) {
+                displayContent = displayContent.substring(0, 100) + '...';
+            }
+
+            tr.innerHTML = `
+                <td class="time-cell">${time}</td>
+                <td><span class="badge ${badgeClass}">${type}</span></td>
+                <td>${displayContent}</td>
+            `;
+
+            DOM.tableBody.prepend(tr);
+
+            // Keep only last 50 rows
+            if (DOM.tableBody.children.length > 50) {
+                DOM.tableBody.removeChild(DOM.tableBody.lastChild);
+            }
+        }
+
+        function addTerminalLine(time, type, content) {
+            const div = document.createElement('div');
+            div.className = 'term-line';
+
+            let color = '#a3b8cc';
+            if (type.includes('SUCCESS')) color = '#39ff14';
+            else if (type.includes('ERROR') || type.includes('FAIL') || type.includes('ALERT')) color = '#ff3366';
+            else if (type.includes('INTERCEPT')) color = '#00d2ff';
+
+            div.innerHTML = `<span class="term-time">[${time}]</span> <span style="color: ${color}">[${type}]</span> ${content}`;
+
+            DOM.terminal.appendChild(div);
+
+            // Auto scroll
+            DOM.terminal.scrollTop = DOM.terminal.scrollHeight;
+
+            // Keep only last 100 lines
+            if (DOM.terminal.children.length > 100) {
+                DOM.terminal.removeChild(DOM.terminal.firstChild);
+            }
+        }
+
+        function setDisconnected() {
+            DOM.connStatus.style.borderColor = 'rgba(255, 51, 102, 0.3)';
+            DOM.connStatus.style.color = '#ff3366';
+            DOM.connStatus.style.background = 'rgba(255, 51, 102, 0.1)';
+            DOM.connDot.style.backgroundColor = '#ff3366';
+            DOM.connDot.style.boxShadow = '0 0 10px #ff3366';
+            DOM.connText.innerText = 'Disconnected';
+        }
+
+        // WebSocket Logic
         const ws = new WebSocket(`ws://${window.location.host}/ws/logs`);
 
         ws.onopen = function() {
-            appendLog('SYSTEM', 'Connected to SentinelCell Live Feed...', '#FFF');
+            const time = new Date().toLocaleTimeString();
+            addTableRow(time, 'SYSTEM', 'Connected to SentinelCell live telemetry feed.');
+            addTerminalLine(time, 'SYSTEM', 'WebSocket connection established. Waiting for packets...');
         };
 
         ws.onmessage = function(event) {
+            const time = new Date().toLocaleTimeString();
             try {
                 const data = JSON.parse(event.data);
-                const time = new Date().toLocaleTimeString();
 
-                const entry = document.createElement('div');
-                entry.className = 'log-entry';
+                updateCounters(data.type);
+                addTableRow(time, data.type, data.content);
+                addTerminalLine(time, data.type, data.content);
 
-                const timeSpan = `<span class="log-time">[${time}]</span>`;
-                const typeSpan = `<span class="type-${data.type}">[${data.type}]</span>`;
-
-                entry.innerHTML = `${timeSpan} ${typeSpan} ${data.content}`;
-                terminal.appendChild(entry);
-
-                // Auto-scroll
-                terminal.scrollTop = terminal.scrollHeight;
             } catch(e) {
-                appendLog('RAW', event.data, '#888');
+                // Raw non-json string
+                addTerminalLine(time, 'RAW', event.data);
             }
         };
 
         ws.onclose = function() {
-            appendLog('SYSTEM', 'Connection lost. Waiting for SentinelCell...', '#F85149');
+            const time = new Date().toLocaleTimeString();
+            addTableRow(time, 'SYSTEM_ERROR', 'Connection lost to SentinelCell.');
+            addTerminalLine(time, 'SYSTEM_ERROR', 'WebSocket closed.');
+            setDisconnected();
         };
 
-        function appendLog(type, content, color) {
+        ws.onerror = function(err) {
             const time = new Date().toLocaleTimeString();
-            const entry = document.createElement('div');
-            entry.className = 'log-entry';
-            entry.innerHTML = `<span class="log-time">[${time}]</span> <span style="color:${color}">[${type}]</span> ${content}`;
-            terminal.appendChild(entry);
-            terminal.scrollTop = terminal.scrollHeight;
-        }
+            addTerminalLine(time, 'WS_ERROR', 'WebSocket encountered an error.');
+            setDisconnected();
+        };
     </script>
 </body>
 </html>
