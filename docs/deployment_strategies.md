@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="https://raw.githubusercontent.com/FortAwesome/Font-Awesome/6.x/svgs/solid/server.svg" width="100" height="100" alt="Deployment Architectures">
+  <img src="https://raw.githubusercontent.com/FortAwesome/Font-Awesome/6.x/svgs/solid/server.svg" width="100" height="100" alt="Deployment Architectures" style="border-radius: 50%;">
 
   # SentinelCell: Deployment Strategies
 

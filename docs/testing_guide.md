@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="../assets/test_logo.jpg" width="300" alt="SentinelCell Testing Logo">
+  <img src="../assets/test_logo.jpg" width="300" alt="SentinelCell Testing Logo" style="border-radius: 50%;">
 </p>
 
 # 🧪 SentinelCell Testing & Coverage Guide

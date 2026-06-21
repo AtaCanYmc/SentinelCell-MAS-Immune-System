@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="../assets/langchain_logo.jpg" width="300" alt="LangChain Integration Logo">
+  <img src="../assets/langchain_logo.jpg" width="300" alt="LangChain Integration Logo" style="border-radius: 50%;">
 </p>
 
 # Supported LangChain Models

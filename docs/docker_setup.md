@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="https://raw.githubusercontent.com/FortAwesome/Font-Awesome/6.x/svgs/brands/docker.svg" width="100" height="100" alt="Docker Setup">
+  <img src="https://raw.githubusercontent.com/FortAwesome/Font-Awesome/6.x/svgs/brands/docker.svg" width="100" height="100" alt="Docker Setup" style="border-radius: 50%;">
 
   # SentinelCell: Docker & Container Orchestration
 
