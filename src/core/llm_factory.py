@@ -49,5 +49,12 @@ class LLMFactory:
                 ),
                 temperature=0,
             )
+        elif provider == "DEEPSEEK":
+            return ChatOpenAI(
+                api_key=SecretStr(os.getenv("DEEPSEEK_API_KEY", "dummy_deepseek_key")),
+                model=os.getenv("DEEPSEEK_MODEL", "deepseek-chat"),
+                base_url="https://api.deepseek.com/v1",
+                temperature=0,
+            )
         else:
             raise ValueError(f"Unsupported LLM provider: {provider}")

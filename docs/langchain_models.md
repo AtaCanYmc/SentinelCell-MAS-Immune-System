@@ -3,6 +3,7 @@
 ![LangChain](https://img.shields.io/badge/LangChain-1C3C3C?style=for-the-badge&logo=langchain&logoColor=white)
 ![OpenAI](https://img.shields.io/badge/OpenAI-412991?style=for-the-badge&logo=openai&logoColor=white)
 ![Anthropic](https://img.shields.io/badge/Anthropic-CA8F74?style=for-the-badge&logo=anthropic&logoColor=black)
+![DeepSeek](https://img.shields.io/badge/DeepSeek-1C1C1C?style=for-the-badge&logo=deepseek&logoColor=4D93E6)
 ![Gemini](https://img.shields.io/badge/Google%20Gemini-8E75B2?style=for-the-badge&logo=googlegemini&logoColor=white)
 ![Ollama](https://img.shields.io/badge/Ollama-black?style=for-the-badge&logo=ollama&logoColor=white)
 
@@ -28,7 +29,13 @@ The fallback and priority mechanism is dynamically managed via the `PROVIDER_ORD
 - **Environment Variables**: `GROQ_API_KEY`, `GROQ_MODEL`
 - **Use Case**: Provides lightning-fast inference using LPUs. Ideal for environments where near-instant network interception and packet healing are critical.
 
-## 4. Google Gemini (`GEMINI`)
+## 4. DeepSeek (`DEEPSEEK`)
+- **Integration**: `langchain-openai` (`ChatOpenAI` wrapper via `api.deepseek.com`)
+- **Default Model**: `deepseek-chat`
+- **Environment Variables**: `DEEPSEEK_API_KEY`, `DEEPSEEK_MODEL`
+- **Use Case**: Highly cost-effective and coding-optimized LLM, often providing comparable performance to OpenAI/Anthropic at a fraction of the cost. Excellent for parsing complex JSON schemas.
+
+## 5. Google Gemini (`GEMINI`)
 - **Integration**: `langchain-google-genai` (`ChatGoogleGenerativeAI`)
 - **Default Model**: `gemini-1.5-flash`
 - **Environment Variables**: `GEMINI_API_KEY`, `GEMINI_MODEL`

@@ -22,6 +22,13 @@ def test_get_llm_gemini(monkeypatch):
     assert type(llm).__name__ == "ChatGoogleGenerativeAI"
 
 
+def test_get_llm_deepseek(monkeypatch):
+    monkeypatch.setenv("DEEPSEEK_API_KEY", "test")
+    llm = LLMFactory.get_llm("DEEPSEEK")
+    assert type(llm).__name__ == "ChatOpenAI"
+    assert llm.model_name == "deepseek-chat"
+
+
 def test_get_llm_groq():
     llm = LLMFactory.get_llm("GROQ")
     assert isinstance(llm, ChatGroq)
