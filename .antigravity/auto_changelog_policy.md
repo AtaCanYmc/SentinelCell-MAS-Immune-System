@@ -11,7 +11,7 @@ Every entry must follow the [Keep a Changelog](https://keepachangelog.com/en/1.0
 
 ## Execution Rules
 1. **Trigger:** The agent MUST trigger an update to this file upon successful `git commit` via the Auto-Commit process.
-2. **Context:** Include the `Decision ID` from `logs/agent_decisions.json` in the changelog note.
+2. **Context:** Include the `Decision ID` from `.antigravity/logs/agent_decisions.json` in the changelog note.
 3. **Immutability:** Do not delete previous entries. Always prepend (add to the top).
 
 ## Example Format

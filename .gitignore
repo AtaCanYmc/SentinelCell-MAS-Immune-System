@@ -1,6 +1,6 @@
 .idea/
 .venv/
 .env
-logs/
+.antigravity/logs/
 __pycache__/
 *.pyc
