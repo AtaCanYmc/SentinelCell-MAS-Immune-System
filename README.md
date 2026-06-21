@@ -8,6 +8,15 @@
   ![Kaggle Capstone](https://img.shields.io/badge/Kaggle-AI_Agents_Capstone-orange)
 </div>
 
+## Table of Contents
+- [1. Introduction (Problem Statement)](#1-introduction-problem-statement)
+- [2. Solution (Our Proposal)](#2-solution-our-proposal)
+- [3. Architecture (Agentic Architecture)](#3-architecture-agentic-architecture)
+- [Setup & Deployment](#setup--deployment)
+- [Capability Matrix & Skill Documentation](#capability-matrix--skill-documentation)
+- [Sandbox Policy](#sandbox-policy)
+- [Additional Information](#additional-information)
+
 ## 1. Introduction (Problem Statement)
 Multi-Agent Systems (MAS) rely on fragile, hardcoded communication contracts. When an agent hallucinates or updates its output format, the entire pipeline crashes. There is no centralized authority or "Immune System" to gracefully intercept, detect, and automatically heal semantic breaches before they corrupt downstream consumers.
 
