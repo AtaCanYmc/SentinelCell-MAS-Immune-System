@@ -49,23 +49,35 @@ class FileSink(LogSink):
 
 
 class ElasticsearchSink(LogSink):
-    """Sends JSON logs to an Elasticsearch index (stub)."""
+    """Sends JSON logs to an Elasticsearch index."""
 
-    def __init__(self, enabled=False):
+    def __init__(
+        self, enabled=False, url="http://localhost:9200", index_name="sentinel-logs"
+    ):
         self.enabled = enabled
+        self.index_name = index_name
         self.markup_regex = re.compile(r"\[/?([a-z0-9_ ]+)\]")
+        self.es = None
+        if self.enabled:
+            try:
+                from elasticsearch import Elasticsearch
+
+                self.es = Elasticsearch(url)
+            except Exception:
+                self.enabled = False
 
     def write(self, message: str, **kwargs):
-        if not self.enabled:
+        if not self.enabled or not self.es:
             return
         plain_message = self.markup_regex.sub("", str(message))
-        _ = {
+        payload = {
             "timestamp": datetime.utcnow().isoformat(),
             "message": plain_message,
         }
-        # In a real scenario, use requests.post or elasticsearch-py
-        # requests.post("http://localhost:9200/sentinel/_doc", json=payload)
-        pass
+        try:
+            self.es.index(index=self.index_name, document=payload)
+        except Exception:
+            pass
 
 
 class AgnosticLogger:
@@ -91,7 +103,8 @@ _agnostic_console = AgnosticLogger(
         ConsoleSink(),
         FileSink(),
         ElasticsearchSink(
-            enabled=os.getenv("ELASTICSEARCH_ENABLED", "false").lower() == "true"
+            enabled=os.getenv("ELASTICSEARCH_ENABLED", "false").lower() == "true",
+            url=os.getenv("ELASTICSEARCH_URL", "http://localhost:9200"),
         ),
     ]
 )
