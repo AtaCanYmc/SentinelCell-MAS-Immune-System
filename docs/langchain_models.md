@@ -1,0 +1,36 @@
+# Supported LangChain Models
+
+The **SentinelCell MAS Immune System** is designed to be completely **Model Agnostic**. It utilizes the LangChain ecosystem to seamlessly switch between various Large Language Models (LLMs) depending on availability, rate limits, or user preference.
+
+The fallback and priority mechanism is dynamically managed via the `PROVIDER_ORDER` environment variable.
+
+## 1. OpenAI (`OPENAI`)
+- **Integration**: `langchain-openai` (`ChatOpenAI`)
+- **Default Model**: `gpt-4o-mini`
+- **Environment Variables**: `OPENAI_API_KEY`, `OPENAI_MODEL`
+- **Use Case**: Excellent for high-accuracy semantic validation and reasoning. It is usually placed at the top of the fallback list for its reliability.
+
+## 2. Anthropic (`ANTHROPIC`)
+- **Integration**: `langchain-anthropic` (`ChatAnthropic`)
+- **Default Model**: `claude-3-haiku-20240307`
+- **Environment Variables**: `ANTHROPIC_API_KEY`, `ANTHROPIC_MODEL`
+- **Use Case**: Highly capable alternative for robust JSON schema healing and rapid context understanding.
+
+## 3. Groq (`GROQ`)
+- **Integration**: `langchain-groq` (`ChatGroq`)
+- **Default Model**: `llama3-70b-8192`
+- **Environment Variables**: `GROQ_API_KEY`, `GROQ_MODEL`
+- **Use Case**: Provides lightning-fast inference using LPUs. Ideal for environments where near-instant network interception and packet healing are critical.
+
+## 4. Local Ollama (`LOCAL_OLLAMA`)
+- **Integration**: `langchain-ollama` (`ChatOllama`)
+- **Default Model**: `llama3`
+- **Environment Variables**: `OLLAMA_MODEL` (No API key required for local execution)
+- **Use Case**: The ultimate fallback. Allows SentinelCell to run offline and on-premise, guaranteeing data privacy and 100% uptime when external API providers go down.
+
+## Model Fallback Configuration
+The fallback order is defined in your `.env` file via `PROVIDER_ORDER`. For example:
+```env
+PROVIDER_ORDER=OPENAI,GROQ,LOCAL_OLLAMA,ANTHROPIC
+```
+If `OPENAI` fails due to rate-limiting or an invalid API key, the `SelfHealingEngine` will automatically attempt to heal the payload using `GROQ`, and so on.
