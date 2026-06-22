@@ -112,6 +112,7 @@ flowchart TD
 | **DDoS Protection** | Redis-based LLM Rate Limiter preventing wallet exhaustion. | `redis.asyncio` |
 | **Dead Letter Queue (DLQ)** | Automated background worker for async payload replay. | Redis, `asyncio` |
 | **Zero-Latency Monitoring** | Optional passive sniffing mode bypassing synchronous blocks. | `asyncio` |
+| **Live Dashboard UI** | Micro-frontend dashboard for real-time telemetry and `.env` config. | React, Vite, Nginx |
 
 ### 🔄 Model Agnostic Fallback (LLMFactory) & Self Healing
 SentinelCell does not rely on a single point of failure. If OpenAI is down, it seamlessly falls back to Anthropic, Groq, or Local Ollama based on your environment configurations.
@@ -187,9 +188,10 @@ python src/mcp_server.py &
 ```
 
 ### Option B: Secure Docker Execution (Hybrid Gateways)
-SentinelCell is fully containerized. Running the compose file spins up the **FastAPI Gateway**, **Redis MQ Worker**, **Envoy Proxy**, and **Redis** instance simultaneously within the secure sandbox defined by our policies:
+SentinelCell is fully containerized with a micro-frontend architecture. Running the compose file spins up the **FastAPI Gateway**, **Redis MQ Worker**, **Dashboard Frontend (Nginx)**, and **Redis** instances simultaneously within the secure sandbox defined by our policies:
 ```bash
 docker compose up -d --build
+# Access the live dashboard at http://localhost:3000
 docker stats # To verify strict CPU/RAM limits on the SentinelCell gateways
 ```
 
