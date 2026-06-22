@@ -113,6 +113,66 @@ python examples/quarantine_mode_demo.py
 
 ---
 
+### 6. 💊 Poison Pill Demo (`poison_pill_demo.py`)
+Validates the V2 Advanced Regex Sanitizer by instantly dropping deeply embedded jailbreak/prompt injection attempts hidden within nested structures.
+
+**How to Run:**
+```bash
+python examples/poison_pill_demo.py
+```
+
+---
+
+### 7. 🏦 Finance Schema Evolution (`finance_schema_evolution.py`)
+Proves SentinelCell's ability to perform real-time schema downgrades/upgrades. Useful when a Producer sends a V2 nested JSON object to a Consumer expecting a V1 string format.
+
+**How to Run:**
+```bash
+python examples/finance_schema_evolution.py
+```
+
+---
+
+### 8. 📡 IoT Passive Monitoring (`iot_passive_monitoring.py`)
+Demonstrates the `PASSIVE_MONITORING=true` mode. Validates massive telemetry payloads with 0ms latency impact, healing asynchronously in the background.
+
+**How to Run:**
+```bash
+python examples/iot_passive_monitoring.py
+```
+
+---
+
+### 9. 🛠️ IoT Telemetry Recovery (`iot_telemetry_recovery.py`)
+A V3 Architecture simulation showing how fragmented/broken JSON streams (e.g., due to network dropouts) from edge devices are intercepted and repaired.
+
+**How to Run:**
+```bash
+python examples/iot_telemetry_recovery.py
+```
+
+---
+
+### 10. 💸 FinTech Transaction Flow (`fintech_transaction_flow.py`)
+Tests missing financial field handling. Simulates a payment gateway sending a transaction without an 'amount' field, showing how the system refuses dangerous assumptions.
+
+**How to Run:**
+```bash
+python examples/fintech_transaction_flow.py
+```
+
+---
+
+### 11. 🧠 Semantic Drift Chaos Test (`semantic_drift_test.py`)
+Proves the V3 Dual-Layer Semantic Drift Guard. Submits completely garbled data, forcing the LLM to invent the payload. The Guard calculates Jaccard Similarity and successfully rejects the hallucinated repair.
+
+**How to Run:**
+```bash
+python examples/semantic_drift_test.py
+```
+
+---
+
 <div align="center">
   <i>"SentinelCell: Because your Multi-Agent System shouldn't collapse from a single hallucination."</i>
 </div>
