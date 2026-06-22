@@ -41,10 +41,37 @@ class SelfHealingEngine:
         attempts = state.get("repair_attempts", 0)
         schema_json = state.get("schema_dict", {})
         malformed_data = state.get("payload", {})
-        error_context = state.get("error_context", "Unknown Error")
-
+        attempts = state.get("repair_attempts", 0)
         provider = self.providers[attempts % len(self.providers)]
         title = schema_json.get("title", "UnknownSchema")
+
+        import time
+        import os
+        from redis import Redis
+
+        redis_url = os.getenv("REDIS_URL")
+        rate_limit = int(os.getenv("LLM_RATE_LIMIT_PER_MIN", "50"))
+        if redis_url:
+            try:
+                r = Redis.from_url(redis_url)
+                current_min = int(time.time() / 60)
+                key = f"sentinel:llm_rate_limit:{current_min}"
+                count = r.incr(key)
+                if count == 1:
+                    r.expire(key, 60)
+                if count > rate_limit:
+                    console.print(
+                        f"[bold red][!] LLM Rate Limit Exceeded ({count} > {rate_limit}/min). Dropping repair.[/bold red]"
+                    )
+                    return {
+                        "is_valid": False,
+                        "error_context": "LLM Rate Limit Exceeded",
+                        "repair_attempts": attempts + 1,
+                    }
+            except Exception:
+                pass
+
+        error_context = state.get("error_context", "Unknown Error")
 
         malformed_str = json.dumps(malformed_data)
         malformed_str = malformed_str.replace(

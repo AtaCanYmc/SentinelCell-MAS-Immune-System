@@ -51,7 +51,13 @@ class SemanticValidator:
         console.print(
             f"[dim]Fetching schema from MCP Registry for {agent_target}...[/dim]"
         )
-        schema = await self.mcp_client.fetch_schema(agent_target)
+        try:
+            schema = await self.mcp_client.fetch_schema(agent_target)
+        except Exception as e:
+            console.print(
+                f"[bold red][!] MCP Registry Error: {e}. Fail-Open engaged, passing traffic.[/bold red]"
+            )
+            return None
 
         # Update cache
         self._cache[agent_target] = {

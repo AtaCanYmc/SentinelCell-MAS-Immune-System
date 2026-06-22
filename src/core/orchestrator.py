@@ -89,6 +89,15 @@ class SentinelOrchestrator:
         def decider_node(state: AgentState):
             if state.get("is_valid"):
                 return "log_to_vectordb"
+
+            # Data Poisoning Prevention
+            err_ctx = state.get("error_context", "")
+            if err_ctx and "SECURITY_BREACH" in err_ctx:
+                console.print(
+                    "[bold red][!] SECURITY BREACH DETECTED. Dropping packet immediately. No repair allowed.[/bold red]"
+                )
+                return "end"
+
             if state.get("repair_attempts", 0) >= 3:
                 console.print(
                     "[bold red][!] Max repair attempts reached. Packet is unrecoverable.[/bold red]"
@@ -166,37 +175,50 @@ class SentinelOrchestrator:
             "last_memory_id": None,
         }
 
-        # Invoke the LangGraph workflow
-        final_state = await self.workflow.ainvoke(initial_state)
+        import os
+        import asyncio
 
-        # Record latency
-        latency_seconds = time.time() - start_time
-        metrics.latency.observe(latency_seconds)
+        # Data Poisoning Prevention: Do not repair SECURITY_BREACH
+        # This will be handled inside the decider node to bypass repair.
+        # Let's adjust decider_node to drop it instead. Wait, it's easier to check here.
 
-        if final_state.get("is_valid"):
-            if final_state.get("repair_attempts", 0) > 0:
-                metrics.healing_success.inc()
+        passive_mode = os.getenv("PASSIVE_MONITORING", "false").lower() == "true"
 
-            if final_state.get("active_provider"):
+        async def _run_workflow():
+            final_state = await self.workflow.ainvoke(initial_state)
+            latency_seconds = time.time() - start_time
+            metrics.latency.observe(latency_seconds)
+
+            if final_state.get("is_valid"):
+                if final_state.get("repair_attempts", 0) > 0:
+                    metrics.healing_success.inc()
+                if final_state.get("active_provider"):
+                    console.print(
+                        f"[info][*] Healed using active provider: {final_state['active_provider']}[/info]"
+                    )
                 console.print(
-                    f"[info][*] Healed using active provider: {final_state['active_provider']}[/info]"
+                    "[success][+] PACKET VALID -> Allowing passthrough...[/success]"
                 )
-            console.print(
-                "[success][+] PACKET VALID -> Allowing passthrough...[/success]"
-            )
-            return final_state["payload"]
+                return final_state["payload"]
+            else:
+                if final_state.get("repair_attempts", 0) > 0:
+                    metrics.healing_failure.inc()
+                metrics.payload_intercepts.labels(status="dropped").inc()
+                console.print("[danger][!] PACKET REJECTED -> Dropped.[/danger]")
+                self._log_to_dlq(
+                    agent_source,
+                    agent_target,
+                    json.dumps(final_state.get("payload", {})),
+                    "Unrecoverable Invalid Payload",
+                )
+                return None
+
+        if passive_mode:
+            # Passive monitoring: spawn task and return original payload immediately
+            asyncio.create_task(_run_workflow())
+            return payload
         else:
-            if final_state.get("repair_attempts", 0) > 0:
-                metrics.healing_failure.inc()
-            metrics.payload_intercepts.labels(status="dropped").inc()
-            console.print("[danger][!] PACKET REJECTED -> Dropped.[/danger]")
-            self._log_to_dlq(
-                agent_source,
-                agent_target,
-                json.dumps(final_state.get("payload", {})),
-                "Unrecoverable Invalid Payload",
-            )
-            return None
+            return await _run_workflow()
 
     def _log_to_dlq(self, source: str, target: str, payload: str, reason: str):
         import time
