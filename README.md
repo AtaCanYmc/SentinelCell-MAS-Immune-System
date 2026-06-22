@@ -109,10 +109,12 @@ flowchart TD
 | **Time-Series Telemetry** | Success/Failure rates and Latency tracking. | Prometheus, Grafana, FastAPI `/metrics` |
 | **MCP Schema Registry** | Centralized, dynamic schema validation. | Model Context Protocol (MCP) |
 | **Hybrid Gateway** | SDK, FastAPI, Redis MQ, or Envoy proxy support. | Redis, FastAPI, Envoy |
-| **DDoS Protection** | Redis-based LLM Rate Limiter preventing wallet exhaustion. | `redis.asyncio` |
-| **Dead Letter Queue (DLQ)** | Automated background worker for async payload replay. | Redis, `asyncio` |
+| **DDoS Protection & Backpressure** | Redis-based LLM Rate Limiter and LTRIM Queue Eviction preventing OOM. | `redis.asyncio` |
+| **Dead Letter Queue (DLQ)** | Automated background worker for async payload replay with `BRPOPLPUSH` at-least-once delivery. | Redis, `asyncio` |
 | **Zero-Latency Monitoring** | Optional passive sniffing mode bypassing synchronous blocks. | `asyncio` |
-| **Live Dashboard UI** | Micro-frontend dashboard for real-time telemetry and `.env` config. | React, Vite, Nginx |
+| **Live Dashboard & DLQ UI** | Micro-frontend dashboard for real-time telemetry, Quarantine inspection, and Payload Replay. | React, Vite, Nginx, FastAPI |
+| **Dynamic Skill Injection** | Codeless, on-the-fly JSON schema rule extensions via YAML. | `skills.yaml`, `eval()` |
+| **ChatOps Alerting** | Automated Webhook dispatch to Slack/Discord on security breaches and anomalies. | `httpx`, Webhooks |
 
 ### 🔄 Model Agnostic Fallback (LLMFactory) & Self Healing
 SentinelCell does not rely on a single point of failure. If OpenAI is down, it seamlessly falls back to Anthropic, Groq, or Local Ollama based on your environment configurations.
@@ -131,12 +133,18 @@ Our Adaptive RAG engine is fully decoupled from the underlying storage. You can 
 ### 🛡️ Enterprise-Grade Security & Hardening
 SentinelCell is engineered to be "Bullet-Proof" in production environments:
 - **Dynamic Fail-Closed Policy**: If the MCP Schema Registry goes down, SentinelCell can be configured to `FAIL_CLOSED`, completely blocking traffic to prevent unvalidated payloads from slipping through.
-- **Data Poisoning Shield**: Mandatory pre-repair sanitization prevents attackers from disguising "Jailbreak" prompts inside simple JSON validation errors. Malicious traffic is instantly dropped.
-- **LLM Rate Limiting (DDoS Protection)**: Limits the number of repairs per minute to prevent malicious actors from exhausting your LLM token budget.
-- **Passive Monitoring**: Enable `PASSIVE_MONITORING=true` to process validation and healing asynchronously, granting zero-latency pass-through for performance-critical systems.
-- **Automated Dead Letter Queue (DLQ)**: Dropped or unrecoverable payloads are safely stored and automatically re-evaluated in the background via the asynchronous `dlq_worker.py` microservice.
+- **Data Poisoning Shield**: Mandatory pre-repair sanitization prevents attackers from disguising "Jailbreak" prompts inside simple JSON validation errors. Includes **Base64/Hex Deobfuscation** to block hidden payloads.
+- **Type-Aware Numeric Drift Guard**: A strict dual-layer recursive checker that immediately drops payloads if LLM repair alters a critical financial/numerical value by even a single digit, preventing semantic logic attacks.
+- **LLM Rate Limiting & Backpressure (OOM Protection)**: Limits the number of repairs per minute to prevent malicious actors from exhausting your LLM token budget. Enforces strict Redis queue length limits to prevent RAM exhaustion during DB outages.
+- **Automated Dead Letter Queue (DLQ)**: Dropped or unrecoverable payloads are safely stored with an **At-Least-Once Delivery** guarantee and automatically re-evaluated in the background via the asynchronous `dlq_worker.py` microservice.
 - **Strict Container Security**: Agents run within a fortified Docker Sandbox obeying the Principle of Least Privilege (Read-Only root, no capabilities, strict vCPU/RAM limits).
 *See our [Container Policy](container_policy.md) and [ADR 011 & 012](ADR/) for deep dives.*
+
+### 🚀 UX/DX (Developer & Operator Experience)
+- **Live Quarantine Room (Replay UI)**: Visually inspect malformed packets via the React Dashboard, edit their JSON directly in the browser, and click Replay to bypass the block safely.
+- **Codeless Dynamic Skills (`skills.yaml`)**: Inject real-time validation rules (e.g. `amount > 0`) without touching Python code or rebuilding containers.
+- **ChatOps Alerting**: Keep your team in the loop with automated Slack/Discord notifications on critical system intercepts.
+- **Interactive Setup Wizard**: Run `./setup.sh` to seamlessly configure API keys, LLM failover priorities, and instantly boot the Docker cluster.
 
 ### 🔌 MCP Schema Registry
 Semantic validation isn't hardcoded. SentinelCell queries a centralized Model Context Protocol (MCP) server dynamically to enforce the correct contract for the target agent.
@@ -153,8 +161,15 @@ SentinelCell adapts to your environment constraints with several powerful modes:
 
 ## 5. Setup & Deployment
 
-### Environment Configuration
-To ensure the model-agnostic Self-Healing engine operates correctly, configure your environment variables:
+### Quick Start Wizard (Recommended)
+For the fastest and most interactive deployment, run the setup wizard from the root directory. It will guide you through LLM selection, API keys, Webhooks, and boot the Docker cluster:
+```bash
+chmod +x setup.sh
+./setup.sh
+```
+
+### Manual Environment Configuration
+To manually ensure the model-agnostic Self-Healing engine operates correctly, configure your environment variables:
 ```bash
 cp .env.example .env
 ```
@@ -215,13 +230,16 @@ We provide live simulations showing the Immune System in action. Once your `.env
 - **Producer-Consumer Interception Flow**: `PYTHONPATH=. python examples/multi_agent_flow.py`
 - **Custom Security Skills (Sanitizer)**: `PYTHONPATH=. python examples/custom_skill_demo.py`
 
-### Enterprise & Mission-Critical (V2/V3)
+### Enterprise & Mission-Critical Simulations
 - **💊 Poison Pill Demo**: `PYTHONPATH=. python examples/poison_pill_demo.py`
 - **🏦 Finance Schema Evolution**: `PYTHONPATH=. python examples/finance_schema_evolution.py`
 - **📡 IoT Passive Monitoring**: `PYTHONPATH=. python examples/iot_passive_monitoring.py`
 - **🛠️ IoT Telemetry Recovery**: `PYTHONPATH=. python examples/iot_telemetry_recovery.py`
 - **💸 FinTech Transaction Flow**: `PYTHONPATH=. python examples/fintech_transaction_flow.py`
 - **🧠 Semantic Drift Chaos Test**: `PYTHONPATH=. python examples/semantic_drift_test.py`
+- **📉 Stealth Financial Drift**: `PYTHONPATH=. python examples/stealth_financial_drift.py`
+- **🛑 Base64 Poison Pill Security Test**: `PYTHONPATH=. python examples/base64_poison_pill.py`
+- **🌊 Outbox Backpressure (OOM Prevention)**: `PYTHONPATH=. python examples/outbox_backpressure_test.py`
 
 ---
 
