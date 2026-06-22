@@ -110,7 +110,7 @@ flowchart TD
 | **MCP Schema Registry** | Centralized, dynamic schema validation. | Model Context Protocol (MCP) |
 | **Hybrid Gateway** | SDK, FastAPI, Redis MQ, or Envoy proxy support. | Redis, FastAPI, Envoy |
 | **DDoS Protection** | Redis-based LLM Rate Limiter preventing wallet exhaustion. | `redis.asyncio` |
-| **Dead Letter Queue (DLQ)** | Captures unrecoverable payloads for async replay. | Local JSON, CLI Tool |
+| **Dead Letter Queue (DLQ)** | Automated background worker for async payload replay. | Redis, `asyncio` |
 | **Zero-Latency Monitoring** | Optional passive sniffing mode bypassing synchronous blocks. | `asyncio` |
 
 ### 🔄 Model Agnostic Fallback (LLMFactory) & Self Healing
@@ -133,7 +133,7 @@ SentinelCell is engineered to be "Bullet-Proof" in production environments:
 - **Data Poisoning Shield**: Mandatory pre-repair sanitization prevents attackers from disguising "Jailbreak" prompts inside simple JSON validation errors. Malicious traffic is instantly dropped.
 - **LLM Rate Limiting (DDoS Protection)**: Limits the number of repairs per minute to prevent malicious actors from exhausting your LLM token budget.
 - **Passive Monitoring**: Enable `PASSIVE_MONITORING=true` to process validation and healing asynchronously, granting zero-latency pass-through for performance-critical systems.
-- **Dead Letter Queue (DLQ)**: Dropped, oversized, or unrecoverable payloads are safely stored and can be replayed back into the system using the built-in `dlq_replay.py` tool.
+- **Automated Dead Letter Queue (DLQ)**: Dropped or unrecoverable payloads are safely stored and automatically re-evaluated in the background via the asynchronous `dlq_worker.py` microservice.
 - **Strict Container Security**: Agents run within a fortified Docker Sandbox obeying the Principle of Least Privilege (Read-Only root, no capabilities, strict vCPU/RAM limits).
 *See our [Container Policy](container_policy.md) and [ADR 011 & 012](ADR/) for deep dives.*
 
@@ -212,6 +212,14 @@ We provide live simulations showing the Immune System in action. Once your `.env
 - **Basic Validation & Healing**: `PYTHONPATH=. python examples/basic_usage.py`
 - **Producer-Consumer Interception Flow**: `PYTHONPATH=. python examples/multi_agent_flow.py`
 - **Custom Security Skills (Sanitizer)**: `PYTHONPATH=. python examples/custom_skill_demo.py`
+
+### Enterprise & Mission-Critical (V2/V3)
+- **💊 Poison Pill Demo**: `PYTHONPATH=. python examples/poison_pill_demo.py`
+- **🏦 Finance Schema Evolution**: `PYTHONPATH=. python examples/finance_schema_evolution.py`
+- **📡 IoT Passive Monitoring**: `PYTHONPATH=. python examples/iot_passive_monitoring.py`
+- **🛠️ IoT Telemetry Recovery**: `PYTHONPATH=. python examples/iot_telemetry_recovery.py`
+- **💸 FinTech Transaction Flow**: `PYTHONPATH=. python examples/fintech_transaction_flow.py`
+- **🧠 Semantic Drift Chaos Test**: `PYTHONPATH=. python examples/semantic_drift_test.py`
 
 ---
 
