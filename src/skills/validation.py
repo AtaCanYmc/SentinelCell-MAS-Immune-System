@@ -56,6 +56,13 @@ class SemanticValidator:
         except Exception as e:
             import os
 
+            # Circuit Breaker: Try Stale Cache first
+            if agent_target in self._cache:
+                console.print(
+                    f"[bold yellow][!] MCP Registry Error: {e}. CIRCUIT BREAKER engaged. Using STALE cache for {agent_target}.[/bold yellow]"
+                )
+                return self._cache[agent_target]["schema"]
+
             policy = os.getenv("MCP_FAILURE_POLICY", "FAIL_OPEN").upper()
             if policy == "FAIL_CLOSED":
                 console.print(

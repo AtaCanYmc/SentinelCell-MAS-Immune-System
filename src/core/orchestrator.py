@@ -51,36 +51,34 @@ class SentinelOrchestrator:
 
         # VectorDB Logging Node
         async def log_to_vectordb_node(state: AgentState):
-            if self.healer.memory and state.get("repair_attempts", 0) == 0:
+            if state.get("repair_attempts", 0) == 0:
+                import time
+                import uuid
+                import os
+                import redis.asyncio as redis
 
-                def _log_sync():
-                    try:
-                        import uuid
-                        import time
+                try:
+                    redis_url = os.getenv("REDIS_URL", "redis://localhost:6379/0")
+                    r = redis.from_url(redis_url)
+                    doc_id = f"mem-valid-{uuid.uuid4()}"
+                    memory_doc = (
+                        f"Valid Payload: {json.dumps(state.get('payload', {}))}"
+                    )
+                    title = state.get("schema_dict", {}).get("title", "UnknownSchema")
 
-                        doc_id = f"mem-valid-{uuid.uuid4()}"
-                        memory_doc = (
-                            f"Valid Payload: {json.dumps(state.get('payload', {}))}"
-                        )
-                        title = state.get("schema_dict", {}).get(
-                            "title", "UnknownSchema"
-                        )
-                        self.healer.memory.add_memory(
-                            doc_id=doc_id,
-                            memory_doc=memory_doc,
-                            metadata={
-                                "schema": title,
-                                "provider": "original",
-                                "timestamp": time.time(),
-                            },
-                        )
-                    except Exception:
-                        pass
-
-                import asyncio
-
-                loop = asyncio.get_event_loop()
-                loop.run_in_executor(None, _log_sync)
+                    # Outbox Pattern: Push to Redis instead of synchronous write
+                    outbox_entry = {
+                        "doc_id": doc_id,
+                        "memory_doc": memory_doc,
+                        "metadata": {
+                            "schema": title,
+                            "provider": "original",
+                            "timestamp": time.time(),
+                        },
+                    }
+                    await r.lpush("sentinel.outbox", json.dumps(outbox_entry))
+                except Exception as e:
+                    console.print(f"[bold red]Outbox Error: {e}[/bold red]")
             return state
 
         graph.add_node("log_to_vectordb", log_to_vectordb_node)

@@ -160,6 +160,29 @@ class SelfHealingEngine:
 
             healed_data = json.loads(cleaned_text)
 
+            # --- DUAL-LAYER SEMANTIC DRIFT GUARD ---
+            def extract_values(obj):
+                if isinstance(obj, dict):
+                    return sum((extract_values(v) for v in obj.values()), [])
+                elif isinstance(obj, list):
+                    return sum((extract_values(v) for v in obj), [])
+                else:
+                    return [str(obj).lower()]
+
+            if "_raw_unparsed_payload" not in malformed_data:
+                orig_vals = set(extract_values(malformed_data))
+                new_vals = set(extract_values(healed_data))
+                if orig_vals:
+                    intersection = orig_vals.intersection(new_vals)
+                    similarity = len(intersection) / len(orig_vals)
+                    if similarity < 0.3:
+                        console.print(
+                            f"[bold red][!] SEMANTIC DRIFT DETECTED! Value retention: {similarity*100:.1f}%. Rejecting repair.[/bold red]"
+                        )
+                        raise ValueError(
+                            f"Semantic Drift: Payload lost critical original values. Retention: {similarity:.2f}"
+                        )
+
             # Logging & Adaptive Learning (Save to VectorDB)
             self._log_decision(title, error_context, provider)
 
