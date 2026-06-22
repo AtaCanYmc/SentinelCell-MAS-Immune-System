@@ -1,0 +1,10 @@
+skills:
+  - name: "NoNegativeAmounts"
+    target: "LedgerConsumer"
+    condition: "payload.get('amount', 0) >= 0"
+    error_message: "Amount cannot be negative"
+
+  - name: "BlockAdminUser"
+    target: "InternalDB"
+    condition: "payload.get('username', '').lower() != 'admin'"
+    error_message: "Admin username is restricted"

@@ -235,10 +235,12 @@ class SentinelOrchestrator:
     def _log_to_dlq(self, source: str, target: str, payload: str, reason: str):
         import time
         import os
+        import asyncio
 
         dlq_dir = os.path.join(os.getcwd(), ".antigravity", "logs")
         os.makedirs(dlq_dir, exist_ok=True)
         dlq_path = os.path.join(dlq_dir, "dlq.json")
+
         entry = {
             "timestamp": time.time(),
             "source": source,
@@ -251,3 +253,22 @@ class SentinelOrchestrator:
                 f.write(json.dumps(entry) + "\n")
         except Exception:
             pass
+
+        # ChatOps Alerting
+        webhook_url = os.getenv("SLACK_WEBHOOK_URL") or os.getenv("DISCORD_WEBHOOK_URL")
+        if webhook_url:
+            asyncio.create_task(
+                self._send_webhook_alert(webhook_url, source, target, reason)
+            )
+
+    async def _send_webhook_alert(self, url, source, target, reason):
+        try:
+            import httpx
+
+            message = {
+                "text": f"🚨 *SentinelCell Alert* 🚨\n*Source:* {source}\n*Target:* {target}\n*Reason:* {reason}\n_Payload moved to DLQ_"
+            }
+            async with httpx.AsyncClient() as client:
+                await client.post(url, json=message)
+        except Exception as e:
+            console.print(f"[dim yellow]Webhook delivery failed: {e}[/dim yellow]")

@@ -195,3 +195,52 @@ async def update_config(config: ConfigUpdate):
             os.environ[key] = str(value)
 
     return {"status": "success", "updated": updated}
+
+
+@app.get("/api/dlq")
+async def get_dlq():
+    """Returns the Dead Letter Queue logs for the Quarantine UI."""
+    dlq_path = os.path.join(
+        os.path.dirname(os.path.dirname(os.path.dirname(__file__))),
+        ".antigravity",
+        "logs",
+        "dlq.json",
+    )
+    if not os.path.exists(dlq_path):
+        return []
+
+    logs = []
+    with open(dlq_path, "r") as f:
+        for line in f:
+            if line.strip():
+                try:
+                    logs.append(json.loads(line))
+                except json.JSONDecodeError:
+                    pass
+    # Return latest first
+    return logs[::-1]
+
+
+class ReplayRequest(BaseModel):
+    source: str
+    target: str
+    payload: str
+
+
+@app.post("/api/replay")
+async def replay_payload(req: ReplayRequest):
+    """Manually replays a payload from the Quarantine UI."""
+    try:
+        result = await sentinel.intercept(
+            source=req.source, target=req.target, payload=req.payload
+        )
+        if result is None:
+            raise HTTPException(
+                status_code=400,
+                detail="Replay failed. Payload was rejected again.",
+            )
+        return {"status": "success", "result": result}
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))

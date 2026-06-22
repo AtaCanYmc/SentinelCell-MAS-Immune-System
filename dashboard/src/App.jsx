@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Shield, Activity, AlertTriangle, CheckCircle, RefreshCcw, Database, Settings, Save } from 'lucide-react';
+import { Shield, Activity, AlertTriangle, CheckCircle, RefreshCcw, Database, Settings, Save, ShieldAlert, Play, Edit3 } from 'lucide-react';
 import './index.css';
 
 function App() {
@@ -23,6 +23,10 @@ function App() {
   const [isSaving, setIsSaving] = useState(false);
   const [saveMessage, setSaveMessage] = useState("");
 
+  const [dlqItems, setDlqItems] = useState([]);
+  const [editingDlq, setEditingDlq] = useState(null);
+  const [replayMessage, setReplayMessage] = useState("");
+
   // Fetch initial config
   useEffect(() => {
     if (activeTab === 'settings') {
@@ -30,6 +34,11 @@ function App() {
         .then(res => res.json())
         .then(data => setConfig(data))
         .catch(err => console.error("Error fetching config:", err));
+    } else if (activeTab === 'quarantine') {
+      fetch('/api/dlq')
+        .then(res => res.json())
+        .then(data => setDlqItems(data))
+        .catch(err => console.error("Error fetching DLQ:", err));
     }
   }, [activeTab]);
 
@@ -73,6 +82,28 @@ function App() {
     setTimeout(() => setSaveMessage(""), 5000);
   };
 
+  const handleReplay = async (item) => {
+    setReplayMessage("Replaying payload...");
+    try {
+      const res = await fetch('/api/replay', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ source: item.source, target: item.target, payload: item.payload })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setReplayMessage(`Success: Payload accepted by ${item.target}!`);
+        setEditingDlq(null);
+        fetch('/api/dlq').then(r => r.json()).then(d => setDlqItems(d));
+      } else {
+        setReplayMessage(`Replay failed: ${data.detail}`);
+      }
+    } catch (err) {
+      setReplayMessage(`Error: ${err.message}`);
+    }
+    setTimeout(() => setReplayMessage(""), 5000);
+  };
+
   return (
     <div className="min-h-screen p-8">
       <header className="flex items-center justify-between mb-8">
@@ -106,6 +137,13 @@ function App() {
         >
           <Settings className="w-5 h-5" />
           Settings
+        </button>
+        <button
+          onClick={() => setActiveTab('quarantine')}
+          className={`flex items-center gap-2 px-4 py-2 rounded-md font-medium transition-colors ${activeTab === 'quarantine' ? 'bg-red-500/10 text-red-400' : 'text-gray-400 hover:text-gray-200'}`}
+        >
+          <ShieldAlert className="w-5 h-5" />
+          Quarantine Room
         </button>
       </div>
 
@@ -230,6 +268,62 @@ function App() {
               <Save className="w-5 h-5" />
               {isSaving ? 'Saving...' : 'Save Configuration'}
             </button>
+          </div>
+        </div>
+      )}
+
+      {activeTab === 'quarantine' && (
+        <div className="glass-panel p-8 max-w-5xl mx-auto">
+          <h2 className="text-2xl font-semibold mb-6 flex items-center gap-2">
+            <ShieldAlert className="w-6 h-6 text-red-400" />
+            Live Quarantine Room (DLQ)
+          </h2>
+          {replayMessage && (
+            <div className={`mb-4 p-3 rounded text-sm ${replayMessage.includes('fail') ? 'bg-red-500/20 text-red-400' : 'bg-green-500/20 text-green-400'}`}>
+              {replayMessage}
+            </div>
+          )}
+          <div className="space-y-4">
+            {dlqItems.length === 0 ? (
+              <p className="text-gray-400">No quarantined payloads found. The system is secure.</p>
+            ) : (
+              dlqItems.map((item, idx) => (
+                <div key={idx} className="bg-black/50 border border-red-500/30 rounded-lg p-4">
+                  <div className="flex justify-between items-start mb-4">
+                    <div>
+                      <h3 className="font-semibold text-red-400">{item.reason}</h3>
+                      <p className="text-xs text-gray-500">{new Date(item.timestamp * 1000).toLocaleString()} | Source: {item.source} ➔ Target: {item.target}</p>
+                    </div>
+                    <div className="flex gap-2">
+                      <button onClick={() => setEditingDlq({ ...item, idx })} className="px-3 py-1 bg-blue-500/20 text-blue-400 rounded hover:bg-blue-500/30 flex items-center gap-1 text-sm">
+                        <Edit3 className="w-4 h-4" /> Edit
+                      </button>
+                      <button onClick={() => handleReplay(item)} className="px-3 py-1 bg-green-500/20 text-green-400 rounded hover:bg-green-500/30 flex items-center gap-1 text-sm">
+                        <Play className="w-4 h-4" /> Replay
+                      </button>
+                    </div>
+                  </div>
+                  {editingDlq?.idx === idx ? (
+                    <textarea
+                      className="w-full bg-gray-900 border border-gray-700 text-green-400 font-mono text-sm p-3 rounded h-32 focus:border-blue-500 outline-none"
+                      value={editingDlq.payload}
+                      onChange={(e) => setEditingDlq({...editingDlq, payload: e.target.value})}
+                    />
+                  ) : (
+                    <pre className="bg-gray-900 p-3 rounded text-xs text-green-400 overflow-x-auto border border-white/5">
+                      {item.payload}
+                    </pre>
+                  )}
+                  {editingDlq?.idx === idx && (
+                    <div className="mt-2 flex justify-end">
+                      <button onClick={() => handleReplay(editingDlq)} className="px-4 py-1.5 bg-[#58a6ff] text-white rounded text-sm font-medium hover:bg-blue-600 transition-colors">
+                        Save & Replay
+                      </button>
+                    </div>
+                  )}
+                </div>
+              ))
+            )}
           </div>
         </div>
       )}

@@ -81,6 +81,25 @@ class SemanticValidator:
         self.mcp_client = mcp_client
         self._cache = {}  # In-memory cache: {agent_target: {"schema": dict, "expires_at": float}}
         self.cache_ttl = int(os.getenv("SCHEMA_CACHE_TTL_SECONDS", "300"))
+        self.dynamic_skills = self._load_dynamic_skills()
+
+    def _load_dynamic_skills(self):
+        import yaml
+        import os
+
+        skills_path = os.path.join(
+            os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "skills.yaml"
+        )
+        if os.path.exists(skills_path):
+            try:
+                with open(skills_path, "r") as f:
+                    data = yaml.safe_load(f)
+                    return data.get("skills", [])
+            except Exception as e:
+                console.print(
+                    f"[bold red]Failed to load dynamic skills: {e}[/bold red]"
+                )
+        return []
 
     async def _get_schema(self, agent_target: str) -> dict | None:
         import time
@@ -131,6 +150,7 @@ class SemanticValidator:
         """
         Clears the schema cache. If agent_target is provided, clears only that target.
         """
+        self.dynamic_skills = self._load_dynamic_skills()
         if agent_target:
             self._cache.pop(agent_target, None)
             console.print(
@@ -198,6 +218,25 @@ class SemanticValidator:
         # 3. Schema Validation
         try:
             jsonschema.validate(instance=data, schema=schema)
+
+            # 4. Dynamic Skills Evaluation
+            for skill in self.dynamic_skills:
+                if skill.get("target") == agent_target or skill.get("target") == "*":
+                    condition = skill.get("condition", "")
+                    try:
+                        import json
+
+                        if not eval(condition, {"payload": data, "json": json}):
+                            return (
+                                False,
+                                schema,
+                                f"Dynamic Skill '{skill['name']}' Failed: {skill['error_message']}",
+                            )
+                    except Exception as e:
+                        console.print(
+                            f"[dim yellow]Dynamic skill eval error ({skill['name']}): {e}[/dim yellow]"
+                        )
+
             return True, schema, None
         except jsonschema.ValidationError as e:
             return False, schema, e.message
