@@ -77,6 +77,8 @@ class SentinelOrchestrator:
                         },
                     }
                     await r.lpush("sentinel.outbox", json.dumps(outbox_entry))
+                    # Eviction Policy: Keep max 10,000 items to prevent Backpressure OOM
+                    await r.ltrim("sentinel.outbox", 0, 9999)
                 except Exception as e:
                     console.print(f"[bold red]Outbox Error: {e}[/bold red]")
             return state

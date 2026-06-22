@@ -20,12 +20,24 @@ async def process_outbox():
         "[bold cyan][*] Outbox Worker Started. Listening to sentinel.outbox...[/bold cyan]"
     )
 
+    # Startup Recovery: move stuck items back to the main outbox
+    while True:
+        stuck_item = await r.rpop("sentinel.outbox_processing")
+        if not stuck_item:
+            break
+        await r.lpush("sentinel.outbox", stuck_item)
+        console.print(
+            "[dim yellow][!] Recovered stuck item from processing queue.[/dim yellow]"
+        )
+
     while True:
         try:
-            # Pop from outbox (blocking with timeout)
-            result = await r.brpop("sentinel.outbox", timeout=5)
-            if result:
-                _, message = result
+            # Pop from outbox to processing (blocking with timeout)
+            # Reliable Queue Pattern (At-least-once delivery)
+            message = await r.brpoplpush(
+                "sentinel.outbox", "sentinel.outbox_processing", timeout=5
+            )
+            if message:
                 entry = json.loads(message)
 
                 # Write to VectorDB
@@ -34,6 +46,10 @@ async def process_outbox():
                     memory_doc=entry["memory_doc"],
                     metadata=entry["metadata"],
                 )
+
+                # Acknowledge: remove from processing queue
+                await r.lrem("sentinel.outbox_processing", 1, message)
+
                 console.print(
                     f"[dim green]Outbox -> Synced doc {entry['doc_id']} to VectorDB[/dim green]"
                 )

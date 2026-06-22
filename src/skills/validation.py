@@ -18,11 +18,56 @@ class SecuritySanitizer:
 
     @classmethod
     def check_payload(cls, data: dict) -> str | None:
+        import base64
+
+        def _check_string(val: str) -> str | None:
+            val_lower = val.lower()
+            for pattern in cls.MALICIOUS_PATTERNS:
+                if pattern in val_lower:
+                    return f"SECURITY_BREACH: Adversarial Prompt Injection Detected (Pattern: '{pattern}')"
+
+            try:
+                padded = val + "=" * (-len(val) % 4)
+                decoded = (
+                    base64.b64decode(padded, validate=True).decode("utf-8").lower()
+                )
+                for pattern in cls.MALICIOUS_PATTERNS:
+                    if pattern in decoded:
+                        return f"SECURITY_BREACH: Obfuscated (Base64) Prompt Injection Detected (Pattern: '{pattern}')"
+            except Exception:
+                pass
+
+            try:
+                decoded = bytes.fromhex(val).decode("utf-8").lower()
+                for pattern in cls.MALICIOUS_PATTERNS:
+                    if pattern in decoded:
+                        return f"SECURITY_BREACH: Obfuscated (Hex) Prompt Injection Detected (Pattern: '{pattern}')"
+            except Exception:
+                pass
+            return None
+
+        def _traverse(obj) -> str | None:
+            if isinstance(obj, dict):
+                for v in obj.values():
+                    res = _traverse(v)
+                    if res:
+                        return res
+            elif isinstance(obj, list):
+                for v in obj:
+                    res = _traverse(v)
+                    if res:
+                        return res
+            elif isinstance(obj, str):
+                return _check_string(obj)
+            return None
+
+        # Fallback check on full string representation
         data_str = str(data).lower()
         for pattern in cls.MALICIOUS_PATTERNS:
             if pattern in data_str:
                 return f"SECURITY_BREACH: Adversarial Prompt Injection Detected (Pattern: '{pattern}')"
-        return None
+
+        return _traverse(data)
 
 
 class SemanticValidator:

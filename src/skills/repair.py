@@ -161,6 +161,37 @@ class SelfHealingEngine:
             healed_data = json.loads(cleaned_text)
 
             # --- DUAL-LAYER SEMANTIC DRIFT GUARD ---
+            def check_numeric_drift(orig, new, path="root"):
+                if isinstance(orig, dict) and isinstance(new, dict):
+                    for k, v in orig.items():
+                        if k in new:
+                            check_numeric_drift(v, new[k], path + f".{k}")
+                elif isinstance(orig, list) and isinstance(new, list):
+                    for i, (v1, v2) in enumerate(zip(orig, new)):
+                        check_numeric_drift(v1, v2, path + f"[{i}]")
+                elif isinstance(orig, (int, float, str)) and not isinstance(orig, bool):
+                    try:
+                        orig_num = float(orig)
+                        is_orig_num = True
+                    except (ValueError, TypeError):
+                        is_orig_num = False
+
+                    if is_orig_num:
+                        try:
+                            new_num = float(new)
+                            is_new_num = True
+                        except (ValueError, TypeError):
+                            is_new_num = False
+
+                        if not is_new_num:
+                            raise ValueError(
+                                f"Numeric Semantic Drift: Type changed at {path}"
+                            )
+                        if orig_num != new_num:
+                            raise ValueError(
+                                f"Numeric Semantic Drift: Value changed at {path} ({orig} -> {new})"
+                            )
+
             def extract_values(obj):
                 if isinstance(obj, dict):
                     return sum((extract_values(v) for v in obj.values()), [])
@@ -170,6 +201,14 @@ class SelfHealingEngine:
                     return [str(obj).lower()]
 
             if "_raw_unparsed_payload" not in malformed_data:
+                # 1. Type-Aware Numeric Guard
+                try:
+                    check_numeric_drift(malformed_data, healed_data)
+                except ValueError as e:
+                    console.print(f"[bold red][!] {e}[/bold red]")
+                    raise
+
+                # 2. Jaccard Similarity Guard
                 orig_vals = set(extract_values(malformed_data))
                 new_vals = set(extract_values(healed_data))
                 if orig_vals:
