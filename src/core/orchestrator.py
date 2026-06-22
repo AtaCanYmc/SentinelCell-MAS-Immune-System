@@ -49,10 +49,37 @@ class SentinelOrchestrator:
 
         graph.set_entry_point("validate")
 
+        # VectorDB Logging Node
+        def log_to_vectordb_node(state: AgentState):
+            if self.healer.memory and state.get("repair_attempts", 0) == 0:
+                try:
+                    import uuid
+                    import time
+
+                    doc_id = f"mem-valid-{uuid.uuid4()}"
+                    memory_doc = (
+                        f"Valid Payload: {json.dumps(state.get('payload', {}))}"
+                    )
+                    title = state.get("schema_dict", {}).get("title", "UnknownSchema")
+                    self.healer.memory.add_memory(
+                        doc_id=doc_id,
+                        memory_doc=memory_doc,
+                        metadata={
+                            "schema": title,
+                            "provider": "original",
+                            "timestamp": time.time(),
+                        },
+                    )
+                except Exception:
+                    pass
+            return state
+
+        graph.add_node("log_to_vectordb", log_to_vectordb_node)
+
         # Decider Logic
         def decider_node(state: AgentState):
             if state.get("is_valid"):
-                return "end"
+                return "log_to_vectordb"
             if state.get("repair_attempts", 0) >= 3:
                 console.print(
                     "[bold red][!] Max repair attempts reached. Packet is unrecoverable.[/bold red]"
@@ -61,9 +88,12 @@ class SentinelOrchestrator:
             return "repair"
 
         graph.add_conditional_edges(
-            "validate", decider_node, {"end": END, "repair": "repair"}
+            "validate",
+            decider_node,
+            {"end": END, "repair": "repair", "log_to_vectordb": "log_to_vectordb"},
         )
 
+        graph.add_edge("log_to_vectordb", END)
         graph.add_edge("repair", "validate")
         self.workflow = graph.compile()
 
@@ -79,9 +109,7 @@ class SentinelOrchestrator:
         start_time = time.time()
 
         # Log Intercept
-        metrics.payload_intercepts.labels(
-            source=agent_source, target=agent_target, status="received"
-        ).inc()
+        metrics.payload_intercepts.labels(status="received").inc()
 
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]
 
@@ -141,8 +169,6 @@ class SentinelOrchestrator:
         else:
             if final_state.get("repair_attempts", 0) > 0:
                 metrics.healing_failure.inc()
-            metrics.payload_intercepts.labels(
-                source=agent_source, target=agent_target, status="dropped"
-            ).inc()
+            metrics.payload_intercepts.labels(status="dropped").inc()
             console.print("[danger][!] PACKET REJECTED -> Dropped.[/danger]")
             return None

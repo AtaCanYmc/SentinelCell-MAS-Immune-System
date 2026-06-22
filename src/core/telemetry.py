@@ -39,7 +39,7 @@ class SentinelMetrics:
         self.payload_intercepts = Counter(
             "sentinelcell_intercepts_total",
             "Total payloads intercepted by the Immune System",
-            ["source", "target", "status"],
+            ["status"],
         )
         self.healing_success = Counter(
             "sentinelcell_healing_success_total", "Total payloads successfully healed"
