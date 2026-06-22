@@ -1,6 +1,8 @@
 import os
 import json
 import asyncio
+import dotenv
+from pydantic import BaseModel
 from fastapi import FastAPI, Request, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
@@ -144,3 +146,52 @@ async def refresh_schema(agent_target: str = None):
             return {"status": "success", "message": "All schema caches cleared"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+class ConfigUpdate(BaseModel):
+    PROVIDER_ORDER: str = None
+    MAX_REPAIR_ATTEMPTS: str = None
+    QUARANTINE_ERROR_THRESHOLD: str = None
+    LLM_RATE_LIMIT_PER_MIN: str = None
+    PASSIVE_MONITORING: str = None
+    MCP_FAILURE_POLICY: str = None
+
+
+@app.get("/api/config")
+async def get_config():
+    """Returns safe environment variables for the settings dashboard."""
+    env_path = os.path.join(
+        os.path.dirname(os.path.dirname(os.path.dirname(__file__))), ".env"
+    )
+    config = dotenv.dotenv_values(env_path)
+
+    safe_keys = [
+        "PROVIDER_ORDER",
+        "MAX_REPAIR_ATTEMPTS",
+        "QUARANTINE_ERROR_THRESHOLD",
+        "LLM_RATE_LIMIT_PER_MIN",
+        "PASSIVE_MONITORING",
+        "MCP_FAILURE_POLICY",
+    ]
+
+    return {k: config.get(k, "") for k in safe_keys}
+
+
+@app.post("/api/config")
+async def update_config(config: ConfigUpdate):
+    """Updates .env file with new configurations."""
+    env_path = os.path.join(
+        os.path.dirname(os.path.dirname(os.path.dirname(__file__))), ".env"
+    )
+
+    if not os.path.exists(env_path):
+        open(env_path, "a").close()
+
+    updated = {}
+    for key, value in config.model_dump(exclude_unset=True).items():
+        if value is not None:
+            dotenv.set_key(env_path, key, str(value))
+            updated[key] = value
+            os.environ[key] = str(value)
+
+    return {"status": "success", "updated": updated}
