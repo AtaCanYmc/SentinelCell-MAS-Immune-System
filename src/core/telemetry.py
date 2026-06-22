@@ -1,3 +1,4 @@
+import os
 from pydantic import BaseModel, Field
 from typing import Dict, Any
 from prometheus_client import Counter, Histogram, Gauge
@@ -7,6 +8,15 @@ class OTelResource(BaseModel):
     """Resource defining the origin of the telemetry."""
 
     attributes: Dict[str, Any]
+
+
+def get_severity_text():
+    return os.getenv("TELEMETRY_LOG_LEVEL", "INFO").upper()
+
+
+def get_severity_number():
+    level = os.getenv("TELEMETRY_LOG_LEVEL", "INFO").upper()
+    return {"INFO": 9, "WARN": 13, "ERROR": 17}.get(level, 9)
 
 
 class OpenTelemetryLog(BaseModel):
@@ -20,10 +30,11 @@ class OpenTelemetryLog(BaseModel):
     SpanId: str = Field(description="Request span ID")
     TraceFlags: int = Field(default=1, description="W3C trace flag")
     SeverityText: str = Field(
-        default="INFO", description="Severity textual representation"
+        default_factory=get_severity_text, description="Severity textual representation"
     )
     SeverityNumber: int = Field(
-        default=9, description="Severity numerical value (INFO=9)"
+        default_factory=get_severity_number,
+        description="Severity numerical value (INFO=9)",
     )
     Body: str = Field(description="The string or structured log body")
     Resource: OTelResource = Field(description="Resource attributes")

@@ -98,9 +98,21 @@ class SentinelOrchestrator:
                 )
                 return "end"
 
-            if state.get("repair_attempts", 0) >= 3:
+            from src.skills.validation import SecuritySanitizer
+
+            security_error = SecuritySanitizer.check_payload(state.get("payload", {}))
+            if security_error:
                 console.print(
-                    "[bold red][!] Max repair attempts reached. Packet is unrecoverable.[/bold red]"
+                    f"[bold red][!] HIDDEN DATA POISONING DETECTED: {security_error}. Dropping packet.[/bold red]"
+                )
+                return "end"
+
+            import os
+
+            max_repair_attempts = int(os.getenv("MAX_REPAIR_ATTEMPTS", "3"))
+            if state.get("repair_attempts", 0) >= max_repair_attempts:
+                console.print(
+                    f"[bold red][!] Max repair attempts reached ({max_repair_attempts}). Packet is unrecoverable.[/bold red]"
                 )
                 return "end"
             return "repair"

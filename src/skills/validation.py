@@ -54,10 +54,19 @@ class SemanticValidator:
         try:
             schema = await self.mcp_client.fetch_schema(agent_target)
         except Exception as e:
-            console.print(
-                f"[bold red][!] MCP Registry Error: {e}. Fail-Open engaged, passing traffic.[/bold red]"
-            )
-            return None
+            import os
+
+            policy = os.getenv("MCP_FAILURE_POLICY", "FAIL_OPEN").upper()
+            if policy == "FAIL_CLOSED":
+                console.print(
+                    f"[bold red][!] MCP Registry Error: {e}. FAIL_CLOSED engaged. Blocking traffic.[/bold red]"
+                )
+                raise RuntimeError("MCP_FAILURE")
+            else:
+                console.print(
+                    f"[bold red][!] MCP Registry Error: {e}. Fail-Open engaged, passing traffic.[/bold red]"
+                )
+                return None
 
         # Update cache
         self._cache[agent_target] = {
@@ -85,7 +94,11 @@ class SemanticValidator:
         Returns True if valid, False if invalid.
         Raises ValueError if no schema is found but we expect one, though for now we pass through.
         """
-        schema = await self._get_schema(agent_target)
+        try:
+            schema = await self._get_schema(agent_target)
+        except RuntimeError:
+            return False
+
         if not schema:
             console.print(
                 f"[dim yellow][?] No contract found for target: {agent_target}. Bypassing validation.[/dim yellow]"
@@ -114,7 +127,11 @@ class SemanticValidator:
         Helper for healer: Returns (is_valid, schema_dict, error_context)
         """
         # 1. Get Schema
-        schema = await self._get_schema(agent_target)
+        try:
+            schema = await self._get_schema(agent_target)
+        except RuntimeError:
+            return False, None, "MCP Registry Unavailable"
+
         if not schema:
             return True, None, None
 

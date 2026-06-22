@@ -32,7 +32,7 @@ class SentinelCell:
         if redis_url:
             self.redis_client = redis.from_url(redis_url)
 
-        self.quarantine_threshold = 5
+        self.quarantine_threshold = int(os.getenv("QUARANTINE_ERROR_THRESHOLD", "5"))
         self.quarantine_cooldown_seconds = int(
             os.getenv("QUARANTINE_COOLDOWN_SECONDS", "30")
         )
