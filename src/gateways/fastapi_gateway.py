@@ -3,6 +3,7 @@ import json
 import asyncio
 from fastapi import FastAPI, Request, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.responses import HTMLResponse
+from fastapi.staticfiles import StaticFiles
 import redis.asyncio as redis
 from src.agents.validator_agent import SentinelCell
 from prometheus_client import make_asgi_app
@@ -18,17 +19,35 @@ metrics_app = make_asgi_app()
 app.mount("/metrics", metrics_app)
 
 
+dashboard_dist_path = os.path.join(
+    os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "dashboard", "dist"
+)
+
+if os.path.exists(dashboard_dist_path):
+    app.mount(
+        "/assets",
+        StaticFiles(directory=os.path.join(dashboard_dist_path, "assets")),
+        name="assets",
+    )
+
+
 @app.get("/dashboard", response_class=HTMLResponse)
 async def get_dashboard():
-    """Serves the Vanilla JS Live Hackerman Dashboard"""
-    dashboard_path = os.path.join(
+    """Serves the Vite React Live Hackerman Dashboard"""
+    index_path = os.path.join(dashboard_dist_path, "index.html")
+    if os.path.exists(index_path):
+        with open(index_path, "r") as f:
+            return f.read()
+
+    # Fallback to legacy
+    legacy_path = os.path.join(
         os.path.dirname(os.path.dirname(__file__)), "frontend", "dashboard.html"
     )
     try:
-        with open(dashboard_path, "r") as f:
+        with open(legacy_path, "r") as f:
             return f.read()
     except FileNotFoundError:
-        return "<h1>Dashboard UI not found. Are you missing src/frontend/dashboard.html?</h1>"
+        return "<h1>Dashboard UI not found. Please run 'npm run build' in the dashboard/ folder.</h1>"
 
 
 @app.websocket("/ws/logs")
