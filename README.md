@@ -109,6 +109,9 @@ flowchart TD
 | **Time-Series Telemetry** | Success/Failure rates and Latency tracking. | Prometheus, Grafana, FastAPI `/metrics` |
 | **MCP Schema Registry** | Centralized, dynamic schema validation. | Model Context Protocol (MCP) |
 | **Hybrid Gateway** | SDK, FastAPI, Redis MQ, or Envoy proxy support. | Redis, FastAPI, Envoy |
+| **DDoS Protection** | Redis-based LLM Rate Limiter preventing wallet exhaustion. | `redis.asyncio` |
+| **Dead Letter Queue (DLQ)** | Captures unrecoverable payloads for async replay. | Local JSON, CLI Tool |
+| **Zero-Latency Monitoring** | Optional passive sniffing mode bypassing synchronous blocks. | `asyncio` |
 
 ### 🔄 Model Agnostic Fallback (LLMFactory) & Self Healing
 SentinelCell does not rely on a single point of failure. If OpenAI is down, it seamlessly falls back to Anthropic, Groq, or Local Ollama based on your environment configurations.
@@ -124,12 +127,15 @@ Our Adaptive RAG engine is fully decoupled from the underlying storage. You can 
 - **Prometheus Export**: Tracks payload intercepts, self-healing success rates, quarantine drops, and LLM processing latency via a `/metrics` endpoint.
 *See details in [Agnostic Logger Docs](docs/agnostic_logger.md).*
 
-### 🛡️ Strict Container Security
-Agents run within a fortified Docker Sandbox obeying the Principle of Least Privilege:
-- **0.5 vCPU** & **512MB RAM** hard limits to prevent runaway agents.
-- **Read-Only root filesystem** ensuring the environment cannot be tampered with.
-- **Drop All Capabilities** to prevent privilege escalation.
-*See our [Container Policy](container_policy.md) and [Docker Setup](docs/docker_setup.md).*
+### 🛡️ Enterprise-Grade Security & Hardening
+SentinelCell is engineered to be "Bullet-Proof" in production environments:
+- **Dynamic Fail-Closed Policy**: If the MCP Schema Registry goes down, SentinelCell can be configured to `FAIL_CLOSED`, completely blocking traffic to prevent unvalidated payloads from slipping through.
+- **Data Poisoning Shield**: Mandatory pre-repair sanitization prevents attackers from disguising "Jailbreak" prompts inside simple JSON validation errors. Malicious traffic is instantly dropped.
+- **LLM Rate Limiting (DDoS Protection)**: Limits the number of repairs per minute to prevent malicious actors from exhausting your LLM token budget.
+- **Passive Monitoring**: Enable `PASSIVE_MONITORING=true` to process validation and healing asynchronously, granting zero-latency pass-through for performance-critical systems.
+- **Dead Letter Queue (DLQ)**: Dropped, oversized, or unrecoverable payloads are safely stored and can be replayed back into the system using the built-in `dlq_replay.py` tool.
+- **Strict Container Security**: Agents run within a fortified Docker Sandbox obeying the Principle of Least Privilege (Read-Only root, no capabilities, strict vCPU/RAM limits).
+*See our [Container Policy](container_policy.md) and [ADR 011 & 012](ADR/) for deep dives.*
 
 ### 🔌 MCP Schema Registry
 Semantic validation isn't hardcoded. SentinelCell queries a centralized Model Context Protocol (MCP) server dynamically to enforce the correct contract for the target agent.
@@ -151,14 +157,22 @@ To ensure the model-agnostic Self-Healing engine operates correctly, configure y
 ```bash
 cp .env.example .env
 ```
-Edit `.env` and set your preferred fallback priority order:
+Edit `.env` and set your preferred fallback priority order and dynamic security thresholds:
 ```env
+# LLM Providers
 PROVIDER_ORDER=OPENAI,GROQ,LOCAL_OLLAMA,ANTHROPIC
-
 OPENAI_API_KEY=your_openai_key_here
 ANTHROPIC_API_KEY=your_anthropic_key_here
 GROQ_API_KEY=your_groq_key_here
 # Ollama runs locally, usually on http://localhost:11434
+
+# Security & Defensive Settings
+MAX_REPAIR_ATTEMPTS=3
+QUARANTINE_ERROR_THRESHOLD=5
+MCP_FAILURE_POLICY=FAIL_CLOSED
+LLM_RATE_LIMIT_PER_MIN=50
+PASSIVE_MONITORING=false
+TELEMETRY_LOG_LEVEL=INFO
 ```
 
 ### Option A: Local Execution
