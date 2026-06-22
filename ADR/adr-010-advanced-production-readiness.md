@@ -1,31 +1,31 @@
-# ADR 010: Advanced Production-Readiness (DLQ, Async I/O & Rate Limits)
+# ADR-010: Advanced Production-Readiness (DLQ, Async I/O & Rate Limits)
 
 ## Status
-Accepted
+**Accepted**
 
 ## Context
-Projenin kurumsal standartlarda bir Gateway / Middleware olarak konumlandırılması, yüksek trafik altındaki darboğazları (bottleneck) ve potansiyel maliyet kayıplarını yönetmeyi zorunlu kılmıştır:
-1. **Async I/O (Bloklanma):** SentinelOrchestrator LangGraph düğümleri çalışırken, `log_to_vectordb` düğümü eşzamanlı (synchronous) çalışıyordu. Veritabanında yaşanacak herhangi bir gecikme ana akışı durduruyordu.
-2. **DLQ Eksikliği:** Kurtarılamayan veya reddedilen paketler (dropped packets) konsola yazdırıldıktan sonra sonsuza dek kayboluyordu. Oysa bu paketler bir "Ölü Mektup Kuyruğu" (Dead Letter Queue - DLQ) içerisinde analiz edilmeliydi.
-3. **Maliyet ve Boyut Sınırları:** Sınırsız boyuttaki bozuk JSON verilerinin onarım için LLM'e (Large Language Model) gönderilmesi, token bazlı çalışan sağlayıcılarda devasa faturalara veya Rate Limit engellemelerine yol açıyordu.
-4. **Prompt Sınır İhlali (Bypass):** Prompt Injection savunması için koyduğumuz `---END UNTRUSTED DATA---` etiketinin kendisini taşıyan bir zararlı payload, LLM'e sızabilirdi.
-5. **Circuit Breaker Metrikleri:** Karantina durumunun Redis'te tutulması yetersizdi; aynı zamanda Grafana ekranlarında alarm kurulabilmesi için dışarı aktarılmalıydı.
+Positioning the project as an enterprise-standard Gateway/Middleware necessitated managing bottlenecks and potential cost losses under high traffic:
+1. **Async I/O (Blocking):** While the SentinelOrchestrator LangGraph nodes were executing, the `log_to_vectordb` node ran synchronously. Any delay in the database blocked the main flow.
+2. **Lack of DLQ:** Unrecoverable or dropped packets were printed to the console and permanently lost. These packets should be analyzed in a "Dead Letter Queue" (DLQ).
+3. **Cost and Size Limits:** Sending malformed JSON data of unlimited size to the LLM (Large Language Model) for repair caused massive bills or Rate Limit blocks on token-based providers.
+4. **Prompt Boundary Bypass:** A malicious payload carrying the `---END UNTRUSTED DATA---` tag we placed for Prompt Injection defense could bypass the boundary and infiltrate the LLM.
+5. **Circuit Breaker Metrics:** Keeping the quarantine state in Redis was insufficient; it also needed to be exported for setting up alarms on Grafana dashboards.
 
 ## Decision
-Sistemi yüksek trafiğe (high-load) karşı dayanıklı hale getirmek için:
-1. **Async I/O:** `log_to_vectordb_node` içerisindeki log yazma işlemi, Event Loop bloke edilmesin diye `asyncio.get_event_loop().run_in_executor()` kullanılarak "fire-and-forget" arka plan iş parçacığına taşındı.
-2. **DLQ (Dead Letter Queue):** Reddedilen ve boyutu çok büyük olan tüm paketler için `_log_to_dlq()` yardımcı metodu yazılarak hatalar `.antigravity/logs/dlq.json` dosyasına yazılmaya başlandı.
-3. **Max Payload Size:** `orchestrator.py` içerisine 10.000 karakterlik `MAX_PAYLOAD_SIZE` (ortam değişkeni destekli) limiti eklendi. Sınırı aşan paketler LLM'e gitmeden doğrudan DLQ'ya atılarak maliyet koruması sağlandı.
-4. **Prompt Sanitization:** `repair.py` içerisinde, ham verinin içindeki `---START UNTRUSTED DATA---` veya `END` tagleri `[REDACTED_BOUNDARY]` olarak değiştirildi (sanitizasyon) ve prompt boundary bypass engellendi.
-5. **Gauge Metriği:** Karantina durumu için `sentinelcell_quarantine_status` Gauge metriği oluşturularak, anlık `1.0` (karantinada) veya `0.0` (sağlıklı) durumu Prometheus'a açıldı.
-6. **Python GIL Notu:** Python tabanlı Middleware/Gateway kullanımının çok yüksek trafikte Global Interpreter Lock (GIL) yüzünden yavaşlayabileceği gerçeği kayıt altına alındı. Bu nedenle Gateway arkasındaki servislerin pasif sniffing moduna veya rust tabanlı bir load balancer önüne alınması ileride (V2) değerlendirilecektir.
+To make the system resilient against high-load traffic:
+1. **Async I/O:** The log writing operation in `log_to_vectordb_node` was moved to a "fire-and-forget" background thread using `asyncio.get_event_loop().run_in_executor()` to prevent blocking the Event Loop.
+2. **DLQ (Dead Letter Queue):** A `_log_to_dlq()` helper method was written for all rejected and oversized packets, and errors began being written to the `.antigravity/logs/dlq.json` file.
+3. **Max Payload Size:** A 10,000-character `MAX_PAYLOAD_SIZE` (supported by env vars) limit was added to `orchestrator.py`. Packets exceeding the limit are dropped directly to the DLQ without reaching the LLM, providing cost protection.
+4. **Prompt Sanitization:** In `repair.py`, any `---START UNTRUSTED DATA---` or `END` tags inside the raw data are replaced with `[REDACTED_BOUNDARY]` (sanitization), preventing prompt boundary bypass.
+5. **Gauge Metric:** A `sentinelcell_quarantine_status` Gauge metric was created for the quarantine state, exposing the real-time `1.0` (quarantined) or `0.0` (healthy) status to Prometheus.
+6. **Python GIL Note:** The reality that a Python-based Middleware/Gateway could slow down under very high traffic due to the Global Interpreter Lock (GIL) was recorded. Therefore, moving the services behind the Gateway to a passive sniffing mode or placing a Rust-based load balancer in front of it will be evaluated in the future (V2).
 
 ## Consequences
 ### Positive
-- **Yüksek Performans:** VectorDB veritabanı yavaşlasa bile ana paket trafiği asla yavaşlamaz (Non-blocking I/O).
-- **Maliyet Kontrolü:** Sınırsız token tüketimi ve gereksiz LLM çağrıları tamamen durduruldu.
-- **Kayıpsız Analiz:** DLQ sayesinde reddedilen paketler üzerinde sonradan siber tehdit analizi yapılabilir.
-- **Görsel Alarmlar:** Grafana'da büyük kırmızı karantina uyarıları eklenebilir.
+- **High Performance:** Even if the VectorDB slows down, the main packet traffic never slows down (Non-blocking I/O).
+- **Cost Control:** Unlimited token consumption and unnecessary LLM calls are completely stopped.
+- **Lossless Analysis:** Thanks to the DLQ, cyber threat analysis can be performed on rejected packets later.
+- **Visual Alarms:** Large red quarantine warnings can be added to Grafana.
 
 ### Negative
-- **Olası Veri Kaybı:** "Fire-and-forget" log mekanizmasında VectorDB anlık kapalıysa loglar sessizce kaybolabilir (akışı korumak adına bu risk göze alınmıştır).
+- **Potential Data Loss:** In the "fire-and-forget" logging mechanism, if the VectorDB is momentarily down, logs may be silently lost (this risk is accepted to preserve the main flow).

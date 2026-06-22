@@ -1,31 +1,31 @@
-# ADR 011: Final Security & Architecture Maturation
+# ADR-011: Final Security & Architecture Maturation
 
 ## Status
-Accepted
+**Accepted**
 
 ## Context
-Projenin üretime (production) hazır olduğu düşünülse de, agresif saldırı senaryoları ve devasa yüksek yük (high-load) koşullarında tespit edilen 5 ekstrem zafiyet bulunmuştur:
-1. **LLM DDoS (Wallet Exhaustion):** Sisteme milyonlarca hatalı paket sokularak sınırsız LLM faturası yaratılabilir.
-2. **MCP Darboğazı (Single Point of Failure):** FastMCP şema sunucusu kapandığında SentinelCell kilitleniyordu (Fail-Closed).
-3. **Gecikme (Latency) Engeli:** LangGraph'ın eşzamanlı çalışması, milisaniye hassasiyetindeki sistemler için kabul edilemez darboğaz oluşturabilir.
-4. **DLQ Replay Yokluğu:** Karantinaya alınıp düşürülen mektuplar (.antigravity/logs/dlq.json) kaydediliyor ancak geriye oynatılamıyordu (Replay).
-5. **Data Poisoning (Veri Zehirlenmesi):** Prompt Injection uyarısı veren paketler onarılamasa bile VectorDB'ye sızma veya gereksiz döngüye girme riski taşıyordu.
+Although the project was considered production-ready, 5 extreme vulnerabilities were detected under aggressive attack scenarios and massive high-load conditions:
+1. **LLM DDoS (Wallet Exhaustion):** Millions of malformed packets could be injected into the system to generate an unlimited LLM bill.
+2. **MCP Bottleneck (Single Point of Failure):** When the FastMCP schema server went down, SentinelCell locked up (Fail-Closed).
+3. **Latency Hurdle:** The synchronous execution of LangGraph could create an unacceptable bottleneck for systems requiring millisecond precision.
+4. **Lack of DLQ Replay:** Quarantined and dropped letters (`.antigravity/logs/dlq.json`) were being saved but could not be replayed.
+5. **Data Poisoning:** Packets triggering Prompt Injection alerts carried the risk of infiltrating VectorDB or causing unnecessary loops even if they couldn't be repaired.
 
 ## Decision
-Sistemi "Bullet-Proof" endüstriyel standartlara getirmek için şu mekanizmalar geliştirildi:
-1. **Rate Limiting:** `repair.py` içerisine Redis tabanlı `LLM_RATE_LIMIT_PER_MIN` sınırı getirildi (Varsayılan: 50 istek/dakika). Aşıldığında LLM motoru kapatılarak paketler direkt çöpe atılır.
-2. **Fail-Open MCP:** `validation.py` içerisindeki MCP fetch çağrısı `try-except` bloğuna alındı. Eğer MCP çökerse, sistem hata vermek yerine "Fail-Open" politikasıyla (validation bypass edilerek) akışı serbest bırakır.
-3. **Passive Monitoring:** `.env` içerisine `PASSIVE_MONITORING=true/false` bayrağı eklendi. Aktif olduğunda, SentinelCell Gateway trafiği 0ms gecikme ile anında geçirir, tüm onarım/hata loglama işlemlerini `asyncio.create_task` ile arkaplana atar.
-4. **Replay Script:** `src/gateways/dlq_replay.py` yazılarak, `dlq.json` dosyası içindeki zehirli olmayan veya fazla büyük olmayan ölü paketlerin `redis_mq`'nun `sentinel.in` kuyruğuna yeniden basılması (Replay) sağlandı.
-5. **Poisoning Drop:** `orchestrator.py` içindeki `decider_node` düğümü, hata içeriğinde `SECURITY_BREACH` kelimesini yakaladığı anda paketi tamir (repair) motoruna yollamadan `end` noduyla anında imha eder.
+To bring the system to "Bullet-Proof" industrial standards, the following mechanisms were developed:
+1. **Rate Limiting:** A Redis-based `LLM_RATE_LIMIT_PER_MIN` limit was added to `repair.py` (Default: 50 requests/minute). When exceeded, the LLM engine shuts down and packets are thrown directly into the trash.
+2. **Fail-Open MCP:** The MCP fetch call in `validation.py` was wrapped in a `try-except` block. If MCP crashes, the system releases the flow using a "Fail-Open" policy (bypassing validation) instead of failing.
+3. **Passive Monitoring:** A `PASSIVE_MONITORING=true/false` flag was added to `.env`. When active, the SentinelCell Gateway passes traffic with 0ms latency, pushing all repair/error logging operations to the background using `asyncio.create_task`.
+4. **Replay Script:** `src/gateways/dlq_replay.py` was written to push (Replay) dead packets inside the `dlq.json` file that are not toxic or oversized back into the `sentinel.in` queue of `redis_mq`.
+5. **Poisoning Drop:** The `decider_node` in `orchestrator.py` immediately destroys the packet with the `end` node without sending it to the repair engine the moment it catches the word `SECURITY_BREACH` in the error context.
 
 ## Consequences
 ### Positive
-- Siber saldırganlar artık LLM token bütçenizi tüketmek için DDOS yapamaz (Rate Limit kalkanı).
-- MCP çökse bile ajan iletişimi kopmaz (Fail-Open).
-- Gateway, Passive Monitoring sayesinde ana sistem akışına milisaniye bile etki etmeden (Sıfır Gecikme) arkaplanda güvenlik analizi yapabilir.
-- Hatalı paketler veri kaybı olmadan geriye sarılabilir (DLQ Replay).
+- Cyber attackers can no longer DDOS to consume your LLM token budget (Rate Limit shield).
+- Agent communication does not break even if MCP crashes (Fail-Open).
+- Thanks to Passive Monitoring, the Gateway can perform security analysis in the background without affecting the main system flow even by a millisecond (Zero Latency).
+- Malformed packets can be replayed without data loss (DLQ Replay).
 
 ### Negative
-- Passive Monitoring açıldığında bozuk veya zehirli paketler sisteme anlık olarak geçer (Asenkron tespit edilir ama engellenmez). Bu mod sadece Sniffing için uygundur, Gateway (Engelleyici) modu için kapalı tutulmalıdır.
-- Fail-Open durumunda sistem schema validasyonunu kaybettiği için "Geçici Körlük" yaşayabilir.
+- When Passive Monitoring is enabled, malformed or toxic packets pass into the system instantly (Detected asynchronously but not blocked). This mode is only suitable for Sniffing and should be kept disabled for Gateway (Blocking) mode.
+- In a Fail-Open scenario, the system may experience "Temporary Blindness" as it loses schema validation.
