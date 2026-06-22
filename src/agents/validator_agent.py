@@ -54,6 +54,9 @@ class SentinelCell:
         return (self._local_quarantine_mode, self._local_quarantine_timestamp)
 
     async def _set_quarantine_state(self, mode: bool):
+        from src.core.telemetry import metrics
+
+        metrics.quarantine_status.set(1.0 if mode else 0.0)
         now = time.time()
         if self.redis_client:
             try:

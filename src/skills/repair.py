@@ -46,6 +46,14 @@ class SelfHealingEngine:
         provider = self.providers[attempts % len(self.providers)]
         title = schema_json.get("title", "UnknownSchema")
 
+        malformed_str = json.dumps(malformed_data)
+        malformed_str = malformed_str.replace(
+            "---START UNTRUSTED DATA---", "[REDACTED_BOUNDARY]"
+        )
+        malformed_str = malformed_str.replace(
+            "---END UNTRUSTED DATA---", "[REDACTED_BOUNDARY]"
+        )
+
         # --- ADAPTIVE UNLEARNING ---
         # If we are here and have a last_memory_id, it means the previous fix failed the validator!
         # We must "Unlearn" the hallucination from VectorDB.
@@ -105,7 +113,7 @@ class SelfHealingEngine:
 
             Untrusted Malformed Data:
             ---START UNTRUSTED DATA---
-            {json.dumps(malformed_data)}
+            {malformed_str}
             ---END UNTRUSTED DATA---
 
             Return ONLY the corrected JSON payload. Do not include markdown blocks, explanations, or any text other than the valid JSON.

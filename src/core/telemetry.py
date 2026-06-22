@@ -1,6 +1,6 @@
 from pydantic import BaseModel, Field
 from typing import Dict, Any
-from prometheus_client import Counter, Histogram
+from prometheus_client import Counter, Histogram, Gauge
 
 
 class OTelResource(BaseModel):
@@ -52,6 +52,10 @@ class SentinelMetrics:
             "sentinelcell_processing_latency_seconds",
             "Latency of the payload processing pipeline",
             buckets=(0.1, 0.5, 1.0, 2.5, 5.0, 10.0, float("inf")),
+        )
+        self.quarantine_status = Gauge(
+            "sentinelcell_quarantine_status",
+            "1 if the Immune System is in Quarantine Mode, 0 otherwise",
         )
 
 

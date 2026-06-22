@@ -50,28 +50,37 @@ class SentinelOrchestrator:
         graph.set_entry_point("validate")
 
         # VectorDB Logging Node
-        def log_to_vectordb_node(state: AgentState):
+        async def log_to_vectordb_node(state: AgentState):
             if self.healer.memory and state.get("repair_attempts", 0) == 0:
-                try:
-                    import uuid
-                    import time
 
-                    doc_id = f"mem-valid-{uuid.uuid4()}"
-                    memory_doc = (
-                        f"Valid Payload: {json.dumps(state.get('payload', {}))}"
-                    )
-                    title = state.get("schema_dict", {}).get("title", "UnknownSchema")
-                    self.healer.memory.add_memory(
-                        doc_id=doc_id,
-                        memory_doc=memory_doc,
-                        metadata={
-                            "schema": title,
-                            "provider": "original",
-                            "timestamp": time.time(),
-                        },
-                    )
-                except Exception:
-                    pass
+                def _log_sync():
+                    try:
+                        import uuid
+                        import time
+
+                        doc_id = f"mem-valid-{uuid.uuid4()}"
+                        memory_doc = (
+                            f"Valid Payload: {json.dumps(state.get('payload', {}))}"
+                        )
+                        title = state.get("schema_dict", {}).get(
+                            "title", "UnknownSchema"
+                        )
+                        self.healer.memory.add_memory(
+                            doc_id=doc_id,
+                            memory_doc=memory_doc,
+                            metadata={
+                                "schema": title,
+                                "provider": "original",
+                                "timestamp": time.time(),
+                            },
+                        )
+                    except Exception:
+                        pass
+
+                import asyncio
+
+                loop = asyncio.get_event_loop()
+                loop.run_in_executor(None, _log_sync)
             return state
 
         graph.add_node("log_to_vectordb", log_to_vectordb_node)
@@ -112,6 +121,16 @@ class SentinelOrchestrator:
         metrics.payload_intercepts.labels(status="received").inc()
 
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]
+
+        import os
+
+        max_payload_size = int(os.getenv("MAX_PAYLOAD_SIZE", "10000"))
+        if len(payload) > max_payload_size:
+            console.print(
+                f"[bold red][!] Payload exceeds MAX_PAYLOAD_SIZE ({len(payload)} > {max_payload_size}). Dropping.[/bold red]"
+            )
+            self._log_to_dlq(agent_source, agent_target, payload, "Payload Too Large")
+            return None
 
         # Log Interception (Hackerman style)
         panel_text = Text(
@@ -171,4 +190,30 @@ class SentinelOrchestrator:
                 metrics.healing_failure.inc()
             metrics.payload_intercepts.labels(status="dropped").inc()
             console.print("[danger][!] PACKET REJECTED -> Dropped.[/danger]")
+            self._log_to_dlq(
+                agent_source,
+                agent_target,
+                json.dumps(final_state.get("payload", {})),
+                "Unrecoverable Invalid Payload",
+            )
             return None
+
+    def _log_to_dlq(self, source: str, target: str, payload: str, reason: str):
+        import time
+        import os
+
+        dlq_dir = os.path.join(os.getcwd(), ".antigravity", "logs")
+        os.makedirs(dlq_dir, exist_ok=True)
+        dlq_path = os.path.join(dlq_dir, "dlq.json")
+        entry = {
+            "timestamp": time.time(),
+            "source": source,
+            "target": target,
+            "reason": reason,
+            "payload": payload,
+        }
+        try:
+            with open(dlq_path, "a") as f:
+                f.write(json.dumps(entry) + "\n")
+        except Exception:
+            pass
