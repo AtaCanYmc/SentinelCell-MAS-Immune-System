@@ -41,6 +41,20 @@ services:
       - sentinel_net
     <<: *sentinel-constraints
 
+  # 3. Dashboard Frontend (Nginx Isolated)
+  dashboard:
+    build:
+      context: ./dashboard
+      dockerfile: Dockerfile
+    container_name: sentinelcell_dashboard
+    ports:
+      - "3000:80"
+    networks:
+      - sentinel_net
+    depends_on:
+      - fastapi_gateway
+    <<: *sentinel-constraints
+
 networks:
   sentinel_net:
     name: sentinel_net
