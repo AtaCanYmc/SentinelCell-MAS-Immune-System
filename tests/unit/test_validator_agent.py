@@ -34,8 +34,8 @@ async def test_intercept_successful(mock_dependencies):
     mock_broadcaster.broadcast.assert_any_call(
         "INTERCEPT", "Source: SourceAgent -> Target: TargetAgent"
     )
-    assert not cell.quarantine_mode
-    assert len(cell.error_timestamps) == 0
+    assert not cell._local_quarantine_mode
+    assert len(cell._local_error_timestamps) == 0
 
 
 @pytest.mark.asyncio
@@ -50,8 +50,8 @@ async def test_quarantine_mode_activation(mock_dependencies):
         result = await cell.intercept("Alpha", "Beta", '{"bad": "data"}')
         assert result is None
 
-    assert cell.quarantine_mode is True
-    assert len(cell.error_timestamps) == 5
+    assert cell._local_quarantine_mode is True
+    assert len(cell._local_error_timestamps) == 5
 
     # 6th packet should be blocked due to quarantine
     mock_broadcaster.broadcast.reset_mock()
@@ -71,14 +71,14 @@ async def test_quarantine_sliding_window(mock_dependencies):
 
     # Simulate 4 errors 65 seconds ago
     old_time = time.time() - 65
-    cell.error_timestamps = [old_time] * 4
+    cell._local_error_timestamps = [old_time] * 4
 
     # The 5th error comes in now. It should prune the old errors and NOT trigger quarantine.
     result = await cell.intercept("Alpha", "Beta", '{"bad": "data"}')
     assert result is None
 
-    assert cell.quarantine_mode is False
-    assert len(cell.error_timestamps) == 1
+    assert cell._local_quarantine_mode is False
+    assert len(cell._local_error_timestamps) == 1
 
 
 @pytest.mark.asyncio
@@ -95,12 +95,12 @@ async def test_quarantine_cooldown_recovery(mock_dependencies):
     await cell.intercept("AgentA", "AgentB", malformed_payload)
     await cell.intercept("AgentA", "AgentB", malformed_payload)
 
-    assert cell.quarantine_mode is True
+    assert cell._local_quarantine_mode is True
 
     # Immediate request should be blocked
     res = await cell.intercept("AgentA", "AgentB", '{"valid": "json"}')
     assert res is None
-    assert cell.quarantine_mode is True
+    assert cell._local_quarantine_mode is True
 
     # Wait for cooldown
     time.sleep(1.1)
@@ -112,4 +112,4 @@ async def test_quarantine_cooldown_recovery(mock_dependencies):
     # Wait, the 3rd fail will re-trigger quarantine?
     # Threshold is 2. The 1st failure after cooldown will put 1 error in timestamps.
     # So it shouldn't trip yet.
-    assert cell.quarantine_mode is False
+    assert cell._local_quarantine_mode is False

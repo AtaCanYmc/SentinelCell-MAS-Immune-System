@@ -22,9 +22,7 @@ def test_metrics_increment():
     """Test if metrics can be incremented."""
     # Record initial count conceptually (not strictly necessary to assert absolute value, just that it doesn't crash)
     metrics.healing_success.inc()
-    metrics.payload_intercepts.labels(
-        source="test", target="test", status="received"
-    ).inc()
+    metrics.payload_intercepts.labels(status="received").inc()
     metrics.latency.observe(0.5)
 
     # This just ensures no exceptions are raised when interacting with the metrics
