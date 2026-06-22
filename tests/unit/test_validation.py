@@ -34,3 +34,32 @@ async def test_validate_packet_no_schema(validator):
     data = {"random": "data"}
     result = await validator.validate_packet("Agent_Gamma", data)
     assert result is True
+
+
+@pytest.mark.asyncio
+async def test_validate_packet_circuit_breaker():
+    # MCP raises Exception, should use stale cache
+    class MockFailingMCPClient:
+        async def fetch_schema(self, agent_id: str):
+            raise Exception("Network Error")
+
+    validator = SemanticValidator(mcp_client=MockFailingMCPClient())
+    validator._cache["Agent_Stale"] = {
+        "schema": {
+            "title": "Stale",
+            "type": "object",
+            "properties": {"val": {"type": "string"}},
+            "required": ["val"],
+        },
+        "expires_at": 0,
+    }  # Expired
+
+    # Valid data according to stale cache
+    data = {"val": "hello"}
+    result = await validator.validate_packet("Agent_Stale", data)
+    assert result is True
+
+    # Invalid data according to stale cache
+    data_bad = {"bad": "data"}
+    result_bad = await validator.validate_packet("Agent_Stale", data_bad)
+    assert result_bad is False

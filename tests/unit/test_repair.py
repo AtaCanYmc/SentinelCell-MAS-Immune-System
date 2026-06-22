@@ -106,3 +106,62 @@ async def test_healer_repair_node_unlearning(mock_factory):
         mock_memory.delete_memory.assert_called_once_with("mem-12345")
         assert result["last_memory_id"] is not None
         assert result["last_memory_id"].startswith("mem-")
+
+
+@pytest.mark.asyncio
+@patch("src.skills.repair.LLMFactory")
+async def test_healer_repair_node_semantic_drift(mock_factory):
+    mock_llm = MagicMock()
+    mock_response = MagicMock()
+    # LLM hallucinates and drops critical original data
+    mock_response.content = '```json\n{"status": "ok"}\n```'
+
+    async def mock_ainvoke(*args, **kwargs):
+        return mock_response
+
+    mock_llm.ainvoke = mock_ainvoke
+    mock_factory.get_llm.return_value = mock_llm
+
+    engine = SelfHealingEngine()
+    engine.memory = None
+
+    state = {
+        "repair_attempts": 0,
+        "schema_dict": {"title": "TestSchema"},
+        # Original payload had critical info
+        "payload": {"critical_id": 12345, "amount": 999.99},
+        "error_context": "Missing status",
+    }
+
+    # Since the healed payload has no overlap with the original atomic values, it will trigger Semantic Drift
+    result = await engine.repair_node(state)
+
+    # Semantic Drift Error causes healing to fail
+    assert "payload" not in result
+    assert result["repair_attempts"] == 1
+
+
+@pytest.mark.asyncio
+async def test_healer_repair_node_rate_limit():
+    with patch(
+        "os.getenv",
+        side_effect=lambda k, d=None: "redis://localhost:6379"
+        if k == "REDIS_URL"
+        else d,
+    ):
+        with patch("redis.Redis.from_url") as mock_redis_func:
+            mock_redis = MagicMock()
+            mock_redis.incr.return_value = 100  # Exceeds rate limit
+            mock_redis_func.return_value = mock_redis
+
+            engine = SelfHealingEngine()
+            state = {
+                "repair_attempts": 0,
+                "schema_dict": {"title": "TestSchema"},
+                "payload": {"status": "ok"},
+                "error_context": "Missing message",
+            }
+
+            result = await engine.repair_node(state)
+            assert result["is_valid"] is False
+            assert "Rate Limit Exceeded" in result["error_context"]
