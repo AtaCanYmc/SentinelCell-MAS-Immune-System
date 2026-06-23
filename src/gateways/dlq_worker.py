@@ -1,4 +1,4 @@
-import json
+import orjson
 import os
 import asyncio
 import redis.asyncio as redis
@@ -28,7 +28,7 @@ async def process_dlq():
                 if not line.strip():
                     continue
                 try:
-                    entry = json.loads(line)
+                    entry = orjson.loads(line)
                     reason = entry.get("reason", "")
 
                     # Drop malicious or oversized immediately
@@ -46,13 +46,13 @@ async def process_dlq():
                     # Here we simulate an automated retry of valid-but-failed payloads.
                     await r.lpush(
                         "sentinel.in",
-                        json.dumps(
+                        orjson.dumps(
                             {
                                 "source": entry.get("source"),
                                 "target": entry.get("target"),
                                 "payload": entry.get("payload"),
                             }
-                        ),
+                        ).decode("utf-8"),
                     )
                     replayed_count += 1
                     console.print(

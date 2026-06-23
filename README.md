@@ -22,10 +22,13 @@
 
 ---
 
-## 1. Problem Statement
+## 1. Background & Acknowledgments
+*Built for the Kaggle AI Agents: Intensive Vibe Coding Capstone Project. Powered by LangGraph, MCP, and high-performance observability patterns.*
+
+## 2. Problem Statement
 Multi-Agent Systems (MAS) rely on fragile, hardcoded communication contracts. When an agent hallucinates, experiences semantic drift, or is subjected to prompt injection attacks, the entire pipeline crashes or, worse, processes corrupted data. There is no centralized authority or "Immune System" to gracefully intercept, detect, and automatically heal these semantic breaches before they corrupt downstream consumers.
 
-## 2. The SentinelCell Solution
+## 3. The SentinelCell Solution
 **SentinelCell** is an intelligent, enterprise-ready middleware—an "Immune System"—for MAS. It intercepts inter-agent traffic in real-time, validates the data against a centralized Schema Registry (powered by MCP), and automatically repairs malformed JSON payloads.
 
 The orchestration is powered by **LangGraph**, providing a resilient, model-agnostic state machine with built-in cloud-to-local fallback mechanisms.
@@ -35,7 +38,7 @@ SentinelCell turns silent pipeline failures into observable, self-correcting def
 
 ---
 
-## 3. Architecture
+## 4. Architecture
 
 ```mermaid
 flowchart TD
@@ -81,12 +84,12 @@ flowchart TD
     Intercept -.->|4. Semantic Cache| Redis
     Log -->|5a. Forward Clean Payload| Consumer
     Quarantine -->|5b. Route to DLQ| Redis
-    Redis -.->|6. Websocket Streams| Dashboard
+    Intercept -.->|6. Websocket Streams| Dashboard
 ```
 
 ---
 
-## 4. Core Features
+## 5. Core Features
 
 | Feature | Description | Stack / Tech |
 |---------|-------------|--------------|
@@ -119,7 +122,7 @@ flowchart TD
 
 ---
 
-## 5. Prerequisites & Quick Start
+## 6. Prerequisites & Quick Start
 
 ### Prerequisites
 - Python 3.11+
@@ -142,7 +145,7 @@ chmod +x setup.sh
 
 ---
 
-## 6. Setup & Deployment
+## 7. Setup & Deployment
 
 If you prefer manual configuration over the `setup.sh` wizard:
 
@@ -165,9 +168,17 @@ Spins up the FastAPI Gateway, Redis MQ Worker, and Nginx Dashboard securely:
 docker compose up -d --build
 ```
 
+### Frontend Execution (Development)
+To run the React Dashboard Command Center locally with Hot Module Replacement (HMR):
+```bash
+cd dashboard
+npm install
+npm run dev
+```
+
 ---
 
-## 7. Visual Proof & Examples
+## 8. Visual Proof & Examples
 
 ### Real-Time Interception Output
 When SentinelCell detects an obfuscated Prompt Injection attack, operators receive immediate, clear terminal observability:
@@ -197,7 +208,7 @@ Run these chaos simulations locally (ensure your `.env` is configured):
 
 ---
 
-## 8. Documentation & Community
+## 9. Documentation & Community
 
 ### 📖 Technical Docs
 Explore our detailed documentation for a deeper dive:
@@ -217,9 +228,8 @@ We welcome contributions and feedback!
 
 ---
 
-## 9. License
+## 10. License
 
 This project is licensed under the **MIT License**. See the `LICENSE` file for details.
 
 ---
-*Built for the Kaggle AI Agents: Intensive Vibe Coding Capstone Project. Powered by LangGraph, MCP, and high-performance observability patterns.*

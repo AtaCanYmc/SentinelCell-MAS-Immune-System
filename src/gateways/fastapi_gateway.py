@@ -1,5 +1,5 @@
 import os
-import json
+import orjson
 import asyncio
 import dotenv
 from pydantic import BaseModel
@@ -98,7 +98,9 @@ async def websocket_logs(websocket: WebSocket):
     except Exception as e:
         try:
             await websocket.send_text(
-                json.dumps({"type": "SYSTEM_ERROR", "content": str(e)})
+                orjson.dumps({"type": "SYSTEM_ERROR", "content": str(e)}).decode(
+                    "utf-8"
+                )
             )
         except Exception:
             pass
@@ -127,7 +129,7 @@ async def intercept_traffic(
                 cached_response = await r.get(f"idempotency:{x_idempotency_key}")
                 if cached_response:
                     return JSONResponse(
-                        status_code=208, content=json.loads(cached_response)
+                        status_code=208, content=orjson.loads(cached_response)
                     )
             except Exception:
                 pass
@@ -145,7 +147,9 @@ async def intercept_traffic(
         if x_idempotency_key and r:
             try:
                 await r.setex(
-                    f"idempotency:{x_idempotency_key}", 86400, json.dumps(result)
+                    f"idempotency:{x_idempotency_key}",
+                    86400,
+                    orjson.dumps(result).decode("utf-8"),
                 )
             except Exception:
                 pass
@@ -265,8 +269,8 @@ async def get_dlq(api_key: str = Depends(verify_api_key)):
         for line in f:
             if line.strip():
                 try:
-                    logs.append(json.loads(line))
-                except json.JSONDecodeError:
+                    logs.append(orjson.loads(line))
+                except orjson.JSONDecodeError:
                     pass
     # Return latest first
     return logs[::-1]

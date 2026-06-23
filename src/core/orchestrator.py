@@ -1,4 +1,4 @@
-import json
+import orjson
 from datetime import datetime
 from typing_extensions import TypedDict
 from langgraph.graph import StateGraph, END
@@ -68,9 +68,7 @@ class SentinelOrchestrator:
                     redis_url = os.getenv("REDIS_URL", "redis://localhost:6379/0")
                     r = redis.from_url(redis_url)
                     doc_id = f"mem-valid-{uuid.uuid4()}"
-                    memory_doc = (
-                        f"Valid Payload: {json.dumps(state.get('payload', {}))}"
-                    )
+                    memory_doc = f"Valid Payload: {orjson.dumps(state.get('payload', {})).decode('utf-8')}"
                     title = state.get("schema_dict", {}).get("title", "UnknownSchema")
 
                     # Outbox Pattern: Push to Redis instead of synchronous write
@@ -83,7 +81,9 @@ class SentinelOrchestrator:
                             "timestamp": time.time(),
                         },
                     }
-                    await r.lpush("sentinel.outbox", json.dumps(outbox_entry))
+                    await r.lpush(
+                        "sentinel.outbox", orjson.dumps(outbox_entry).decode("utf-8")
+                    )
                     # Eviction Policy: Keep max 10,000 items to prevent Backpressure OOM
                     await r.ltrim("sentinel.outbox", 0, 9999)
                 except Exception as e:
@@ -183,8 +183,8 @@ class SentinelOrchestrator:
         )
 
         try:
-            data = json.loads(payload)
-        except json.JSONDecodeError as e:
+            data = orjson.loads(payload)
+        except orjson.JSONDecodeError as e:
             console.print(f"[danger][!] CRITICAL MALFORMED JSON DETECTED:[/danger] {e}")
             console.print("[warning][~] Routing to Self-Healing Engine...[/warning]")
             # Pass as generic dict so it can be healed
@@ -251,7 +251,7 @@ class SentinelOrchestrator:
                 self._log_to_dlq(
                     agent_source,
                     agent_target,
-                    json.dumps(final_state.get("payload", {})),
+                    orjson.dumps(final_state.get("payload", {})).decode("utf-8"),
                     "Unrecoverable Invalid Payload",
                 )
                 return None
@@ -281,7 +281,7 @@ class SentinelOrchestrator:
         }
         try:
             with open(dlq_path, "a") as f:
-                f.write(json.dumps(entry) + "\n")
+                f.write(orjson.dumps(entry).decode("utf-8") + "\n")
         except Exception:
             pass
 
