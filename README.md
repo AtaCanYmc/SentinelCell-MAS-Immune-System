@@ -198,7 +198,7 @@ Explore our detailed documentation for a deeper dive:
 We welcome contributions and feedback!
 - **Found a bug?** Please open an issue in the [GitHub Issues](https://github.com/your-org/SentinelCell-MAS-Immune-System/issues) tab.
 - **Have an idea or question?** Join the conversation in [GitHub Discussions](https://github.com/your-org/SentinelCell-MAS-Immune-System/discussions).
-- **Contributing:** Feel free to fork the repository and submit a Pull Request.
+- **Contributing:** Please see our [CONTRIBUTING.md](CONTRIBUTING.md) for details on our development environment setup (pytest, linting) and the process for submitting Pull Requests.
 
 ---
 

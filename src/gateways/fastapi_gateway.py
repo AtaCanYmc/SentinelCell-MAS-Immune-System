@@ -3,8 +3,16 @@ import json
 import asyncio
 import dotenv
 from pydantic import BaseModel
-from fastapi import FastAPI, Request, HTTPException, WebSocket, WebSocketDisconnect
+from fastapi import (
+    FastAPI,
+    Request,
+    HTTPException,
+    WebSocket,
+    WebSocketDisconnect,
+    Depends,
+)
 from fastapi.responses import HTMLResponse
+from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from fastapi.staticfiles import StaticFiles
 import redis.asyncio as redis
 from src.agents.validator_agent import SentinelCell
@@ -15,6 +23,18 @@ app = FastAPI(
     description="Transparent API Gateway and Live Dashboard for Multi-Agent Systems",
 )
 sentinel = SentinelCell()
+
+security = HTTPBearer(auto_error=False)
+
+
+def verify_api_key(credentials: HTTPAuthorizationCredentials = Depends(security)):
+    expected_api_key = os.getenv("API_KEY_SECRET")
+    if not expected_api_key:
+        return True
+    if not credentials or credentials.credentials != expected_api_key:
+        raise HTTPException(status_code=401, detail="Invalid or missing API Key")
+    return credentials.credentials
+
 
 # Add Prometheus metrics route
 metrics_app = make_asgi_app()
@@ -84,7 +104,9 @@ async def websocket_logs(websocket: WebSocket):
 
 
 @app.post("/intercept")
-async def intercept_traffic(source: str, target: str, request: Request):
+async def intercept_traffic(
+    source: str, target: str, request: Request, api_key: str = Depends(verify_api_key)
+):
     """
     HTTP Endpoint acting as the Guardian Gateway.
     Legacy agents can POST their payloads here to be scrubbed by the Immune System.
@@ -109,7 +131,7 @@ async def intercept_traffic(source: str, target: str, request: Request):
 
 
 @app.delete("/memory/purge")
-async def purge_memory(days: int = 30):
+async def purge_memory(days: int = 30, api_key: str = Depends(verify_api_key)):
     """
     Purges old hallucination corrections from the VectorDB
     to prevent memory bloat and maintain optimal RAG performance.
@@ -129,7 +151,9 @@ async def purge_memory(days: int = 30):
 
 
 @app.post("/schema/refresh")
-async def refresh_schema(agent_target: str = None):
+async def refresh_schema(
+    agent_target: str = None, api_key: str = Depends(verify_api_key)
+):
     """
     Purges the local schema cache for a specific agent, or all agents if none provided.
     This guarantees instant consistency for the next payload without waiting for TTL.
@@ -158,7 +182,7 @@ class ConfigUpdate(BaseModel):
 
 
 @app.get("/api/config")
-async def get_config():
+async def get_config(api_key: str = Depends(verify_api_key)):
     """Returns safe environment variables for the settings dashboard."""
     env_path = os.path.join(
         os.path.dirname(os.path.dirname(os.path.dirname(__file__))), ".env"
@@ -178,7 +202,7 @@ async def get_config():
 
 
 @app.post("/api/config")
-async def update_config(config: ConfigUpdate):
+async def update_config(config: ConfigUpdate, api_key: str = Depends(verify_api_key)):
     """Updates .env file with new configurations."""
     env_path = os.path.join(
         os.path.dirname(os.path.dirname(os.path.dirname(__file__))), ".env"
@@ -198,7 +222,7 @@ async def update_config(config: ConfigUpdate):
 
 
 @app.get("/api/dlq")
-async def get_dlq():
+async def get_dlq(api_key: str = Depends(verify_api_key)):
     """Returns the Dead Letter Queue logs for the Quarantine UI."""
     dlq_path = os.path.join(
         os.path.dirname(os.path.dirname(os.path.dirname(__file__))),
@@ -228,7 +252,7 @@ class ReplayRequest(BaseModel):
 
 
 @app.post("/api/replay")
-async def replay_payload(req: ReplayRequest):
+async def replay_payload(req: ReplayRequest, api_key: str = Depends(verify_api_key)):
     """Manually replays a payload from the Quarantine UI."""
     try:
         result = await sentinel.intercept(

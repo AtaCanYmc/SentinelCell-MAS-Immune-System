@@ -38,8 +38,12 @@ class SentinelOrchestrator:
     """
 
     def __init__(self, validator, healer):
+        import os
+
         self.validator = validator
         self.healer = healer
+        self.agent_circuit_breakers = {}
+        self.breaker_threshold = int(os.getenv("CIRCUIT_BREAKER_THRESHOLD", "5"))
 
         # Build LangGraph
         graph = StateGraph(AgentState)
@@ -141,6 +145,15 @@ class SentinelOrchestrator:
         # Log Intercept
         metrics.payload_intercepts.labels(status="received").inc()
 
+        # Dynamic Circuit Breaker Check
+        if self.agent_circuit_breakers.get(agent_source, 0) >= getattr(
+            self, "breaker_threshold", 5
+        ):
+            console.print(
+                f"[bold red][!] DYNAMIC CIRCUIT BREAKER TRIPPED for {agent_source}. Dropping traffic instantly.[/bold red]"
+            )
+            return None
+
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]
 
         import os
@@ -202,6 +215,7 @@ class SentinelOrchestrator:
             metrics.latency.observe(latency_seconds)
 
             if final_state.get("is_valid"):
+                self.agent_circuit_breakers[agent_source] = 0
                 if final_state.get("repair_attempts", 0) > 0:
                     metrics.healing_success.inc()
                 if final_state.get("active_provider"):
@@ -213,6 +227,16 @@ class SentinelOrchestrator:
                 )
                 return final_state["payload"]
             else:
+                self.agent_circuit_breakers[agent_source] = (
+                    self.agent_circuit_breakers.get(agent_source, 0) + 1
+                )
+                if self.agent_circuit_breakers[agent_source] >= getattr(
+                    self, "breaker_threshold", 5
+                ):
+                    console.print(
+                        f"[bold red][!] CIRCUIT BREAKER: {agent_source} has reached {self.agent_circuit_breakers[agent_source]} consecutive failures. Tripping breaker![/bold red]"
+                    )
+
                 if final_state.get("repair_attempts", 0) > 0:
                     metrics.healing_failure.inc()
                 metrics.payload_intercepts.labels(status="dropped").inc()
