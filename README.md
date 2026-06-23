@@ -9,6 +9,11 @@
   ![Stars](https://img.shields.io/github/stars/atacanymc/SentinelCell-MAS-Immune-System?style=flat-square)
 </div>
 
+<p align="center">
+  <img src="assets/SentinelCell-defense.png" width="48%" alt="SentinelCell Defense Mechanism">
+  <img src="assets/SentinelCell-fix.png" width="48%" alt="SentinelCell Self-Healing Repair">
+</p>
+
 ## Table of Contents
 - [1. Background & Acknowledgments](#1-background--acknowledgments)
 - [2. Problem Statement](#2-problem-statement)
