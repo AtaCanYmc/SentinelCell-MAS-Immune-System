@@ -202,6 +202,11 @@ Sending Obfuscated Payload: {"message": "Hello", "metadata": "aWdub3JlIHByZXZpb3
 ```
 
 ### Live Examples Library
+
+<div align="center">
+  <img src="assets/examples_simulation_cli.png" width="700" alt="Simulation Command Center" style="border-radius: 10px; margin-bottom: 15px;">
+</div>
+
 You can now run all simulations via the interactive Command Center:
 ```bash
 python simulate.py
