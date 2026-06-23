@@ -1,11 +1,11 @@
 import React from 'react';
-import { Activity, CheckCircle, AlertTriangle, Shield, RefreshCcw, Database, Pause, Play, Trash2 } from 'lucide-react';
-import { useWebsocket } from '../hooks/useWebsocket';
+import { Activity, CheckCircle, AlertTriangle, Shield, RefreshCcw, Database, Pause, Play, Trash2, Filter } from 'lucide-react';
+import { useBroadcaster } from '../hooks/useBroadcaster';
 
 const Dashboard = () => {
-  // Use WS for live tail logs
+  // Use Broadcaster for live tail logs
   const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-  const { logs, isConnected, isPaused, togglePause, clearLogs } = useWebsocket(`${protocol}//${window.location.host}/ws/logs`);
+  const { logs, isConnected, isPaused, filterType, setFilterType, togglePause, clearLogs } = useBroadcaster(`${protocol}//${window.location.host}/ws/logs`);
 
   const metrics = {
     intercepts: logs.length,
@@ -54,7 +54,13 @@ const Dashboard = () => {
                 {isConnected ? 'CONNECTED' : 'DISCONNECTED'}
               </span>
             </h2>
-            <div className="flex gap-2">
+            <div className="flex gap-2 items-center">
+              <select value={filterType} onChange={(e) => setFilterType(e.target.value)} className="bg-black/50 border border-white/10 text-xs text-gray-300 rounded px-2 py-1 focus:outline-none focus:border-blue-500">
+                <option value="ALL">All Events</option>
+                <option value="HEAL">Heals</option>
+                <option value="SECURITY">Security</option>
+                <option value="ERROR">Errors</option>
+              </select>
               <button onClick={togglePause} className="p-2 hover:bg-white/10 rounded-md transition-colors" title={isPaused ? "Resume" : "Pause"}>
                 {isPaused ? <Play className="w-4 h-4 text-green-400" /> : <Pause className="w-4 h-4 text-yellow-400" />}
               </button>
@@ -68,11 +74,20 @@ const Dashboard = () => {
             {logs.length === 0 ? (
               <div className="text-gray-500 italic">Waiting for traffic...</div>
             ) : (
-              logs.map((log, i) => (
-                <div key={i} className="mb-2 pb-2 border-b border-white/5">
-                  <span className="text-blue-400">[{new Date().toLocaleTimeString()}]</span> {JSON.stringify(log)}
-                </div>
-              ))
+              logs.map((log, i) => {
+                let colorClass = "text-gray-300";
+                if (log.type?.includes('HEAL_SUCCESS')) colorClass = "text-green-400";
+                if (log.type?.includes('HEAL_FAIL')) colorClass = "text-yellow-400";
+                if (log.type?.includes('SECURITY')) colorClass = "text-red-400 font-bold";
+
+                return (
+                  <div key={i} className="mb-2 pb-2 border-b border-white/5">
+                    <span className="text-blue-400">[{log.timestamp.toLocaleTimeString()}]</span>{' '}
+                    <span className="text-purple-400 font-bold">[{log.type}]</span>{' '}
+                    <span className={colorClass}>{log.content}</span>
+                  </div>
+                );
+              })
             )}
           </div>
         </div>

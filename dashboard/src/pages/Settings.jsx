@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { Settings as SettingsIcon, Save } from 'lucide-react';
+import { Settings as SettingsIcon, Save, Activity } from 'lucide-react';
 import { useQuery, useMutation } from '@tanstack/react-query';
+import { AgentTable } from '../components/AgentTable';
 
 const fetchConfig = async () => {
   const res = await fetch('/api/config');
@@ -96,6 +97,14 @@ const Settings = () => {
           <Save className="w-5 h-5" />
           {mutation.isPending ? 'Saving...' : 'Save Configuration'}
         </button>
+      </div>
+
+      <div className="mt-12 pt-8 border-t border-white/10">
+        <h3 className="text-xl font-semibold mb-6 flex items-center gap-2 text-white">
+          <Activity className="w-5 h-5 text-blue-400" />
+          Circuit Breakers (Active Agents)
+        </h3>
+        <AgentTable />
       </div>
     </div>
   );

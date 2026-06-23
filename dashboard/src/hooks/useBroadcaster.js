@@ -1,0 +1,42 @@
+import { useState, useEffect, useCallback } from 'react';
+
+export const useBroadcaster = (url) => {
+  const [logs, setLogs] = useState([]);
+  const [isConnected, setIsConnected] = useState(false);
+  const [isPaused, setIsPaused] = useState(false);
+  const [filterType, setFilterType] = useState('ALL'); // ALL, ERROR, HEAL, SECURITY
+
+  useEffect(() => {
+    const wsUrl = url.replace(/^http/, 'ws');
+    const ws = new WebSocket(wsUrl);
+
+    ws.onopen = () => setIsConnected(true);
+    ws.onclose = () => setIsConnected(false);
+
+    ws.onmessage = (event) => {
+      if (!isPaused) {
+        try {
+          const data = JSON.parse(event.data);
+          setLogs((prev) => [{ ...data, timestamp: new Date() }, ...prev].slice(0, 200));
+        } catch (e) {
+          console.error("Failed to parse websocket message", e);
+        }
+      }
+    };
+
+    return () => ws.close();
+  }, [url, isPaused]);
+
+  const togglePause = useCallback(() => setIsPaused((prev) => !prev), []);
+  const clearLogs = useCallback(() => setLogs([]), []);
+
+  const filteredLogs = logs.filter(log => {
+    if (filterType === 'ALL') return true;
+    if (filterType === 'ERROR' && log.type && (log.type.includes('FAIL') || log.type.includes('ERROR'))) return true;
+    if (filterType === 'HEAL' && log.type && log.type.includes('HEAL')) return true;
+    if (filterType === 'SECURITY' && log.type && log.type.includes('SECURITY')) return true;
+    return false;
+  });
+
+  return { logs: filteredLogs, isConnected, isPaused, filterType, setFilterType, togglePause, clearLogs };
+};

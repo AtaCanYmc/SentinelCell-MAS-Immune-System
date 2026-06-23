@@ -4,6 +4,7 @@ import { ShieldAlert, Edit3, Play } from 'lucide-react';
 import CodeMirror from '@uiw/react-codemirror';
 import { json } from '@codemirror/lang-json';
 import { useHotkeys } from 'react-hotkeys-hook';
+import ReactDiffViewer, { DiffMethod } from 'react-diff-viewer-continued';
 
 const fetchDlq = async () => {
   const res = await fetch('/api/dlq');
@@ -30,13 +31,22 @@ const Quarantine = () => {
       }
       return res.json();
     },
+    onMutate: async (item) => {
+      await queryClient.cancelQueries({ queryKey: ['dlq'] });
+      const previousDlq = queryClient.getQueryData(['dlq']);
+      queryClient.setQueryData(['dlq'], (old) => old.filter(i => i !== item));
+      return { previousDlq };
+    },
     onSuccess: () => {
       setReplayMessage("Success: Payload accepted!");
       setEditingDlq(null);
-      queryClient.invalidateQueries({ queryKey: ['dlq'] });
     },
-    onError: (err) => {
+    onError: (err, item, context) => {
       setReplayMessage(`Error: ${err.message}`);
+      queryClient.setQueryData(['dlq'], context.previousDlq);
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: ['dlq'] });
     }
   });
 
@@ -89,7 +99,33 @@ const Quarantine = () => {
                 </div>
 
                 {editingDlq?.idx === idx ? (
-                  <div className="border border-blue-500/50 rounded-md overflow-hidden">
+                  <div className="border border-blue-500/50 rounded-md overflow-hidden bg-black/50">
+                    <div className="p-2 bg-gray-900 border-b border-gray-700 text-xs font-semibold text-gray-300">
+                      Live Diff Viewer
+                    </div>
+                    <ReactDiffViewer
+                      oldValue={typeof item.payload === 'object' ? JSON.stringify(item.payload, null, 2) : item.payload}
+                      newValue={editingDlq.payload}
+                      splitView={true}
+                      useDarkTheme={true}
+                      compareMethod={DiffMethod.WORDS}
+                      styles={{
+                        variables: {
+                          dark: {
+                            diffViewerBackground: '#0d1117',
+                            addedBackground: '#042A16',
+                            addedColor: '#34d399',
+                            removedBackground: '#3F121C',
+                            removedColor: '#f87171',
+                            wordAddedBackground: '#055d20',
+                            wordRemovedBackground: '#7d1424'
+                          }
+                        }
+                      }}
+                    />
+                    <div className="p-2 bg-gray-900 border-y border-gray-700 text-xs font-semibold text-gray-300">
+                      Editor (CodeMirror)
+                    </div>
                     <CodeMirror
                       value={editingDlq.payload}
                       height="200px"
@@ -99,8 +135,8 @@ const Quarantine = () => {
                     />
                   </div>
                 ) : (
-                  <pre className="bg-gray-900 p-3 rounded text-xs text-green-400 overflow-x-auto border border-white/5">
-                    {item.payload}
+                  <pre className="bg-[#0d1117] p-3 rounded text-xs text-gray-300 overflow-x-auto border border-white/5 whitespace-pre-wrap">
+                    {typeof item.payload === 'object' ? JSON.stringify(item.payload, null, 2) : item.payload}
                   </pre>
                 )}
 

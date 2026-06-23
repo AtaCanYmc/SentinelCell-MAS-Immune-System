@@ -1,6 +1,7 @@
 import os
 import orjson
 import asyncio
+import time
 import dotenv
 from pydantic import BaseModel
 from fastapi import (
@@ -282,7 +283,67 @@ class ReplayRequest(BaseModel):
     payload: str
 
 
-@app.post("/api/replay")
+@app.get("/api/agents")
+async def get_agents(api_key: str = Depends(verify_api_key)):
+    """Returns the current state of agent circuit breakers."""
+    threshold = int(os.getenv("CIRCUIT_BREAKER_THRESHOLD", "5"))
+    breakers = sentinel.orchestrator.agent_circuit_breakers
+    result = []
+    for agent, errors in breakers.items():
+        result.append(
+            {
+                "id": agent,
+                "errors": errors,
+                "status": "TRIPPED" if errors >= threshold else "HEALTHY",
+                "threshold": threshold,
+            }
+        )
+    return {"agents": result}
+
+
+@app.post("/api/agents/{agent_id}/reset")
+async def reset_agent(agent_id: str, api_key: str = Depends(verify_api_key)):
+    if agent_id in sentinel.orchestrator.agent_circuit_breakers:
+        sentinel.orchestrator.agent_circuit_breakers[agent_id] = 0
+    return {"status": "ok", "agent": agent_id, "errors": 0}
+
+
+@app.get("/api/metrics")
+async def get_metrics(api_key: str = Depends(verify_api_key)):
+    """Returns current rate limit and payload metrics."""
+    try:
+        r = redis.from_url(os.getenv("REDIS_URL", "redis://localhost:6379/0"))
+        current_minute = int(time.time() / 60)
+        llm_requests = await r.get(f"sentinel:llm_rate_limit:{current_minute}")
+        return {
+            "llm_requests_current_min": int(llm_requests) if llm_requests else 0,
+            "llm_rate_limit": int(os.getenv("LLM_RATE_LIMIT_PER_MIN", "50")),
+            "max_payload_size": int(os.getenv("MAX_PAYLOAD_SIZE", "102400")),
+        }
+    except Exception:
+        return {
+            "llm_requests_current_min": 0,
+            "llm_rate_limit": int(os.getenv("LLM_RATE_LIMIT_PER_MIN", "50")),
+            "max_payload_size": int(os.getenv("MAX_PAYLOAD_SIZE", "102400")),
+        }
+
+
+@app.get("/api/audit-logs")
+async def get_audit_logs(api_key: str = Depends(verify_api_key)):
+    """Returns OTel formatted decisions from the repair logs."""
+    log_path = os.path.join(os.getcwd(), ".antigravity", "logs", "agent_decisions.json")
+    if not os.path.exists(log_path):
+        return {"logs": []}
+
+    try:
+        with open(log_path, "r") as f:
+            logs = orjson.loads(f.read())
+        return {"logs": logs[::-1]}  # newest first
+    except Exception:
+        return {"logs": []}
+
+
+@app.post("/api/dlq/replay")
 async def replay_payload(req: ReplayRequest, api_key: str = Depends(verify_api_key)):
     """Manually replays a payload from the Quarantine UI."""
     try:

@@ -7,6 +7,7 @@ import Layout from './components/Layout';
 const Dashboard = React.lazy(() => import('./pages/Dashboard'));
 const Quarantine = React.lazy(() => import('./pages/Quarantine'));
 const Settings = React.lazy(() => import('./pages/Settings'));
+const AuditLogs = React.lazy(() => import('./pages/AuditLogs'));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -27,6 +28,7 @@ function App() {
               <Route path="/dashboard" element={<Dashboard />} />
               <Route path="/quarantine" element={<Quarantine />} />
               <Route path="/settings" element={<Settings />} />
+              <Route path="/audit" element={<AuditLogs />} />
               <Route path="*" element={<Navigate to="/dashboard" replace />} />
             </Routes>
           </Suspense>
