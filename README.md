@@ -10,15 +10,16 @@
 </div>
 
 ## Table of Contents
-- [1. Problem Statement](#1-problem-statement)
-- [2. The SentinelCell Solution](#2-the-sentinelcell-solution)
-- [3. Architecture](#3-architecture)
-- [4. Core Features](#4-core-features)
-- [5. Prerequisites & Quick Start](#5-prerequisites--quick-start)
-- [6. Setup & Deployment](#6-setup--deployment)
-- [7. Visual Proof & Examples](#7-visual-proof--examples)
-- [8. Documentation & Community](#8-documentation--community)
-- [9. License](#9-license)
+- [1. Background & Acknowledgments](#1-background--acknowledgments)
+- [2. Problem Statement](#2-problem-statement)
+- [3. The SentinelCell Solution](#3-the-sentinelcell-solution)
+- [4. Architecture](#4-architecture)
+- [5. Core Features](#5-core-features)
+- [6. Prerequisites & Quick Start](#6-prerequisites--quick-start)
+- [7. Setup & Deployment](#7-setup--deployment)
+- [8. Visual Proof & Examples](#8-visual-proof--examples)
+- [9. Documentation & Community](#9-documentation--community)
+- [10. License](#10-license)
 
 ---
 
