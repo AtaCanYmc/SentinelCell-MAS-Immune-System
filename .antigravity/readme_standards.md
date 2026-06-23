@@ -1,73 +1,45 @@
-# SentinelCell README Standards
+# SentinelCell README Standards (v2.0)
 
-To maintain consistency across our agentic ecosystem, every component of SentinelCell must follow these documentation
-guidelines.
+To maintain enterprise-grade consistency, readability, and open-source excellence across our agentic ecosystem, every component of SentinelCell must strictly follow these documentation guidelines.
 
-## 1. Structure Requirements
+## 1. The Anatomy of a SentinelCell README
 
-Every README must contain:
+Every README must be structured in the following order to ensure a logical flow for the reader:
 
-- **Project Name & Badges:** Use relevant shields/badges for build status and version.
-- **Content Table:** Auto-generated table of contents for easy navigation.
-- **Problem Statement:** One paragraph explaining the "pain point" being solved.
-- **Agentic Architecture:** A visual representation (Mermaid/SVG) of the agent's flow.
-- **Setup & Deployment:** Clear, step-by-step instructions.
-- **Skill Documentation:** Reference the corresponding `SKILL.md` file.
-- **Sandbox Policy:** Reference the `.antigravity/auto_changelog_policy.md` for agentic permissions.
-- **Security Disclaimer:** If the agent interacts with external APIs, include a disclaimer about potential risks.
-- **Changelog Reference:** Link to `CHANGELOG.md` for version history.
-- **License Information:** Include a link to the LICENSE file.
-- **Logo:** Include a small logo or icon in the top-left corner of the README for brand identity.
-- **Contact Information:** Provide a point of contact for questions or issues.
-- **Contribution Guidelines:** Include a link to `CONTRIBUTING.md` for community contributions.
-- **Acknowledgments:** Credit any third-party libraries, tools, or contributors.
-- **References:** Include links to relevant research papers, articles, or documentation.
-- **Appendix:** Include any additional information, diagrams, or resources that may be helpful for understanding the agent's functionality.
-- **Security Disclaimer:** If the agent interacts with external APIs, include a disclaimer about potential risks.
-- **Example Env Variables:** If applicable, provide example environment variable configurations (without sensitive information) to guide users in setting up their own `.env` files.
+1. **Brand Identity (Logo & Title):** Center-aligned project logo followed by the `<h1>` Project Name.
+2. **Dynamic Badges:** Include dynamically fetched badges (via shields.io) for: Version, Build Status, Python/Node versions, License, and the Kaggle Capstone tag. *Do not use hardcoded version badges.*
+3. **Background & Acknowledgments:** A brief section detailing the project's origins (e.g., "Built for the Kaggle AI Agents: Intensive Vibe Coding Capstone") and crediting third-party libraries or contributors. *Never hide this in the footer.*
+4. **Table of Contents:** Auto-generated navigational links.
+5. **Problem Statement & Philosophy:** Max 300 words explaining the "pain point" and the "vibe/intent" behind the solution.
+6. **Agentic & Full-Stack Architecture:** A visual representation (Mermaid/SVG) of the flow. **Rule:** The diagram *must* include both the agentic logic (LangGraph/MCP) and the Observability/UI layers (React/Vite).
+7. **Prerequisites & Quick Start:**
+* Must include distinct steps for both **Backend** (Docker, Python `pip install -e .[dev]`) and **Frontend** (`npm install`, `npm run dev`) developer setups.
+8. **Configuration (.env Example):** A mandatory markdown code block providing minimal, non-sensitive environment variables required to boot the system.
+9. **Visual Proof & Examples:** Terminal outputs, UI screenshots, or simulation commands demonstrating the tool in action.
+10. **Sandbox & Security Policies:**
+* Reference the `.antigravity/auto_changelog_policy.md` for agentic permissions.
+* **Security Disclaimer:** Mandatory warning regarding external LLM API interactions and Data Poisoning risks.
+11. **Project References:** Link to `CHANGELOG.md`, `CONTRIBUTING.md`, `SECURITY.md`, and the `LICENSE` file.
 
-## 2. Style Guidelines
+## 2. Style & Tone Guidelines
 
-- **Language:** Use only English for all documentation to maintain global accessibility.
-- **Conciseness:** Keep technical descriptions under 300 words.
-- **Code-First:** Use code blocks for every configuration example.
-- **Safety First:** Always include a "Security Disclaimer" if the agent interacts with external APIs.
+* **Global Language:** Use ONLY **English** for all documentation, code comments, and diagrams to maintain global open-source accessibility.
+* **Tone:** Professional, authoritative, yet approachable. Avoid unexplained jargon. Use active voice and imperative mood for instructions (e.g., "Run this command" instead of "You should run this command").
+* **Code-First Explanation:** Use markdown code blocks for every configuration, shell command, or JSON payload example.
+* **Conciseness:** Keep technical descriptions under 300 words per section. Emphasize readability.
 
-## 3. Mandatory Sections
+## 3. Mandatory Section Matrix
 
-| Section               | Purpose                                              |
-|:----------------------|:-----------------------------------------------------|
-| **Philosophy**        | The "Vibe" or intent behind the agent.               |
-| **Capability Matrix** | List of skills/tools the agent is authorized to use. |
-| **Sandbox Policy**    | Reference to Antigravity CLI usage.                  |
-| **Architecture**      | Mermaid/SVG diagram of the agentic flow.             |
+If a README is missing any of the below, it fails the CI/CD documentation check.
 
-## 4. Maintenance Rule
+| Section | Purpose |
+| --- | --- |
+| **Philosophy** | The architectural intent and core defense logic (The "Immune System" vibe). |
+| **Capability Matrix** | List of specific skills/tools the agent is authorized to use. |
+| **Deployment / DX** | Setup Wizard (`setup.sh`), Local Dev, and Docker guidelines. |
+| **Architecture Diagram** | Clear mapping of data ingestion, validation, LLM routing, and UI state. |
 
-If a new skill is added, the agent MUST trigger a README update via the `auto-commit` workflow.
+## 4. Maintenance & Versioning Rules
 
-### 5. Language & Tone
-
-- Use a professional yet approachable tone.
-- Avoid jargon unless it is defined in the documentation.
-- Use active voice and imperative mood for instructions.
-- Use only English for all documentation to maintain global accessibility.
-
-### 6. Versioning
-
-- Follow semantic versioning (MAJOR.MINOR.PATCH).
-
-### 7. Logo
-
-- Include a small logo or icon in the top of the README for brand identity.
-- Generate a simple SVG logo using the `antigravity` CLI if none exists.
-
-### 8. Badges
-
-- Include build status, Python version, and Kaggle Capstone badges at the top of the README.
-- Use shields.io for generating badges.
-
-# 9. Kaggle Notes
-
--Your submission (when submitting via GitHub) should contain a README.md file explaining the problem, solution,
-architecture, instructions for setup, and relevant diagrams or images where appropriate.
+* **Auto-Update Trigger:** If a new skill is added or a core architecture decision changes, the agent MUST trigger a README update via the `auto-commit` workflow.
+* **Versioning:** Strictly follow Semantic Versioning (MAJOR.MINOR.PATCH). Ensure the GitHub release tags match the documentation versions.
