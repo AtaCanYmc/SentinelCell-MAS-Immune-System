@@ -9,17 +9,15 @@ import json
 @patch("src.core.memory_factory.MemoryFactory.get_memory_store")
 async def test_process_outbox(mock_memory_factory, mock_redis_from_url):
     mock_redis = AsyncMock()
-    mock_redis.brpop.side_effect = [
-        (
-            b"sentinel.outbox",
-            json.dumps(
-                {
-                    "doc_id": "test_id",
-                    "memory_doc": "test_doc",
-                    "metadata": {"test": "meta"},
-                }
-            ).encode(),
-        ),
+    mock_redis.rpop.return_value = None
+    mock_redis.brpoplpush.side_effect = [
+        json.dumps(
+            {
+                "doc_id": "test_id",
+                "memory_doc": "test_doc",
+                "metadata": {"test": "meta"},
+            }
+        ).encode(),
         Exception("Break loop"),
     ]
     mock_redis_from_url.return_value = mock_redis
