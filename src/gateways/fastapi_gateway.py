@@ -47,10 +47,11 @@ dashboard_dist_path = os.path.join(
     os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "dashboard", "dist"
 )
 
-if os.path.exists(dashboard_dist_path):
+assets_path = os.path.join(dashboard_dist_path, "assets")
+if os.path.exists(assets_path):
     app.mount(
         "/assets",
-        StaticFiles(directory=os.path.join(dashboard_dist_path, "assets")),
+        StaticFiles(directory=assets_path),
         name="assets",
     )
 
