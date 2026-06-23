@@ -5,7 +5,7 @@
   ![Version](https://img.shields.io/github/v/release/atacanymc/SentinelCell-MAS-Immune-System?style=flat-square&color=blue)
   ![Python](https://img.shields.io/badge/python-3.11+-blue?style=flat-square)
   ![Docker](https://img.shields.io/badge/docker-containerized-2496ED?logo=docker&style=flat-square)
-  ![License](https://img.shields.io/github/license/atacanymc/SentinelCell-MAS-Immune-System?style=flat-square&color=green)
+  ![License](https://img.shields.io/badge/License-Apache_2.0-green.svg?style=flat-square)
   ![Stars](https://img.shields.io/github/stars/atacanymc/SentinelCell-MAS-Immune-System?style=flat-square)
 </div>
 
