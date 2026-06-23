@@ -6,16 +6,16 @@ from rich.panel import Panel
 from rich.table import Table
 from rich.prompt import IntPrompt
 
-# SentinelCell temasına uygun terminal konsolu
+# Terminal console styled for SentinelCell
 console = Console()
 
 
 def get_examples(examples_dir="examples"):
-    """Examples klasöründeki çalıştırılabilir Python dosyalarını listeler."""
+    """Lists executable Python files in the examples directory."""
     if not os.path.exists(examples_dir):
         return []
 
-    # __init__.py gibi dosyaları filtrele
+    # Filter out files like __init__.py
     files = [
         f
         for f in os.listdir(examples_dir)
@@ -30,19 +30,19 @@ def main():
 
     if not examples:
         console.print(
-            "[bold red][!] 'examples/' klasörü bulunamadı veya içi boş.[/bold red]"
+            "[bold red][!] 'examples/' directory not found or empty.[/bold red]"
         )
         return
 
-    # Terminalde şık bir tablo oluştur
+    # Create an elegant table in the terminal
     table = Table(
-        title="🛡️ SentinelCell Simülasyon Komuta Merkezi",
+        title="🛡️ SentinelCell Simulation Command Center",
         show_header=True,
         header_style="bold cyan",
         border_style="cyan",
     )
     table.add_column("No", justify="center", style="dim", width=4)
-    table.add_column("Simülasyon (Chaos/Drift/Injection)", style="bold green")
+    table.add_column("Simulation (Chaos/Drift/Injection)", style="bold green")
 
     for idx, file in enumerate(examples, start=1):
         table.add_row(str(idx), file.replace(".py", ""))
@@ -50,18 +50,18 @@ def main():
     console.clear()
     console.print(
         Panel(
-            "[cyan]Sistemin bağışıklık tepkilerini test etmek için bir simülasyon seçin.[/cyan]\n"
-            "[dim]Çıkmak için Ctrl+C'ye basabilirsiniz.[/dim]",
+            "[cyan]Select a simulation to test the immune system's responses.[/cyan]\n"
+            "[dim]Press Ctrl+C to exit.[/dim]",
             border_style="cyan",
         )
     )
     console.print(table)
 
     try:
-        # Kullanıcıdan giriş al
+        # Get user input
         choices = [str(i) for i in range(1, len(examples) + 1)]
         choice = IntPrompt.ask(
-            "\n[yellow][?] Çalıştırmak istediğiniz simülasyon numarası[/yellow]",
+            "\n[yellow][?] Simulation number to run[/yellow]",
             choices=choices,
         )
 
@@ -69,24 +69,24 @@ def main():
         script_path = os.path.join(examples_dir, selected_script)
 
         console.print(
-            f"\n[bold magenta][*] Başlatılıyor: {selected_script}...[/bold magenta]"
+            f"\n[bold magenta][*] Starting: {selected_script}...[/bold magenta]"
         )
         console.print("[dim]" + "─" * 60 + "[/dim]\n")
 
-        # PYTHONPATH'i ana dizine ayarla (modüllerin düzgün içe aktarılması için)
+        # Set PYTHONPATH to the root directory (for proper module imports)
         env = os.environ.copy()
         env["PYTHONPATH"] = os.getcwd()
 
-        # Scripti alt süreç (subprocess) olarak çalıştır
+        # Run the script as a subprocess
         subprocess.run([sys.executable, script_path], env=env)
 
         console.print("\n[dim]" + "─" * 60 + "[/dim]")
-        console.print("[bold green][+] Simülasyon tamamlandı.[/bold green]\n")
+        console.print("[bold green][+] Simulation completed.[/bold green]\n")
 
     except KeyboardInterrupt:
-        console.print("\n[dim][*] Çıkış yapılıyor...[/dim]\n")
+        console.print("\n[dim][*] Exiting...[/dim]\n")
     except Exception as e:
-        console.print(f"\n[bold red][!] Beklenmeyen bir hata oluştu: {e}[/bold red]\n")
+        console.print(f"\n[bold red][!] An unexpected error occurred: {e}[/bold red]\n")
 
 
 if __name__ == "__main__":
