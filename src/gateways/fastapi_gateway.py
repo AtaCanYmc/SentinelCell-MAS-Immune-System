@@ -10,8 +10,9 @@ from fastapi import (
     WebSocket,
     WebSocketDisconnect,
     Depends,
+    Header,
 )
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from fastapi.staticfiles import StaticFiles
 import redis.asyncio as redis
@@ -105,7 +106,11 @@ async def websocket_logs(websocket: WebSocket):
 
 @app.post("/intercept")
 async def intercept_traffic(
-    source: str, target: str, request: Request, api_key: str = Depends(verify_api_key)
+    source: str,
+    target: str,
+    request: Request,
+    api_key: str = Depends(verify_api_key),
+    x_idempotency_key: str = Header(None),
 ):
     """
     HTTP Endpoint acting as the Guardian Gateway.
@@ -113,6 +118,20 @@ async def intercept_traffic(
     """
     try:
         raw_body = (await request.body()).decode("utf-8")
+
+        redis_url = os.getenv("REDIS_URL")
+        r = None
+        if x_idempotency_key and redis_url:
+            try:
+                r = redis.from_url(redis_url)
+                cached_response = await r.get(f"idempotency:{x_idempotency_key}")
+                if cached_response:
+                    return JSONResponse(
+                        status_code=208, content=json.loads(cached_response)
+                    )
+            except Exception:
+                pass
+
         result = await sentinel.intercept(
             source=source, target=target, payload=raw_body
         )
@@ -122,6 +141,14 @@ async def intercept_traffic(
                 status_code=400,
                 detail="Payload rejected or unrecoverable by SentinelCell.",
             )
+
+        if x_idempotency_key and r:
+            try:
+                await r.setex(
+                    f"idempotency:{x_idempotency_key}", 86400, json.dumps(result)
+                )
+            except Exception:
+                pass
 
         return result
     except HTTPException:

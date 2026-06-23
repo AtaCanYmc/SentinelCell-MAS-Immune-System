@@ -2,10 +2,11 @@
   <img src="assets/SentinelCell-logo.png" width="300" alt="SentinelCell Logo" style="border-radius: 25%;">
   <h1>SentinelCell - MAS Immune System</h1>
 
-  ![Version](https://img.shields.io/badge/version-0.1.0-blue)
-  ![Python](https://img.shields.io/badge/python-3.11+-blue)
-  ![Docker](https://img.shields.io/badge/docker-containerized-2496ED?logo=docker)
-  ![License](https://img.shields.io/badge/license-MIT-green)
+  ![Version](https://img.shields.io/github/v/release/atacanymc/SentinelCell-MAS-Immune-System?style=flat-square&color=blue)
+  ![Python](https://img.shields.io/badge/python-3.11+-blue?style=flat-square)
+  ![Docker](https://img.shields.io/badge/docker-containerized-2496ED?logo=docker&style=flat-square)
+  ![License](https://img.shields.io/github/license/atacanymc/SentinelCell-MAS-Immune-System?style=flat-square&color=green)
+  ![Stars](https://img.shields.io/github/stars/atacanymc/SentinelCell-MAS-Immune-System?style=flat-square)
 </div>
 
 ## Table of Contents
@@ -43,8 +44,12 @@ flowchart TD
         Consumer[Consumer Agent]
     end
 
+    subgraph UserInterface[Observability]
+        Dashboard[React / Vite Live Dashboard]
+    end
+
     subgraph Middleware[SentinelCell - Immune System]
-        Intercept[Traffic Interceptor]
+        Intercept[FastAPI Traffic Interceptor]
 
         subgraph Orchestrator[LangGraph Orchestrator]
             direction TB
@@ -59,22 +64,24 @@ flowchart TD
             Decide -- Max Retries --> Quarantine[Quarantine Payload]
         end
 
-        subgraph Factories[Agnostic Infrastructure]
-            Registry[(Schema Registry\nRedis, Postgres, Firebase...)]
-            Memory[(Memory Store\nChroma, PGVector, Pinecone)]
-            LLM[[LLM Factory\nOpenAI, Anthropic, Groq, Ollama]]
+        subgraph Storage[State & Caching]
+            Registry[(MCP Schema Registry)]
+            Memory[(VectorDB)]
+            Redis[(Redis Cache & DLQ)]
         end
+
+        LLM[[LLM Factory]]
     end
 
     Producer -->|Malformed/Valid Payload| Intercept
     Intercept --> Validate
-
     Validate -.->|1. Fetch Schema| Registry
     Repair -.->|2. Fallback Generation| LLM
     Log -.->|3. Store Anomalies| Memory
-
-    Log -->|4a. Forward Clean Payload| Consumer
-    Quarantine -->|4b. Alert / Drop Payload| Consumer
+    Intercept -.->|4. Semantic Cache| Redis
+    Log -->|5a. Forward Clean Payload| Consumer
+    Quarantine -->|5b. Route to DLQ| Redis
+    Redis -.->|6. Websocket Streams| Dashboard
 ```
 
 ---
@@ -88,6 +95,7 @@ flowchart TD
 | **Agnostic Log Sink** | Multi-destination logging (Console, File, ELK). | `rich`, `elasticsearch-py` |
 | **Time-Series Telemetry** | Success/Failure rates and Latency tracking. | Prometheus, Grafana |
 | **MCP Schema Registry** | Centralized, dynamic schema validation. | Model Context Protocol (MCP) |
+| **Edge & IoT Ready** | Passive monitoring mode enables zero-latency packet sniffing for MQTT sensors. | MQTT, Edge Nodes |
 | **Hybrid Gateway** | SDK, FastAPI, Redis MQ, or Envoy proxy support. | Redis, FastAPI, Envoy |
 | **DDoS Protection & Backpressure** | Redis-based LLM Rate Limiter and LTRIM Queue Eviction. | `redis.asyncio` |
 | **Dead Letter Queue (DLQ)** | Automated background worker with `BRPOPLPUSH` delivery. | Redis, `asyncio` |
@@ -142,7 +150,14 @@ If you prefer manual configuration over the `setup.sh` wizard:
 ```bash
 cp .env.example .env
 ```
-Edit `.env` to set your provider order and keys (e.g., `PROVIDER_ORDER=OPENAI,GROQ,LOCAL_OLLAMA`).
+Edit `.env` with at least these core keys:
+```ini
+# .env minimal example
+OPENAI_API_KEY="sk-..."
+REDIS_URL="redis://localhost:6379/0"
+API_KEY_SECRET="super-secret-gateway-key"
+PROVIDER_ORDER="OPENAI,ANTHROPIC,LOCAL_OLLAMA"
+```
 
 ### Docker Execution (Hybrid Gateways)
 Spins up the FastAPI Gateway, Redis MQ Worker, and Nginx Dashboard securely:

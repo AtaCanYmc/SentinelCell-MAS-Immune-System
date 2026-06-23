@@ -45,8 +45,11 @@ class SentinelOrchestrator:
         self.agent_circuit_breakers = {}
         self.breaker_threshold = int(os.getenv("CIRCUIT_BREAKER_THRESHOLD", "5"))
 
+        from langgraph.checkpoint.memory import MemorySaver
+
         # Build LangGraph
         graph = StateGraph(AgentState)
+        self.checkpointer = MemorySaver()
 
         graph.add_node("validate", self.validator.validate_node)
         graph.add_node("repair", self.healer.repair_node)
@@ -129,7 +132,7 @@ class SentinelOrchestrator:
 
         graph.add_edge("log_to_vectordb", END)
         graph.add_edge("repair", "validate")
-        self.workflow = graph.compile()
+        self.workflow = graph.compile(checkpointer=self.checkpointer)
 
     async def intercept(
         self, agent_source: str, agent_target: str, payload: str
@@ -208,9 +211,13 @@ class SentinelOrchestrator:
         # Let's adjust decider_node to drop it instead. Wait, it's easier to check here.
 
         passive_mode = os.getenv("PASSIVE_MONITORING", "false").lower() == "true"
+        import uuid
+
+        thread_id = str(uuid.uuid4())
+        config = {"configurable": {"thread_id": thread_id}}
 
         async def _run_workflow():
-            final_state = await self.workflow.ainvoke(initial_state)
+            final_state = await self.workflow.ainvoke(initial_state, config)
             latency_seconds = time.time() - start_time
             metrics.latency.observe(latency_seconds)
 
