@@ -1,7 +1,7 @@
 FROM python:3.11-slim
 
 # Create a non-root user for security (Principle of Least Privilege)
-RUN groupadd -r sentinel && useradd -r -g sentinel sentinel
+RUN groupadd -r sentinel && useradd -r -m -g sentinel sentinel
 
 # Set environment variables
 ENV PYTHONDONTWRITEBYTECODE=1
