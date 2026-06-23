@@ -61,8 +61,9 @@ def main():
         # Get user input
         choices = [str(i) for i in range(1, len(examples) + 1)]
         choice = IntPrompt.ask(
-            "\n[yellow][?] Simulation number to run[/yellow]",
+            f"\n[yellow][?] Simulation number to run (1-{len(examples)})[/yellow]",
             choices=choices,
+            show_choices=False,
         )
 
         selected_script = examples[choice - 1]
