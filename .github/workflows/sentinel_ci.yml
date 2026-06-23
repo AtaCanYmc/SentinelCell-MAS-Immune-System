@@ -55,9 +55,12 @@ jobs:
             exit 1
           fi
 
-          # Check if README contains the mandatory 'Capability Matrix' header
-          if ! grep -q "Capability Matrix" README.md; then
-             echo "::error::README.md does not contain 'Capability Matrix' as required by readme_standards.md"
-             exit 1
-          fi
+          REQUIRED_SECTIONS=("Philosophy" "Capability Matrix" "Deployment / DX" "Architecture")
+          for section in "${REQUIRED_SECTIONS[@]}"; do
+            if ! grep -q "$section" README.md; then
+               echo "::error::README.md does not contain '$section' as required by readme_standards.md v2.0"
+               exit 1
+            fi
+          done
+
           echo "Documentation verification passed."

@@ -14,9 +14,9 @@
 - [2. Problem Statement](#2-problem-statement)
 - [3. The SentinelCell Solution](#3-the-sentinelcell-solution)
 - [4. Architecture](#4-architecture)
-- [5. Core Features](#5-core-features)
+- [5. Capability Matrix](#5-capability-matrix)
 - [6. Prerequisites & Quick Start](#6-prerequisites--quick-start)
-- [7. Setup & Deployment](#7-setup--deployment)
+- [7. Deployment / DX](#7-deployment--dx)
 - [8. Visual Proof & Examples](#8-visual-proof--examples)
 - [9. Documentation & Community](#9-documentation--community)
 - [10. License](#10-license)
@@ -34,7 +34,7 @@ Multi-Agent Systems (MAS) rely on fragile, hardcoded communication contracts. Wh
 
 The orchestration is powered by **LangGraph**, providing a resilient, model-agnostic state machine with built-in cloud-to-local fallback mechanisms.
 
-### Design Philosophy: Developer-First Observability
+### Philosophy: Developer-First Observability
 SentinelCell turns silent pipeline failures into observable, self-correcting defense mechanisms. Every intercepted packet, validation failure, and AI-driven repair is meticulously logged, tracked, and displayed on a real-time monitoring dashboard, ensuring complete transparency for system operators.
 
 ---
@@ -90,7 +90,7 @@ flowchart TD
 
 ---
 
-## 5. Core Features
+## 5. Capability Matrix
 
 | Feature | Description | Stack / Tech |
 |---------|-------------|--------------|
@@ -146,7 +146,7 @@ chmod +x setup.sh
 
 ---
 
-## 7. Setup & Deployment
+## 7. Deployment / DX
 
 If you prefer manual configuration over the `setup.sh` wizard:
 
