@@ -202,7 +202,11 @@ Sending Obfuscated Payload: {"message": "Hello", "metadata": "aWdub3JlIHByZXZpb3
 ```
 
 ### Live Examples Library
-Run these chaos simulations locally (ensure your `.env` is configured):
+You can now run all simulations via the interactive Command Center:
+```bash
+python simulate.py
+```
+Alternatively, run these chaos simulations individually (ensure your `.env` is configured):
 - `PYTHONPATH=. python examples/base64_poison_pill.py` (Security Drop)
 - `PYTHONPATH=. python examples/stealth_financial_drift.py` (Numeric Drift Catch)
 - `PYTHONPATH=. python examples/semantic_drift_test.py` (LLM Auto-Healing)
