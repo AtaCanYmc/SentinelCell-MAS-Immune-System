@@ -46,15 +46,27 @@ class SecuritySanitizer:
                 pass
             return None
 
-        def _traverse(obj) -> str | None:
+        import os
+
+        max_depth = int(os.getenv("MAX_PAYLOAD_DEPTH", "20"))
+        max_keys = int(os.getenv("MAX_PAYLOAD_KEYS", "1000"))
+        key_count = [0]
+
+        def _traverse(obj, current_depth=1) -> str | None:
+            if current_depth > max_depth:
+                return f"SECURITY_BREACH: JSON Depth Exceeded ({current_depth} > {max_depth})"
+
             if isinstance(obj, dict):
+                key_count[0] += len(obj.keys())
+                if key_count[0] > max_keys:
+                    return f"SECURITY_BREACH: JSON Key Count Exceeded ({key_count[0]} > {max_keys})"
                 for v in obj.values():
-                    res = _traverse(v)
+                    res = _traverse(v, current_depth + 1)
                     if res:
                         return res
             elif isinstance(obj, list):
                 for v in obj:
-                    res = _traverse(v)
+                    res = _traverse(v, current_depth + 1)
                     if res:
                         return res
             elif isinstance(obj, str):

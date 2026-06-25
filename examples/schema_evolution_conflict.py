@@ -1,45 +1,56 @@
 import asyncio
-import httpx
-import os
+import json
 from rich.console import Console
 
 console = Console()
 
 
-async def main():
-    console.print("[bold cyan]Starting Schema Evolution Conflict Test...[/bold cyan]")
-    api_key = os.getenv("API_KEY_SECRET", "")
-    headers = {"Authorization": f"Bearer {api_key}"} if api_key else {}
+class MockMCPClient:
+    async def fetch_schema(self, target: str):
+        return {
+            "title": "V2 Schema",
+            "type": "object",
+            "properties": {
+                "id": {"type": "string"},
+                "status": {"type": "string"},
+                "count": {"type": "integer"},
+            },
+            "required": ["id", "status", "count"],
+        }
 
-    async with httpx.AsyncClient() as client:
-        console.print(
-            "[cyan]1. Sending payload assuming Schema v1 (First Name/Last Name)[/cyan]"
-        )
-        payload_v1 = '{"first_name": "John", "last_name": "Doe"}'
-        res1 = await client.post(
-            "http://localhost:8000/intercept?source=AgentA&target=UserDB",
-            data=payload_v1,
-            headers=headers,
-        )
-        console.print(f"Status: {res1.status_code}")
 
-        console.print(
-            "\n[cyan]2. Simulating Schema Upgrade to v2 (full_name required) via /schema/refresh[/cyan]"
-        )
-        await client.post("http://localhost:8000/schema/refresh", headers=headers)
+async def simulate_schema_evolution():
+    from src.core.orchestrator import SentinelOrchestrator
+    from src.skills.validation import SemanticValidator
+    from src.skills.repair import SelfHealingEngine
 
-        console.print(
-            "\n[cyan]3. Sending an old in-flight v1 payload... Immune System should auto-migrate to v2![/cyan]"
-        )
-        res2 = await client.post(
-            "http://localhost:8000/intercept?source=AgentA&target=UserDB",
-            data=payload_v1,
-            headers=headers,
-        )
-        console.print(f"Status: {res2.status_code}")
-        if res2.status_code == 200:
-            console.print(f"[bold green]Migrated Payload: {res2.text}[/bold green]")
+    validator = SemanticValidator(MockMCPClient())
+    healer = SelfHealingEngine()
+    orchestrator = SentinelOrchestrator(validator, healer)
+
+    console.print(
+        "[bold yellow]--- Testing Schema Evolution & Deterministic Repair ---[/bold yellow]"
+    )
+
+    # Send v1 payload: missing 'status', and 'count' is a string instead of integer
+    v1_payload = {
+        "id": "agent-123",
+        "count": "42",  # Deterministic healer should coerce this to int
+    }
+
+    raw_payload = json.dumps(v1_payload)
+    console.print(f"Sending V1 Payload: {raw_payload}")
+
+    # Note: If it's missing a required field ("status"), the deterministic healer can't invent it,
+    # so it will fall back to the LLM healer to complete the schema evolution contextually.
+
+    result = await orchestrator.intercept("legacy_agent", "v2_target", raw_payload)
+
+    if result:
+        console.print(f"[bold green][+] Evolved Payload: {result}[/bold green]")
+    else:
+        console.print("[bold red][!] Schema evolution failed[/bold red]")
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    asyncio.run(simulate_schema_evolution())

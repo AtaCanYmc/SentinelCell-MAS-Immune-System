@@ -29,6 +29,7 @@ class AgentState(TypedDict):
     is_valid: bool
     active_provider: str | None
     repair_attempts: int
+    deterministic_repair_attempts: int
     last_memory_id: str | None
 
 
@@ -46,19 +47,26 @@ class SentinelOrchestrator:
         self.breaker_threshold = int(os.getenv("CIRCUIT_BREAKER_THRESHOLD", "5"))
 
         from langgraph.checkpoint.memory import MemorySaver
+        from src.skills.deterministic_healer import DeterministicHealer
+
+        self.deterministic_healer = DeterministicHealer()
 
         # Build LangGraph
         graph = StateGraph(AgentState)
         self.checkpointer = MemorySaver()
 
         graph.add_node("validate", self.validator.validate_node)
+        graph.add_node("deterministic_repair", self.deterministic_healer.repair_node)
         graph.add_node("repair", self.healer.repair_node)
 
         graph.set_entry_point("validate")
 
         # VectorDB Logging Node
         async def log_to_vectordb_node(state: AgentState):
-            if state.get("repair_attempts", 0) == 0:
+            if (
+                state.get("repair_attempts", 0) == 0
+                and state.get("deterministic_repair_attempts", 0) == 0
+            ):
                 import time
                 import uuid
                 import os
@@ -116,6 +124,9 @@ class SentinelOrchestrator:
 
             import os
 
+            if state.get("deterministic_repair_attempts", 0) == 0:
+                return "deterministic_repair"
+
             max_repair_attempts = int(os.getenv("MAX_REPAIR_ATTEMPTS", "3"))
             if state.get("repair_attempts", 0) >= max_repair_attempts:
                 console.print(
@@ -127,10 +138,16 @@ class SentinelOrchestrator:
         graph.add_conditional_edges(
             "validate",
             decider_node,
-            {"end": END, "repair": "repair", "log_to_vectordb": "log_to_vectordb"},
+            {
+                "end": END,
+                "deterministic_repair": "deterministic_repair",
+                "repair": "repair",
+                "log_to_vectordb": "log_to_vectordb",
+            },
         )
 
         graph.add_edge("log_to_vectordb", END)
+        graph.add_edge("deterministic_repair", "validate")
         graph.add_edge("repair", "validate")
         self.workflow = graph.compile(checkpointer=self.checkpointer)
 
@@ -149,13 +166,25 @@ class SentinelOrchestrator:
         metrics.payload_intercepts.labels(status="received").inc()
 
         # Dynamic Circuit Breaker Check
-        if self.agent_circuit_breakers.get(agent_source, 0) >= getattr(
-            self, "breaker_threshold", 5
-        ):
-            console.print(
-                f"[bold red][!] DYNAMIC CIRCUIT BREAKER TRIPPED for {agent_source}. Dropping traffic instantly.[/bold red]"
-            )
-            return None
+        cb_state = self.agent_circuit_breakers.get(
+            agent_source, {"failures": 0, "last_failure_time": 0}
+        )
+        if isinstance(cb_state, int):  # Migrate old int state if any
+            cb_state = {"failures": cb_state, "last_failure_time": time.time()}
+
+        if cb_state["failures"] >= getattr(self, "breaker_threshold", 5):
+            import os
+
+            cooldown = int(os.getenv("CIRCUIT_BREAKER_COOLDOWN", "60"))
+            if time.time() - cb_state["last_failure_time"] > cooldown:
+                console.print(
+                    f"[bold yellow][!] CIRCUIT BREAKER HALF-OPEN for {agent_source}. Testing recovery...[/bold yellow]"
+                )
+            else:
+                console.print(
+                    f"[bold red][!] DYNAMIC CIRCUIT BREAKER TRIPPED for {agent_source}. Dropping traffic instantly.[/bold red]"
+                )
+                return None
 
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]
 
@@ -200,6 +229,7 @@ class SentinelOrchestrator:
             "is_valid": False,
             "active_provider": None,
             "repair_attempts": 0,
+            "deterministic_repair_attempts": 0,
             "last_memory_id": None,
         }
 
@@ -222,7 +252,11 @@ class SentinelOrchestrator:
             metrics.latency.observe(latency_seconds)
 
             if final_state.get("is_valid"):
-                self.agent_circuit_breakers[agent_source] = 0
+                if agent_source in self.agent_circuit_breakers:
+                    self.agent_circuit_breakers[agent_source] = {
+                        "failures": 0,
+                        "last_failure_time": 0,
+                    }
                 if final_state.get("repair_attempts", 0) > 0:
                     metrics.healing_success.inc()
                 if final_state.get("active_provider"):
@@ -234,14 +268,18 @@ class SentinelOrchestrator:
                 )
                 return final_state["payload"]
             else:
-                self.agent_circuit_breakers[agent_source] = (
-                    self.agent_circuit_breakers.get(agent_source, 0) + 1
+                cb_state = self.agent_circuit_breakers.get(
+                    agent_source, {"failures": 0, "last_failure_time": 0}
                 )
-                if self.agent_circuit_breakers[agent_source] >= getattr(
-                    self, "breaker_threshold", 5
-                ):
+                if isinstance(cb_state, int):
+                    cb_state = {"failures": cb_state, "last_failure_time": time.time()}
+                cb_state["failures"] += 1
+                cb_state["last_failure_time"] = time.time()
+                self.agent_circuit_breakers[agent_source] = cb_state
+
+                if cb_state["failures"] >= getattr(self, "breaker_threshold", 5):
                     console.print(
-                        f"[bold red][!] CIRCUIT BREAKER: {agent_source} has reached {self.agent_circuit_breakers[agent_source]} consecutive failures. Tripping breaker![/bold red]"
+                        f"[bold red][!] CIRCUIT BREAKER: {agent_source} has reached {cb_state['failures']} consecutive failures. Tripping breaker![/bold red]"
                     )
 
                 if final_state.get("repair_attempts", 0) > 0:
