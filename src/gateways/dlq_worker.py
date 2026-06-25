@@ -1,9 +1,11 @@
 import orjson
 import asyncio
 from src.core.broker_factory import BrokerFactory
+from src.core.tracer import get_tracer, extract_trace_context, inject_trace_context
 from rich.console import Console
 
 console = Console()
+tracer = get_tracer()
 
 
 async def process_dlq():
@@ -23,35 +25,40 @@ async def process_dlq():
 
             try:
                 entry = orjson.loads(raw_entry)
-                reason = entry.get("reason", "")
 
                 # 2. DECIDE: Drop or Retry
-                if (
-                    "Too Large" in reason
-                    or "Poisoning" in reason
-                    or "SECURITY" in reason.upper()
-                ):
-                    console.print(
-                        f"[bold yellow][Atomic DLQ] Permanently dropping malicious/oversized payload from {entry.get('source')}.[/bold yellow]"
-                    )
-                else:
-                    # 3. RETRY: Push to the main bus
-                    await broker.push(
-                        main_bus,
-                        orjson.dumps(
-                            {
-                                "source": entry.get("source"),
-                                "target": entry.get("target"),
-                                "payload": entry.get("payload"),
-                            }
-                        ).decode("utf-8"),
-                    )
-                    console.print(
-                        f"[bold green][Atomic DLQ] Replayed message from {entry.get('source')} to {entry.get('target')}[/bold green]"
-                    )
+                ctx = extract_trace_context(entry)
+                with tracer.start_as_current_span("DLQ.Process", context=ctx) as span:
+                    if "dlq_retry_count" not in entry:
+                        entry["dlq_retry_count"] = 0
 
-                # 4. COMMIT: Remove from processing queue ONLY after we've successfully handled it
-                await broker.acknowledge(processing_queue, raw_entry)
+                    entry["dlq_retry_count"] += 1
+                    span.set_attribute("dlq.retry_count", entry["dlq_retry_count"])
+
+                    if entry["dlq_retry_count"] > 3:
+                        console.print(
+                            f"[dim red]Dropping poisoned payload {entry.get('source')} -> {entry.get('target')} (Max Retries)[/dim red]"
+                        )
+                        span.set_attribute("dlq.dropped", True)
+                    else:
+                        # 3. RETRY: Push to the main bus
+                        inject_trace_context(entry)
+                        await broker.push(
+                            main_bus,
+                            orjson.dumps(
+                                {
+                                    "source": entry.get("source"),
+                                    "target": entry.get("target"),
+                                    "payload": entry.get("payload"),
+                                }
+                            ).decode("utf-8"),
+                        )
+                        console.print(
+                            f"[dim green]Re-queued payload {entry.get('source')} -> {entry.get('target')}[/dim green]"
+                        )
+
+                    # 4. COMMIT: Remove from processing queue ONLY after we've successfully handled it
+                    await broker.acknowledge(processing_queue, raw_entry)
 
             except Exception as e:
                 console.print(

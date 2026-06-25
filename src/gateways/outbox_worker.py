@@ -1,9 +1,11 @@
 import json
 import asyncio
 from src.core.broker_factory import BrokerFactory
+from src.core.tracer import get_tracer, extract_trace_context
 from rich.console import Console
 
 console = Console()
+tracer = get_tracer()
 
 
 async def process_outbox():
@@ -43,15 +45,19 @@ async def process_outbox():
             if message:
                 entry = json.loads(message)
 
-                # Write to VectorDB
-                memory_store.add_memory(
-                    doc_id=entry["doc_id"],
-                    memory_doc=entry["memory_doc"],
-                    metadata=entry["metadata"],
-                )
+                ctx = extract_trace_context(entry)
+                with tracer.start_as_current_span("Outbox.Sync", context=ctx) as span:
+                    span.set_attribute("outbox.doc_id", entry.get("doc_id", "Unknown"))
 
-                # Acknowledge: remove from processing queue
-                await broker.acknowledge("sentinel.outbox_processing", message)
+                    # Write to VectorDB
+                    memory_store.add_memory(
+                        doc_id=entry["doc_id"],
+                        memory_doc=entry["memory_doc"],
+                        metadata=entry["metadata"],
+                    )
+
+                    # Acknowledge: remove from processing queue
+                    await broker.acknowledge("sentinel.outbox_processing", message)
 
                 console.print(
                     f"[dim green]Outbox -> Synced doc {entry['doc_id']} to VectorDB[/dim green]"

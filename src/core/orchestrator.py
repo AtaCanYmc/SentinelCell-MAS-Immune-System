@@ -6,7 +6,8 @@ from rich.console import Console
 from rich.panel import Panel
 from rich.text import Text
 from rich.theme import Theme
-
+from src.core.telemetry import metrics
+from src.core.tracer import get_tracer, extract_trace_context, inject_trace_context
 
 # Hackerman theme for rich
 custom_theme = Theme(
@@ -19,6 +20,7 @@ custom_theme = Theme(
     }
 )
 console = Console(theme=custom_theme)
+tracer = get_tracer()
 
 
 class AgentState(TypedDict):
@@ -82,20 +84,22 @@ class SentinelOrchestrator:
                     title = state.get("schema_dict", {}).get("title", "UnknownSchema")
 
                     # Outbox Pattern: Push to Redis instead of synchronous write
-                    outbox_entry = {
-                        "doc_id": doc_id,
-                        "memory_doc": memory_doc,
-                        "metadata": {
-                            "schema": title,
-                            "provider": "original",
-                            "timestamp": time.time(),
-                        },
-                    }
-                    await r.lpush(
-                        "sentinel.outbox", orjson.dumps(outbox_entry).decode("utf-8")
-                    )
-                    # Eviction Policy: Keep max 10,000 items to prevent Backpressure OOM
-                    await r.ltrim("sentinel.outbox", 0, 9999)
+                    with tracer.start_as_current_span("VectorDB.Sync"):
+                        outbox_entry = {
+                            "doc_id": doc_id,
+                            "memory_doc": memory_doc,
+                            "metadata": {
+                                "schema": title,
+                                "provider": "original",
+                                "timestamp": time.time(),
+                            },
+                        }
+                        await r.lpush(
+                            "sentinel.outbox",
+                            orjson.dumps(outbox_entry).decode("utf-8"),
+                        )
+                        # Eviction Policy: Keep max 10,000 items to prevent Backpressure OOM
+                        await r.ltrim("sentinel.outbox", 0, 9999)
                 except Exception as e:
                     console.print(f"[bold red]Outbox Error: {e}[/bold red]")
             return state
@@ -160,208 +164,230 @@ class SentinelOrchestrator:
             self.workflow = graph.compile(checkpointer=self.checkpointer)
 
     async def intercept(
-        self, agent_source: str, agent_target: str, payload: str
+        self,
+        agent_source: str,
+        agent_target: str,
+        payload: str,
+        context: dict | None = None,
     ) -> dict | None:
         """
         Intercepts communication between agents near-instantly and runs the StateGraph.
         """
         import time
-        from src.core.telemetry import metrics
 
-        start_time = time.time()
+        ctx = extract_trace_context(context or {})
+        with tracer.start_as_current_span(
+            "Orchestrator.Intercept", context=ctx
+        ) as span:
+            span.set_attribute("sentinel.source", agent_source)
+            span.set_attribute("sentinel.target", agent_target)
 
-        # Log Intercept
-        metrics.payload_intercepts.labels(status="received").inc()
+            start_time = time.time()
 
-        # Trust Score Check (Quarantine)
-        trust_score = self.agent_trust_scores.get(agent_source, 100)
-        if trust_score < getattr(self, "quarantine_threshold", 30):
-            console.print(
-                f"[bold red][!] AGENT QUARANTINED: {agent_source} has a trust score of {trust_score}. Dropping traffic instantly.[/bold red]"
-            )
-            return None
+            # Log Intercept
+            metrics.payload_intercepts.labels(status="received").inc()
 
-        # Dynamic Circuit Breaker Check
-        cb_state = self.agent_circuit_breakers.get(
-            agent_source, {"failures": 0, "last_failure_time": 0}
-        )
-        if isinstance(cb_state, int):  # Migrate old int state if any
-            cb_state = {"failures": cb_state, "last_failure_time": time.time()}
-
-        if cb_state["failures"] >= getattr(self, "breaker_threshold", 5):
-            import os
-
-            cooldown = int(os.getenv("CIRCUIT_BREAKER_COOLDOWN", "60"))
-            if time.time() - cb_state["last_failure_time"] > cooldown:
+            # Trust Score Check (Quarantine)
+            trust_score = self.agent_trust_scores.get(agent_source, 100)
+            if trust_score < getattr(self, "quarantine_threshold", 30):
                 console.print(
-                    f"[bold yellow][!] CIRCUIT BREAKER HALF-OPEN for {agent_source}. Testing recovery...[/bold yellow]"
-                )
-            else:
-                console.print(
-                    f"[bold red][!] DYNAMIC CIRCUIT BREAKER TRIPPED for {agent_source}. Dropping traffic instantly.[/bold red]"
+                    f"[bold red][!] AGENT QUARANTINED: {agent_source} has a trust score of {trust_score}. Dropping traffic instantly.[/bold red]"
                 )
                 return None
 
-        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]
-
-        import os
-
-        max_payload_size = int(os.getenv("MAX_PAYLOAD_SIZE", "10000"))
-        if len(payload) > max_payload_size:
-            console.print(
-                f"[bold red][!] Payload exceeds MAX_PAYLOAD_SIZE ({len(payload)} > {max_payload_size}). Dropping.[/bold red]"
+            # Dynamic Circuit Breaker Check
+            cb_state = self.agent_circuit_breakers.get(
+                agent_source, {"failures": 0, "last_failure_time": 0}
             )
-            await self._log_to_dlq(
-                agent_source, agent_target, payload, "Payload Too Large"
-            )
-            return None
+            if isinstance(cb_state, int):  # Migrate old int state if any
+                cb_state = {"failures": cb_state, "last_failure_time": time.time()}
 
-        # Log Interception (Hackerman style)
-        panel_text = Text(
-            f"[{timestamp}] INTERCEPTING TRAFFIC\n[>] Source: {agent_source}\n[>] Target: {agent_target}",
-            style="hack",
-        )
-        console.print(
-            Panel(
-                panel_text,
-                title="[SentinelCell] :: Sniffer Active",
-                border_style="cyan",
-            )
-        )
+            if cb_state["failures"] >= getattr(self, "breaker_threshold", 5):
+                import os
 
-        try:
-            data = orjson.loads(payload)
-        except orjson.JSONDecodeError as e:
-            console.print(f"[danger][!] CRITICAL MALFORMED JSON DETECTED:[/danger] {e}")
-            console.print("[warning][~] Routing to Self-Healing Engine...[/warning]")
-            # Pass as generic dict so it can be healed
-            data = {"_raw_unparsed_payload": payload}
-
-        initial_state = {
-            "agent_target": agent_target,
-            "payload": data,
-            "schema_dict": None,
-            "error_context": "Invalid JSON format"
-            if "_raw_unparsed_payload" in data
-            else None,
-            "is_valid": False,
-            "active_provider": None,
-            "repair_attempts": 0,
-            "deterministic_repair_attempts": 0,
-            "last_memory_id": None,
-        }
-
-        import os
-        import asyncio
-
-        # Data Poisoning Prevention: Do not repair SECURITY_BREACH
-        # This will be handled inside the decider node to bypass repair.
-        # Let's adjust decider_node to drop it instead. Wait, it's easier to check here.
-
-        passive_mode = os.getenv("PASSIVE_MONITORING", "false").lower() == "true"
-        import uuid
-
-        thread_id = str(uuid.uuid4())
-        config = {"configurable": {"thread_id": thread_id}}
-
-        async def _run_workflow():
-            final_state = await self.workflow.ainvoke(initial_state, config)
-
-            # HITL Interruption Check
-            state_snapshot = self.workflow.get_state(config)
-            if state_snapshot.next and "repair" in state_snapshot.next:
-                console.print(
-                    f"[bold yellow][!] HITL Approval Required before LLM Repair for {agent_source}.[/bold yellow]"
-                )
-                import builtins
-                import asyncio
-
-                try:
-                    ans = await asyncio.to_thread(
-                        builtins.input, "Approve LLM Repair? (y/n): "
+                cooldown = int(os.getenv("CIRCUIT_BREAKER_COOLDOWN", "60"))
+                if time.time() - cb_state["last_failure_time"] > cooldown:
+                    console.print(
+                        f"[bold yellow][!] CIRCUIT BREAKER HALF-OPEN for {agent_source}. Testing recovery...[/bold yellow]"
                     )
-                except EOFError:
-                    ans = "y"
-                if ans.lower().strip() == "y":
-                    final_state = await self.workflow.ainvoke(None, config)
                 else:
                     console.print(
-                        "[bold red][!] HITL Rejected by Operator. Dropping packet.[/bold red]"
+                        f"[bold red][!] DYNAMIC CIRCUIT BREAKER TRIPPED for {agent_source}. Dropping traffic instantly.[/bold red]"
                     )
                     return None
 
-            latency_seconds = time.time() - start_time
-            metrics.latency.observe(latency_seconds)
+            timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S.%f")[:-3]
 
-            current_trust = self.agent_trust_scores.get(agent_source, 100)
+            import os
 
-            if final_state.get("is_valid"):
-                # Trust Score update
-                if (
-                    final_state.get("repair_attempts", 0) > 0
-                    or final_state.get("deterministic_repair_attempts", 0) > 0
-                ):
-                    self.agent_trust_scores[agent_source] = max(0, current_trust - 5)
-                else:
-                    self.agent_trust_scores[agent_source] = min(100, current_trust + 1)
-
-                if agent_source in self.agent_circuit_breakers:
-                    self.agent_circuit_breakers[agent_source] = {
-                        "failures": 0,
-                        "last_failure_time": 0,
-                    }
-                if final_state.get("repair_attempts", 0) > 0:
-                    metrics.healing_success.inc()
-                if final_state.get("active_provider"):
-                    console.print(
-                        f"[info][*] Healed using active provider: {final_state['active_provider']}[/info]"
-                    )
+            max_payload_size = int(os.getenv("MAX_PAYLOAD_SIZE", "10000"))
+            if len(payload) > max_payload_size:
                 console.print(
-                    "[success][+] PACKET VALID -> Allowing passthrough...[/success]"
+                    f"[bold red][!] Payload exceeds MAX_PAYLOAD_SIZE ({len(payload)} > {max_payload_size}). Dropping.[/bold red]"
                 )
-                return final_state["payload"]
-            else:
-                # Trust Score update
-                err_ctx = final_state.get("error_context", "")
-                if err_ctx and "SECURITY_BREACH" in err_ctx:
-                    self.agent_trust_scores[agent_source] = max(0, current_trust - 50)
-                else:
-                    self.agent_trust_scores[agent_source] = max(0, current_trust - 10)
-
-                cb_state = self.agent_circuit_breakers.get(
-                    agent_source, {"failures": 0, "last_failure_time": 0}
-                )
-                if isinstance(cb_state, int):
-                    cb_state = {"failures": cb_state, "last_failure_time": time.time()}
-                cb_state["failures"] += 1
-                cb_state["last_failure_time"] = time.time()
-                self.agent_circuit_breakers[agent_source] = cb_state
-
-                if cb_state["failures"] >= getattr(self, "breaker_threshold", 5):
-                    console.print(
-                        f"[bold red][!] CIRCUIT BREAKER: {agent_source} has reached {cb_state['failures']} consecutive failures. Tripping breaker![/bold red]"
-                    )
-
-                if final_state.get("repair_attempts", 0) > 0:
-                    metrics.healing_failure.inc()
-                metrics.payload_intercepts.labels(status="dropped").inc()
-                console.print("[danger][!] PACKET REJECTED -> Dropped.[/danger]")
                 await self._log_to_dlq(
-                    agent_source,
-                    agent_target,
-                    orjson.dumps(final_state.get("payload", {})).decode("utf-8"),
-                    "Unrecoverable Invalid Payload",
+                    agent_source, agent_target, payload, "Payload Too Large"
                 )
                 return None
 
-        if passive_mode:
-            # Passive monitoring: spawn task and return original payload immediately
-            asyncio.create_task(_run_workflow())
-            return payload
-        else:
-            return await _run_workflow()
+            # Log Interception (Hackerman style)
+            panel_text = Text(
+                f"[{timestamp}] INTERCEPTING TRAFFIC\n[>] Source: {agent_source}\n[>] Target: {agent_target}",
+                style="hack",
+            )
+            console.print(
+                Panel(
+                    panel_text,
+                    title="[SentinelCell] :: Sniffer Active",
+                    border_style="cyan",
+                )
+            )
+
+            try:
+                data = orjson.loads(payload)
+            except orjson.JSONDecodeError as e:
+                console.print(
+                    f"[danger][!] CRITICAL MALFORMED JSON DETECTED:[/danger] {e}"
+                )
+                console.print(
+                    "[warning][~] Routing to Self-Healing Engine...[/warning]"
+                )
+                # Pass as generic dict so it can be healed
+                data = {"_raw_unparsed_payload": payload}
+
+            initial_state = {
+                "agent_target": agent_target,
+                "payload": data,
+                "schema_dict": None,
+                "error_context": "Invalid JSON format"
+                if "_raw_unparsed_payload" in data
+                else None,
+                "is_valid": False,
+                "active_provider": None,
+                "repair_attempts": 0,
+                "deterministic_repair_attempts": 0,
+                "last_memory_id": None,
+            }
+
+            import os
+            import asyncio
+
+            passive_mode = os.getenv("PASSIVE_MONITORING", "false").lower() == "true"
+            import uuid
+
+            thread_id = str(uuid.uuid4())
+            config = {"configurable": {"thread_id": thread_id}}
+
+            async def _run_workflow():
+                final_state = await self.workflow.ainvoke(initial_state, config)
+
+                # HITL Interruption Check
+                state_snapshot = self.workflow.get_state(config)
+                if state_snapshot.next and "repair" in state_snapshot.next:
+                    console.print(
+                        f"[bold yellow][!] HITL Approval Required before LLM Repair for {agent_source}.[/bold yellow]"
+                    )
+                    import builtins
+                    import asyncio
+
+                    try:
+                        ans = await asyncio.to_thread(
+                            builtins.input, "Approve LLM Repair? (y/n): "
+                        )
+                    except EOFError:
+                        ans = "y"
+                    if ans.lower().strip() == "y":
+                        final_state = await self.workflow.ainvoke(None, config)
+                    else:
+                        console.print(
+                            "[bold red][!] HITL Rejected by Operator. Dropping packet.[/bold red]"
+                        )
+                        return None
+
+                latency_seconds = time.time() - start_time
+                metrics.latency.observe(latency_seconds)
+
+                current_trust = self.agent_trust_scores.get(agent_source, 100)
+
+                if final_state.get("is_valid"):
+                    # Trust Score update
+                    if (
+                        final_state.get("repair_attempts", 0) > 0
+                        or final_state.get("deterministic_repair_attempts", 0) > 0
+                    ):
+                        self.agent_trust_scores[agent_source] = max(
+                            0, current_trust - 5
+                        )
+                    else:
+                        self.agent_trust_scores[agent_source] = min(
+                            100, current_trust + 1
+                        )
+
+                    if agent_source in self.agent_circuit_breakers:
+                        self.agent_circuit_breakers[agent_source] = {
+                            "failures": 0,
+                            "last_failure_time": 0,
+                        }
+                    if final_state.get("repair_attempts", 0) > 0:
+                        metrics.healing_success.inc()
+                    if final_state.get("active_provider"):
+                        console.print(
+                            f"[info][*] Healed using active provider: {final_state['active_provider']}[/info]"
+                        )
+                    console.print(
+                        "[success][+] PACKET VALID -> Allowing passthrough...[/success]"
+                    )
+                    return final_state["payload"]
+                else:
+                    # Trust Score update
+                    err_ctx = final_state.get("error_context", "")
+                    if err_ctx and "SECURITY_BREACH" in err_ctx:
+                        self.agent_trust_scores[agent_source] = max(
+                            0, current_trust - 50
+                        )
+                    else:
+                        self.agent_trust_scores[agent_source] = max(
+                            0, current_trust - 10
+                        )
+
+                    cb_state = self.agent_circuit_breakers.get(
+                        agent_source, {"failures": 0, "last_failure_time": 0}
+                    )
+                    if isinstance(cb_state, int):
+                        cb_state = {
+                            "failures": cb_state,
+                            "last_failure_time": time.time(),
+                        }
+                    cb_state["failures"] += 1
+                    cb_state["last_failure_time"] = time.time()
+                    self.agent_circuit_breakers[agent_source] = cb_state
+
+                    if cb_state["failures"] >= getattr(self, "breaker_threshold", 5):
+                        console.print(
+                            f"[bold red][!] CIRCUIT BREAKER: {agent_source} has reached {cb_state['failures']} consecutive failures. Tripping breaker![/bold red]"
+                        )
+
+                    if final_state.get("repair_attempts", 0) > 0:
+                        metrics.healing_failure.inc()
+                    metrics.payload_intercepts.labels(status="dropped").inc()
+                    console.print("[danger][!] PACKET REJECTED -> Dropped.[/danger]")
+                    await self._log_to_dlq(
+                        agent_source,
+                        agent_target,
+                        orjson.dumps(final_state.get("payload", {})).decode("utf-8"),
+                        "Unrecoverable Invalid Payload",
+                    )
+                    return None
+
+            if passive_mode:
+                # Passive monitoring: spawn task and return original payload immediately
+                asyncio.create_task(_run_workflow())
+                return payload
+            else:
+                return await _run_workflow()
 
     async def _log_to_dlq(self, source: str, target: str, payload: str, reason: str):
+        """Logs unhealable payloads to the Dead Letter Queue, embedding traceparent."""
         import time
         import os
         import asyncio
@@ -374,6 +400,10 @@ class SentinelOrchestrator:
             "reason": reason,
             "payload": payload,
         }
+
+        # Inject Trace Context before DLQ
+        inject_trace_context(entry)
+
         entry_str = orjson.dumps(entry).decode("utf-8")
 
         # 1. Primary: Broker DLQ Push

@@ -100,7 +100,9 @@ class SentinelCell:
         ]
         return len(self._local_error_timestamps) >= self.quarantine_threshold
 
-    async def intercept(self, source: str, target: str, payload: str) -> dict | None:
+    async def intercept(
+        self, source: str, target: str, payload: str, context: dict | None = None
+    ) -> dict | None:
         """
         Entry point for intercepting and routing traffic through the MAS Immune System.
         """
@@ -136,7 +138,9 @@ class SentinelCell:
             "INTERCEPT", f"Source: {source} -> Target: {target}"
         )
 
-        result = await self.orchestrator.intercept(source, target, payload)
+        result = await self.orchestrator.intercept(
+            source, target, payload, context=context
+        )
 
         if result is None:
             should_quarantine = await self._record_error_and_check()
