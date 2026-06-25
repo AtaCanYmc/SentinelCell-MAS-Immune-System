@@ -8,3 +8,4 @@ __pycache__/
 chroma_db/
 .DS_Store
 dashboard/bundle-analysis.html
+schemas.json

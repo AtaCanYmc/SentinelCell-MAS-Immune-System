@@ -145,6 +145,12 @@ class SemanticValidator:
         self.cache_ttl = int(os.getenv("SCHEMA_CACHE_TTL_SECONDS", "300"))
         self.dynamic_skills = self._load_dynamic_skills()
 
+        from src.skills.schema_inference import AutoSchemaInferencer
+
+        self.schema_inferencer = AutoSchemaInferencer(
+            mcp_client=self.mcp_client, on_schema_registered_cb=self.clear_cache
+        )
+
     def _load_dynamic_skills(self):
         import yaml
         import os
@@ -267,6 +273,8 @@ class SemanticValidator:
             return False, None, "MCP Registry Unavailable"
 
         if not schema:
+            # Bypass validation, but send to observation for Auto-Schema Inference
+            self.schema_inferencer.observe(agent_target, data)
             return True, None, None
 
         # 2. Active Security Shield (Sanitizer)

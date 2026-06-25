@@ -51,3 +51,22 @@ class SchemaRegistryClient:
                     return None
                 return schema_dict
             return None
+
+    async def register_schema(self, agent_id: str, schema_dict: dict) -> bool:
+        """
+        Connects to the MCP server, calls the 'update_agent_schema' tool, and registers the new schema.
+        """
+        async with self.connect() as session:
+            try:
+                schema_json = json.dumps(schema_dict)
+                result = await session.call_tool(
+                    "update_agent_schema",
+                    arguments={"agent_id": agent_id, "schema_json": schema_json},
+                )
+                if result.content and len(result.content) > 0:
+                    response_text = result.content[0].text
+                    if "successfully" in response_text.lower():
+                        return True
+            except Exception as e:
+                print(f"Error registering schema via MCP: {e}")
+            return False
