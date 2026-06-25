@@ -14,13 +14,20 @@ const fetchDlq = async () => {
 
 const Quarantine = () => {
   const queryClient = useQueryClient();
-  const { data: dlqItems = [], isLoading } = useQuery({ queryKey: ['dlq'], queryFn: fetchDlq });
+  const { data: rawDlqItems, isLoading } = useQuery({ queryKey: ['dlq'], queryFn: fetchDlq });
+  const dlqItems = Array.isArray(rawDlqItems) ? rawDlqItems : [];
+
   const [editingDlq, setEditingDlq] = useState(null);
   const [replayMessage, setReplayMessage] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 5;
+
+  const totalPages = Math.max(1, Math.ceil(dlqItems.length / itemsPerPage));
+  const currentItems = dlqItems.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
   const replayMutation = useMutation({
     mutationFn: async (item) => {
-      const res = await fetch('/api/replay', {
+      const res = await fetch('/api/dlq/replay', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ source: item.source, target: item.target, payload: item.payload })
@@ -34,7 +41,7 @@ const Quarantine = () => {
     onMutate: async (item) => {
       await queryClient.cancelQueries({ queryKey: ['dlq'] });
       const previousDlq = queryClient.getQueryData(['dlq']);
-      queryClient.setQueryData(['dlq'], (old) => old.filter(i => i !== item));
+      queryClient.setQueryData(['dlq'], (old) => (Array.isArray(old) ? old.filter(i => i !== item) : []));
       return { previousDlq };
     },
     onSuccess: () => {
@@ -81,7 +88,7 @@ const Quarantine = () => {
           {dlqItems.length === 0 ? (
             <p className="text-gray-400">No quarantined payloads found. The system is secure.</p>
           ) : (
-            dlqItems.map((item, idx) => (
+            currentItems.map((item, idx) => (
               <div key={idx} className="bg-black/50 border border-red-500/30 rounded-lg p-4">
                 <div className="flex justify-between items-start mb-4">
                   <div>
@@ -150,6 +157,30 @@ const Quarantine = () => {
                 )}
               </div>
             ))
+          )}
+
+          {totalPages > 1 && (
+            <div className="flex items-center justify-between mt-6 bg-black/40 p-4 rounded-lg border border-white/10">
+              <div className="text-sm text-gray-400">
+                Page {currentPage} of {totalPages} (Total {dlqItems.length})
+              </div>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                  disabled={currentPage === 1}
+                  className="px-4 py-2 rounded-md bg-white/5 hover:bg-white/10 disabled:opacity-50 text-white transition-colors"
+                >
+                  Prev
+                </button>
+                <button
+                  onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                  disabled={currentPage === totalPages}
+                  className="px-4 py-2 rounded-md bg-white/5 hover:bg-white/10 disabled:opacity-50 text-white transition-colors"
+                >
+                  Next
+                </button>
+              </div>
+            </div>
           )}
         </div>
       )}
