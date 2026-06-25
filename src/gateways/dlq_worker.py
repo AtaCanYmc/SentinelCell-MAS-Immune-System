@@ -1,15 +1,13 @@
 import orjson
-import os
 import asyncio
-import redis.asyncio as redis
+from src.core.broker_factory import BrokerFactory
 from rich.console import Console
 
 console = Console()
 
 
 async def process_dlq():
-    redis_url = os.getenv("REDIS_URL", "redis://localhost:6379/0")
-    r = redis.from_url(redis_url)
+    broker = BrokerFactory.get_broker()
 
     dlq_queue = "sentinel.dlq"
     processing_queue = "sentinel.dlq.processing"
@@ -18,7 +16,7 @@ async def process_dlq():
     while True:
         try:
             # 1. ATOMIC POP: Move item from DLQ to processing queue safely
-            raw_entry = await r.brpoplpush(dlq_queue, processing_queue, timeout=5)
+            raw_entry = await broker.pop_atomic(dlq_queue, processing_queue, timeout=5)
 
             if not raw_entry:
                 continue  # Timeout reached, no messages
@@ -38,7 +36,7 @@ async def process_dlq():
                     )
                 else:
                     # 3. RETRY: Push to the main bus
-                    await r.lpush(
+                    await broker.push(
                         main_bus,
                         orjson.dumps(
                             {
@@ -53,7 +51,7 @@ async def process_dlq():
                     )
 
                 # 4. COMMIT: Remove from processing queue ONLY after we've successfully handled it
-                await r.lrem(processing_queue, 1, raw_entry)
+                await broker.acknowledge(processing_queue, raw_entry)
 
             except Exception as e:
                 console.print(
@@ -61,11 +59,11 @@ async def process_dlq():
                 )
                 # We could leave it in the processing queue or move it to a 'poison' queue.
                 # For now, remove it to prevent endless loops on totally broken data.
-                await r.lrem(processing_queue, 1, raw_entry)
+                await broker.acknowledge(processing_queue, raw_entry)
 
         except Exception as e:
             console.print(
-                f"[bold red][Atomic DLQ] Redis Connection Error: {e}[/bold red]"
+                f"[bold red][Atomic DLQ] Broker Connection Error: {e}[/bold red]"
             )
             await asyncio.sleep(5)
 

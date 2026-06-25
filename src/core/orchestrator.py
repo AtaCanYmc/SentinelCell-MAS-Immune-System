@@ -365,7 +365,7 @@ class SentinelOrchestrator:
         import time
         import os
         import asyncio
-        import redis.asyncio as redis
+        from src.core.broker_factory import BrokerFactory
 
         entry = {
             "timestamp": time.time(),
@@ -376,18 +376,14 @@ class SentinelOrchestrator:
         }
         entry_str = orjson.dumps(entry).decode("utf-8")
 
-        # 1. Primary: Redis DLQ Push
-        redis_url = os.getenv("REDIS_URL")
-        if redis_url:
-            try:
-                r = redis.from_url(redis_url)
-                await r.lpush("sentinel.dlq", entry_str)
-            except Exception as e:
-                console.print(
-                    f"[bold yellow][!] Redis DLQ push failed, falling back to file: {e}[/bold yellow]"
-                )
-                self._write_dlq_file_fallback(entry_str)
-        else:
+        # 1. Primary: Broker DLQ Push
+        try:
+            broker = BrokerFactory.get_broker()
+            await broker.push("sentinel.dlq", entry_str)
+        except Exception as e:
+            console.print(
+                f"[bold yellow][!] Broker DLQ push failed, falling back to file: {e}[/bold yellow]"
+            )
             self._write_dlq_file_fallback(entry_str)
 
         # ChatOps Alerting

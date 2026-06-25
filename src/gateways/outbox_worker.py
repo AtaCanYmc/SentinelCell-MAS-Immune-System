@@ -1,15 +1,13 @@
-import os
 import json
 import asyncio
-import redis.asyncio as redis
+from src.core.broker_factory import BrokerFactory
 from rich.console import Console
 
 console = Console()
 
 
 async def process_outbox():
-    redis_url = os.getenv("REDIS_URL", "redis://localhost:6379/0")
-    r = redis.from_url(redis_url)
+    broker = BrokerFactory.get_broker()
 
     # Import Memory Factory for VectorDB
     from src.core.memory_factory import MemoryFactory
@@ -22,10 +20,15 @@ async def process_outbox():
 
     # Startup Recovery: move stuck items back to the main outbox
     while True:
-        stuck_item = await r.rpop("sentinel.outbox_processing")
-        if not stuck_item:
+        # Startup Recovery for Redis, not strictly needed for Kafka offset-based but safe
+        try:
+            stuck_item = await broker.pop_atomic(
+                "sentinel.outbox_processing", "sentinel.outbox", timeout=1
+            )
+            if not stuck_item:
+                break
+        except Exception:
             break
-        await r.lpush("sentinel.outbox", stuck_item)
         console.print(
             "[dim yellow][!] Recovered stuck item from processing queue.[/dim yellow]"
         )
@@ -34,7 +37,7 @@ async def process_outbox():
         try:
             # Pop from outbox to processing (blocking with timeout)
             # Reliable Queue Pattern (At-least-once delivery)
-            message = await r.brpoplpush(
+            message = await broker.pop_atomic(
                 "sentinel.outbox", "sentinel.outbox_processing", timeout=5
             )
             if message:
@@ -48,7 +51,7 @@ async def process_outbox():
                 )
 
                 # Acknowledge: remove from processing queue
-                await r.lrem("sentinel.outbox_processing", 1, message)
+                await broker.acknowledge("sentinel.outbox_processing", message)
 
                 console.print(
                     f"[dim green]Outbox -> Synced doc {entry['doc_id']} to VectorDB[/dim green]"

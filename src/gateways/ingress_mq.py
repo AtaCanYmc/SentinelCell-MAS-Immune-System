@@ -1,7 +1,6 @@
-import os
 import json
 import asyncio
-import redis.asyncio as redis
+from src.core.broker_factory import BrokerFactory
 from src.agents.validator_agent import SentinelCell
 from rich.console import Console
 
@@ -9,22 +8,16 @@ console = Console()
 
 
 async def mq_worker():
-    redis_url = os.getenv("REDIS_URL", "redis://redis:6379")
-    client = redis.from_url(redis_url)
+    broker = BrokerFactory.get_broker()
     sentinel = SentinelCell()
 
-    console.print(
-        f"[bold cyan]SentinelCell Redis MQ Worker started on {redis_url}[/bold cyan]"
-    )
+    console.print("[bold cyan]SentinelCell Ingress MQ Worker started...[/bold cyan]")
 
     while True:
         try:
-            # blpop blocks until a message is available in 'sentinel.in'
-            message = await client.blpop("sentinel.in", timeout=0)
-            if message:
-                queue_name, raw_data = message
-                data_str = raw_data.decode("utf-8")
-
+            # broker.consume blocks until a message is available
+            data_str = await broker.consume("sentinel.in", timeout=0)
+            if data_str:
                 # We expect the payload to be wrapped with source and target info for routing
                 # Example: {"source": "AgentA", "target": "AgentB", "payload": "{\"status\":\"ok\"}"}
                 try:
@@ -42,7 +35,7 @@ async def mq_worker():
 
                     if result:
                         # Push the valid/healed message to 'sentinel.out'
-                        await client.rpush("sentinel.out", json.dumps(result))
+                        await broker.push("sentinel.out", json.dumps(result))
                         console.print(
                             "[green]Message processed and forwarded to sentinel.out[/green]"
                         )
