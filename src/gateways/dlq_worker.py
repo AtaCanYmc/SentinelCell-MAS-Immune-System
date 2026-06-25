@@ -5,47 +5,41 @@ import redis.asyncio as redis
 from rich.console import Console
 
 console = Console()
-DLQ_PATH = os.path.join(os.getcwd(), ".antigravity", "logs", "dlq.json")
 
 
 async def process_dlq():
     redis_url = os.getenv("REDIS_URL", "redis://localhost:6379/0")
     r = redis.from_url(redis_url)
 
+    dlq_queue = "sentinel.dlq"
+    processing_queue = "sentinel.dlq.processing"
+    main_bus = "sentinel.in"
+
     while True:
-        if not os.path.exists(DLQ_PATH):
-            await asyncio.sleep(10)
-            continue
-
         try:
-            with open(DLQ_PATH, "r") as f:
-                lines = f.readlines()
+            # 1. ATOMIC POP: Move item from DLQ to processing queue safely
+            raw_entry = await r.brpoplpush(dlq_queue, processing_queue, timeout=5)
 
-            retained_lines = []
-            replayed_count = 0
+            if not raw_entry:
+                continue  # Timeout reached, no messages
 
-            for line in lines:
-                if not line.strip():
-                    continue
-                try:
-                    entry = orjson.loads(line)
-                    reason = entry.get("reason", "")
+            try:
+                entry = orjson.loads(raw_entry)
+                reason = entry.get("reason", "")
 
-                    # Drop malicious or oversized immediately
-                    if (
-                        "Too Large" in reason
-                        or "Poisoning" in reason
-                        or "SECURITY" in reason.upper()
-                    ):
-                        console.print(
-                            "[bold yellow][DLQ Worker] Permanently dropping malicious/oversized payload.[/bold yellow]"
-                        )
-                        continue
-
-                    # For a real exponential backoff, we'd track IDs and retries.
-                    # Here we simulate an automated retry of valid-but-failed payloads.
+                # 2. DECIDE: Drop or Retry
+                if (
+                    "Too Large" in reason
+                    or "Poisoning" in reason
+                    or "SECURITY" in reason.upper()
+                ):
+                    console.print(
+                        f"[bold yellow][Atomic DLQ] Permanently dropping malicious/oversized payload from {entry.get('source')}.[/bold yellow]"
+                    )
+                else:
+                    # 3. RETRY: Push to the main bus
                     await r.lpush(
-                        "sentinel.in",
+                        main_bus,
                         orjson.dumps(
                             {
                                 "source": entry.get("source"),
@@ -54,30 +48,30 @@ async def process_dlq():
                             }
                         ).decode("utf-8"),
                     )
-                    replayed_count += 1
                     console.print(
-                        f"[bold green][DLQ Worker] Replayed message from {entry.get('source')} to {entry.get('target')}[/bold green]"
+                        f"[bold green][Atomic DLQ] Replayed message from {entry.get('source')} to {entry.get('target')}[/bold green]"
                     )
-                except Exception:
-                    retained_lines.append(line)
 
-            # Write back retained lines (the ones that failed to parse or weren't replayed)
-            with open(DLQ_PATH, "w") as f:
-                for line in retained_lines:
-                    f.write(line)
+                # 4. COMMIT: Remove from processing queue ONLY after we've successfully handled it
+                await r.lrem(processing_queue, 1, raw_entry)
 
-            if replayed_count > 0:
+            except Exception as e:
                 console.print(
-                    f"[bold cyan][DLQ Worker] Successfully replayed {replayed_count} messages.[/bold cyan]"
+                    f"[bold red][Atomic DLQ] Failed to parse payload: {e}[/bold red]"
                 )
+                # We could leave it in the processing queue or move it to a 'poison' queue.
+                # For now, remove it to prevent endless loops on totally broken data.
+                await r.lrem(processing_queue, 1, raw_entry)
 
         except Exception as e:
-            console.print(f"[bold red][DLQ Worker] Error reading DLQ:[/bold red] {e}")
-
-        # Exponential Backoff/Polling simulation (every 30 seconds for demonstration)
-        await asyncio.sleep(30)
+            console.print(
+                f"[bold red][Atomic DLQ] Redis Connection Error: {e}[/bold red]"
+            )
+            await asyncio.sleep(5)
 
 
 if __name__ == "__main__":
-    console.print("[bold cyan][*] Automated DLQ Replay Worker Started[/bold cyan]")
+    console.print(
+        "[bold cyan][*] True Atomic Redis DLQ Worker Started (BRPOPLPUSH)[/bold cyan]"
+    )
     asyncio.run(process_dlq())

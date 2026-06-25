@@ -211,7 +211,9 @@ class SentinelOrchestrator:
             console.print(
                 f"[bold red][!] Payload exceeds MAX_PAYLOAD_SIZE ({len(payload)} > {max_payload_size}). Dropping.[/bold red]"
             )
-            self._log_to_dlq(agent_source, agent_target, payload, "Payload Too Large")
+            await self._log_to_dlq(
+                agent_source, agent_target, payload, "Payload Too Large"
+            )
             return None
 
         # Log Interception (Hackerman style)
@@ -344,7 +346,7 @@ class SentinelOrchestrator:
                     metrics.healing_failure.inc()
                 metrics.payload_intercepts.labels(status="dropped").inc()
                 console.print("[danger][!] PACKET REJECTED -> Dropped.[/danger]")
-                self._log_to_dlq(
+                await self._log_to_dlq(
                     agent_source,
                     agent_target,
                     orjson.dumps(final_state.get("payload", {})).decode("utf-8"),
@@ -359,14 +361,11 @@ class SentinelOrchestrator:
         else:
             return await _run_workflow()
 
-    def _log_to_dlq(self, source: str, target: str, payload: str, reason: str):
+    async def _log_to_dlq(self, source: str, target: str, payload: str, reason: str):
         import time
         import os
         import asyncio
-
-        dlq_dir = os.path.join(os.getcwd(), ".antigravity", "logs")
-        os.makedirs(dlq_dir, exist_ok=True)
-        dlq_path = os.path.join(dlq_dir, "dlq.json")
+        import redis.asyncio as redis
 
         entry = {
             "timestamp": time.time(),
@@ -375,11 +374,21 @@ class SentinelOrchestrator:
             "reason": reason,
             "payload": payload,
         }
-        try:
-            with open(dlq_path, "a") as f:
-                f.write(orjson.dumps(entry).decode("utf-8") + "\n")
-        except Exception:
-            pass
+        entry_str = orjson.dumps(entry).decode("utf-8")
+
+        # 1. Primary: Redis DLQ Push
+        redis_url = os.getenv("REDIS_URL")
+        if redis_url:
+            try:
+                r = redis.from_url(redis_url)
+                await r.lpush("sentinel.dlq", entry_str)
+            except Exception as e:
+                console.print(
+                    f"[bold yellow][!] Redis DLQ push failed, falling back to file: {e}[/bold yellow]"
+                )
+                self._write_dlq_file_fallback(entry_str)
+        else:
+            self._write_dlq_file_fallback(entry_str)
 
         # ChatOps Alerting
         webhook_url = os.getenv("SLACK_WEBHOOK_URL") or os.getenv("DISCORD_WEBHOOK_URL")
@@ -387,6 +396,18 @@ class SentinelOrchestrator:
             asyncio.create_task(
                 self._send_webhook_alert(webhook_url, source, target, reason)
             )
+
+    def _write_dlq_file_fallback(self, entry_str: str):
+        import os
+
+        dlq_dir = os.path.join(os.getcwd(), ".antigravity", "logs")
+        os.makedirs(dlq_dir, exist_ok=True)
+        dlq_path = os.path.join(dlq_dir, "dlq.json")
+        try:
+            with open(dlq_path, "a") as f:
+                f.write(entry_str + "\n")
+        except Exception:
+            pass
 
     async def _send_webhook_alert(self, url, source, target, reason):
         try:
