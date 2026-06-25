@@ -82,6 +82,56 @@ class SecuritySanitizer:
         return _traverse(data)
 
 
+class FinancialDriftGuard:
+    _history = {}
+    WINDOW_SIZE = 10
+    SIGMA_MULTIPLIER = 3.0
+    FINANCIAL_KEYS = {"amount", "price", "balance", "total", "value"}
+
+    @classmethod
+    def check_anomaly(cls, target: str, payload: dict) -> str | None:
+        import math
+
+        target_history = cls._history.setdefault(target, {})
+
+        def _check_dict(d: dict):
+            for key, value in d.items():
+                if isinstance(value, dict):
+                    res = _check_dict(value)
+                    if res:
+                        return res
+                elif isinstance(value, list):
+                    for item in value:
+                        if isinstance(item, dict):
+                            res = _check_dict(item)
+                            if res:
+                                return res
+                elif (
+                    isinstance(value, (int, float))
+                    and key.lower() in cls.FINANCIAL_KEYS
+                ):
+                    history = target_history.setdefault(key, [])
+                    if len(history) >= 3:
+                        mean = sum(history) / len(history)
+                        variance = sum((x - mean) ** 2 for x in history) / len(history)
+                        std_dev = math.sqrt(variance)
+
+                        # Minimum std dev to prevent infinite anomaly if past values are identical
+                        std_dev = max(std_dev, abs(mean * 0.05))
+
+                        if std_dev > 0:
+                            drift = abs(value - mean)
+                            if drift > cls.SIGMA_MULTIPLIER * std_dev:
+                                return f"FINANCIAL_ANOMALY: {key} value {value} deviates from mean {mean:.2f} by >{cls.SIGMA_MULTIPLIER} sigma"
+
+                    history.append(value)
+                    if len(history) > cls.WINDOW_SIZE:
+                        history.pop(0)
+            return None
+
+        return _check_dict(payload)
+
+
 class SemanticValidator:
     """
     Semantic Integrity Engine based on JSON Schema (via MCP).
@@ -226,6 +276,12 @@ class SemanticValidator:
         if security_error:
             await broadcaster.broadcast("SECURITY_ALERT", security_error)
             return False, schema, security_error
+
+        # 2.5 Financial Drift Guard
+        financial_anomaly = FinancialDriftGuard.check_anomaly(agent_target, data)
+        if financial_anomaly:
+            await broadcaster.broadcast("FINANCIAL_ALERT", financial_anomaly)
+            return False, schema, financial_anomaly
 
         # 3. Schema Validation
         try:
