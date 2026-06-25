@@ -126,6 +126,76 @@ class KafkaBroker(MessageBroker):
         )
 
 
+class RabbitMQBroker(MessageBroker):
+    def __init__(self):
+        self.rabbitmq_url = os.getenv("RABBITMQ_URL", "amqp://guest:guest@localhost/")
+        self.connection = None
+        self.channel = None
+        self._unacked_messages = {}
+
+    async def _get_channel(self):
+        import aio_pika
+
+        if not self.connection:
+            self.connection = await aio_pika.connect_robust(self.rabbitmq_url)
+        if not self.channel:
+            self.channel = await self.connection.channel()
+            await self.channel.set_qos(prefetch_count=1)
+        return self.channel
+
+    async def push(self, queue_name: str, payload: str):
+        import aio_pika
+
+        channel = await self._get_channel()
+        await channel.declare_queue(queue_name, durable=True)
+        await channel.default_exchange.publish(
+            aio_pika.Message(
+                body=payload.encode("utf-8"),
+                delivery_mode=aio_pika.DeliveryMode.PERSISTENT,
+            ),
+            routing_key=queue_name,
+        )
+
+    async def pop_atomic(
+        self, source_queue: str, processing_queue: str, timeout: int = 5
+    ) -> str | None:
+        import asyncio
+        import aio_pika
+
+        channel = await self._get_channel()
+        queue = await channel.declare_queue(source_queue, durable=True)
+
+        end_time = asyncio.get_event_loop().time() + timeout
+        while asyncio.get_event_loop().time() < end_time:
+            try:
+                message = await queue.get(no_ack=False, timeout=1)
+                payload = message.body.decode("utf-8")
+                self._unacked_messages[payload] = message
+                return payload
+            except aio_pika.exceptions.QueueEmpty:
+                await asyncio.sleep(0.5)
+        return None
+
+    async def acknowledge(self, processing_queue: str, payload: str):
+        message = self._unacked_messages.pop(payload, None)
+        if message:
+            await message.ack()
+
+    async def consume(self, queue_name: str, timeout: int = 0) -> str | None:
+        import aio_pika
+
+        channel = await self._get_channel()
+        queue = await channel.declare_queue(queue_name, durable=True)
+
+        try:
+            message = await queue.get(
+                no_ack=True, timeout=timeout if timeout > 0 else 1
+            )
+            return message.body.decode("utf-8")
+        except aio_pika.exceptions.QueueEmpty:
+            return None
+
+
 class BrokerFactory:
     _instance = None
 
@@ -135,6 +205,8 @@ class BrokerFactory:
             provider = os.getenv("MESSAGE_BROKER", "REDIS").upper()
             if provider == "KAFKA":
                 cls._instance = KafkaBroker()
+            elif provider == "RABBITMQ":
+                cls._instance = RabbitMQBroker()
             else:
                 cls._instance = RedisBroker()
         return cls._instance
