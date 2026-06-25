@@ -1,7 +1,36 @@
 import React, { useState } from 'react';
-import { Settings as SettingsIcon, Save, Activity } from 'lucide-react';
+import { Settings as SettingsIcon, Save, Activity, Eye, EyeOff } from 'lucide-react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { AgentTable } from '../components/AgentTable';
+
+const ConfigInput = ({ configKey, value, onChange }) => {
+  const [show, setShow] = useState(false);
+  const isSecret = configKey.includes('API_KEY') || configKey.includes('PASSWORD') || configKey.includes('SECRET');
+
+  return (
+    <div className="space-y-2">
+      <label className="text-xs font-bold text-gray-400 uppercase tracking-wider">{configKey.replace(/_/g, ' ')}</label>
+      <div className="relative">
+        <input
+          type={isSecret && !show ? "password" : "text"}
+          name={configKey}
+          value={value || ""}
+          onChange={onChange}
+          className="w-full bg-black/50 border border-white/10 rounded-md p-3 text-white focus:outline-none focus:border-blue-500 transition-colors pr-10"
+        />
+        {isSecret && (
+          <button
+            type="button"
+            onClick={() => setShow(!show)}
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white"
+          >
+            {show ? <EyeOff size={18} /> : <Eye size={18} />}
+          </button>
+        )}
+      </div>
+    </div>
+  );
+};
 
 const fetchConfig = async () => {
   const res = await fetch('/api/config');
@@ -9,10 +38,19 @@ const fetchConfig = async () => {
   return res.json();
 };
 
+const categorizeKey = (key) => {
+  if (key.includes('API_KEY')) return 'API Keys';
+  if (key.includes('MODEL') || key === 'PROVIDER_ORDER') return 'Models';
+  if (key.includes('DB') || key.includes('POSTGRES') || key.includes('PINECONE') || key.includes('SQLITE') || key.includes('SCHEMA')) return 'Database';
+  if (key.includes('ELASTICSEARCH') || key.includes('GRAFANA') || key.includes('TELEMETRY')) return 'Observability';
+  return 'System';
+};
+
 const Settings = () => {
   const { data: initialConfig, isLoading } = useQuery({ queryKey: ['config'], queryFn: fetchConfig });
   const [config, setConfig] = useState({});
   const [saveMessage, setSaveMessage] = useState("");
+  const [activeTab, setActiveTab] = useState('API Keys');
 
   React.useEffect(() => {
     if (initialConfig) setConfig(initialConfig);
@@ -51,43 +89,39 @@ const Settings = () => {
         Environment Configuration
       </h2>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-        <div className="space-y-2">
-          <label className="text-sm font-medium text-gray-300 uppercase tracking-wider">LLM Provider Order</label>
-          <input type="text" name="PROVIDER_ORDER" value={config.PROVIDER_ORDER || ""} onChange={handleConfigChange} className="w-full bg-black/50 border border-white/10 rounded-md p-3 text-white focus:outline-none focus:border-blue-500 transition-colors" placeholder="OPENAI,GROQ,LOCAL_OLLAMA" />
-        </div>
+      {(() => {
+        const groupedConfig = Object.entries(config).reduce((acc, [key, value]) => {
+          const category = categorizeKey(key);
+          if (!acc[category]) acc[category] = [];
+          acc[category].push({ key, value });
+          return acc;
+        }, {});
 
-        <div className="space-y-2">
-          <label className="text-sm font-medium text-gray-300 uppercase tracking-wider">Max Repair Attempts</label>
-          <input type="number" name="MAX_REPAIR_ATTEMPTS" value={config.MAX_REPAIR_ATTEMPTS || ""} onChange={handleConfigChange} className="w-full bg-black/50 border border-white/10 rounded-md p-3 text-white focus:outline-none focus:border-blue-500 transition-colors" />
-        </div>
+        const tabs = Object.keys(groupedConfig).sort();
+        const currentTab = tabs.includes(activeTab) ? activeTab : (tabs[0] || '');
 
-        <div className="space-y-2">
-          <label className="text-sm font-medium text-gray-300 uppercase tracking-wider">Quarantine Error Threshold</label>
-          <input type="number" name="QUARANTINE_ERROR_THRESHOLD" value={config.QUARANTINE_ERROR_THRESHOLD || ""} onChange={handleConfigChange} className="w-full bg-black/50 border border-white/10 rounded-md p-3 text-white focus:outline-none focus:border-blue-500 transition-colors" />
-        </div>
+        return (
+          <>
+            <div className="flex space-x-2 border-b border-white/10 mb-6 pb-2 overflow-x-auto">
+              {tabs.map(tab => (
+                <button
+                  key={tab}
+                  onClick={() => setActiveTab(tab)}
+                  className={`px-4 py-2 rounded-md font-medium text-sm transition-colors whitespace-nowrap ${currentTab === tab ? 'bg-blue-500/20 text-blue-400' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}
+                >
+                  {tab}
+                </button>
+              ))}
+            </div>
 
-        <div className="space-y-2">
-          <label className="text-sm font-medium text-gray-300 uppercase tracking-wider">LLM Rate Limit (Per Min)</label>
-          <input type="number" name="LLM_RATE_LIMIT_PER_MIN" value={config.LLM_RATE_LIMIT_PER_MIN || ""} onChange={handleConfigChange} className="w-full bg-black/50 border border-white/10 rounded-md p-3 text-white focus:outline-none focus:border-blue-500 transition-colors" />
-        </div>
-
-        <div className="space-y-2">
-          <label className="text-sm font-medium text-gray-300 uppercase tracking-wider">MCP Failure Policy</label>
-          <select name="MCP_FAILURE_POLICY" value={config.MCP_FAILURE_POLICY || "FAIL_CLOSED"} onChange={handleConfigChange} className="w-full bg-black border border-white/10 rounded-md p-3 text-white focus:outline-none focus:border-blue-500 transition-colors">
-            <option value="FAIL_CLOSED">FAIL_CLOSED</option>
-            <option value="FAIL_OPEN">FAIL_OPEN</option>
-          </select>
-        </div>
-
-        <div className="space-y-2">
-          <label className="text-sm font-medium text-gray-300 uppercase tracking-wider">Passive Monitoring</label>
-          <select name="PASSIVE_MONITORING" value={config.PASSIVE_MONITORING || "false"} onChange={handleConfigChange} className="w-full bg-black border border-white/10 rounded-md p-3 text-white focus:outline-none focus:border-blue-500 transition-colors">
-            <option value="true">True (Zero Latency Mode)</option>
-            <option value="false">False (Inline Protection)</option>
-          </select>
-        </div>
-      </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+              {groupedConfig[currentTab]?.map(({ key, value }) => (
+                <ConfigInput key={key} configKey={key} value={value} onChange={handleConfigChange} />
+              ))}
+            </div>
+          </>
+        );
+      })()}
 
       <div className="flex items-center justify-between mt-8 pt-6 border-t border-white/10">
         <span className={`text-sm ${saveMessage.includes('Error') ? 'text-red-400' : 'text-green-400'} font-medium`}>

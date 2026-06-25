@@ -54,6 +54,12 @@ services:
     depends_on:
       - fastapi_gateway
     <<: *sentinel-constraints
+    cap_drop:
+      - MAC_ADMIN
+    tmpfs:
+      - /temp
+      - /var/cache/nginx
+      - /var/run
 
 networks:
   sentinel_net:
