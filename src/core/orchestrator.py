@@ -44,7 +44,9 @@ class SentinelOrchestrator:
         self.validator = validator
         self.healer = healer
         self.agent_circuit_breakers = {}
+        self.agent_trust_scores = {}
         self.breaker_threshold = int(os.getenv("CIRCUIT_BREAKER_THRESHOLD", "5"))
+        self.quarantine_threshold = int(os.getenv("QUARANTINE_THRESHOLD", "30"))
 
         from langgraph.checkpoint.memory import MemorySaver
         from src.skills.deterministic_healer import DeterministicHealer
@@ -149,7 +151,13 @@ class SentinelOrchestrator:
         graph.add_edge("log_to_vectordb", END)
         graph.add_edge("deterministic_repair", "validate")
         graph.add_edge("repair", "validate")
-        self.workflow = graph.compile(checkpointer=self.checkpointer)
+
+        if os.getenv("HITL_ENABLED", "false").lower() == "true":
+            self.workflow = graph.compile(
+                checkpointer=self.checkpointer, interrupt_before=["repair"]
+            )
+        else:
+            self.workflow = graph.compile(checkpointer=self.checkpointer)
 
     async def intercept(
         self, agent_source: str, agent_target: str, payload: str
@@ -164,6 +172,14 @@ class SentinelOrchestrator:
 
         # Log Intercept
         metrics.payload_intercepts.labels(status="received").inc()
+
+        # Trust Score Check (Quarantine)
+        trust_score = self.agent_trust_scores.get(agent_source, 100)
+        if trust_score < getattr(self, "quarantine_threshold", 30):
+            console.print(
+                f"[bold red][!] AGENT QUARANTINED: {agent_source} has a trust score of {trust_score}. Dropping traffic instantly.[/bold red]"
+            )
+            return None
 
         # Dynamic Circuit Breaker Check
         cb_state = self.agent_circuit_breakers.get(
@@ -248,10 +264,45 @@ class SentinelOrchestrator:
 
         async def _run_workflow():
             final_state = await self.workflow.ainvoke(initial_state, config)
+
+            # HITL Interruption Check
+            state_snapshot = self.workflow.get_state(config)
+            if state_snapshot.next and "repair" in state_snapshot.next:
+                console.print(
+                    f"[bold yellow][!] HITL Approval Required before LLM Repair for {agent_source}.[/bold yellow]"
+                )
+                import builtins
+                import asyncio
+
+                try:
+                    ans = await asyncio.to_thread(
+                        builtins.input, "Approve LLM Repair? (y/n): "
+                    )
+                except EOFError:
+                    ans = "y"
+                if ans.lower().strip() == "y":
+                    final_state = await self.workflow.ainvoke(None, config)
+                else:
+                    console.print(
+                        "[bold red][!] HITL Rejected by Operator. Dropping packet.[/bold red]"
+                    )
+                    return None
+
             latency_seconds = time.time() - start_time
             metrics.latency.observe(latency_seconds)
 
+            current_trust = self.agent_trust_scores.get(agent_source, 100)
+
             if final_state.get("is_valid"):
+                # Trust Score update
+                if (
+                    final_state.get("repair_attempts", 0) > 0
+                    or final_state.get("deterministic_repair_attempts", 0) > 0
+                ):
+                    self.agent_trust_scores[agent_source] = max(0, current_trust - 5)
+                else:
+                    self.agent_trust_scores[agent_source] = min(100, current_trust + 1)
+
                 if agent_source in self.agent_circuit_breakers:
                     self.agent_circuit_breakers[agent_source] = {
                         "failures": 0,
@@ -268,6 +319,13 @@ class SentinelOrchestrator:
                 )
                 return final_state["payload"]
             else:
+                # Trust Score update
+                err_ctx = final_state.get("error_context", "")
+                if err_ctx and "SECURITY_BREACH" in err_ctx:
+                    self.agent_trust_scores[agent_source] = max(0, current_trust - 50)
+                else:
+                    self.agent_trust_scores[agent_source] = max(0, current_trust - 10)
+
                 cb_state = self.agent_circuit_breakers.get(
                     agent_source, {"failures": 0, "last_failure_time": 0}
                 )

@@ -87,10 +87,11 @@ class SelfHealingEngine:
                     "last_memory_id": None,
                 }
         rate_limit = int(os.getenv("LLM_RATE_LIMIT_PER_MIN", "50"))
+        current_min = int(time.time() / 60)
+
         if redis_url:
             try:
                 r = Redis.from_url(redis_url)
-                current_min = int(time.time() / 60)
                 key = f"sentinel:llm_rate_limit:{current_min}"
                 count = r.incr(key)
                 if count == 1:
@@ -106,6 +107,24 @@ class SelfHealingEngine:
                     }
             except Exception:
                 pass
+        else:
+            if not hasattr(self, "_local_rate_limit"):
+                self._local_rate_limit = {}
+            if current_min not in self._local_rate_limit:
+                self._local_rate_limit = {current_min: 0}
+
+            self._local_rate_limit[current_min] += 1
+            count = self._local_rate_limit[current_min]
+
+            if count > rate_limit:
+                console.print(
+                    f"[bold red][!] LLM Rate Limit Exceeded ({count} > {rate_limit}/min). Dropping repair.[/bold red]"
+                )
+                return {
+                    "is_valid": False,
+                    "error_context": "LLM Rate Limit Exceeded",
+                    "repair_attempts": attempts + 1,
+                }
 
         error_context = state.get("error_context", "Unknown Error")
 
