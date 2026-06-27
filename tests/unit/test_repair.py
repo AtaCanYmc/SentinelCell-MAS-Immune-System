@@ -3,6 +3,11 @@ from unittest.mock import patch, MagicMock
 from src.skills.repair import SelfHealingEngine
 
 
+@pytest.fixture(autouse=True)
+def mock_redis_env(monkeypatch):
+    monkeypatch.delenv("REDIS_URL", raising=False)
+
+
 @pytest.mark.asyncio
 @patch("src.skills.repair.LLMFactory")
 async def test_healer_repair_node_success(mock_factory):

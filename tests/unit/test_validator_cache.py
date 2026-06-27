@@ -10,7 +10,9 @@ async def test_schema_cache_ttl():
     mock_mcp.fetch_schema.return_value = {"type": "object"}
 
     # Set TTL to 1 second
-    with patch("os.getenv", return_value="1"):
+    import os
+
+    with patch.dict(os.environ, {"SCHEMA_CACHE_TTL_SECONDS": "1"}):
         validator = SemanticValidator(mcp_client=mock_mcp)
 
         # First call should fetch

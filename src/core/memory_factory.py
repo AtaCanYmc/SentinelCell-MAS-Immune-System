@@ -292,6 +292,11 @@ class MemoryFactory:
         elif provider == "PINECONE":
             return PineconeMemoryStore()
         elif provider == "IN_MEMORY":
+            from rich.console import Console
+
+            Console().print(
+                "[bold red][!] WARNING: Using InMemoryMemoryStore mock. This does not perform true semantic search. Not for production use![/bold red]"
+            )
             return InMemoryMemoryStore()
         else:
             raise ValueError(f"Unsupported Vector Database provider: {provider}")

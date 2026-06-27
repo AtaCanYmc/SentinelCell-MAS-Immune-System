@@ -1,35 +1,78 @@
 import pytest
-from unittest.mock import patch, AsyncMock, mock_open
-from src.gateways.dlq_worker import process_dlq
 import json
+from unittest.mock import patch, AsyncMock
+from src.gateways.dlq_worker import process_dlq
+
+
+@pytest.fixture
+def mock_dependencies():
+    with patch(
+        "src.gateways.dlq_worker.BrokerFactory.get_broker"
+    ) as mock_get_broker, patch("src.gateways.dlq_worker.asyncio.sleep") as mock_sleep:
+        mock_broker_instance = AsyncMock()
+        mock_get_broker.return_value = mock_broker_instance
+        mock_sleep.side_effect = Exception("stop_loop")
+        yield mock_broker_instance
 
 
 @pytest.mark.asyncio
-@patch("src.gateways.dlq_worker.redis.from_url")
-async def test_process_dlq(mock_redis_from_url):
-    mock_redis = AsyncMock()
-    mock_redis_from_url.return_value = mock_redis
+async def test_process_dlq_success(mock_dependencies):
+    mock_broker = mock_dependencies
 
-    mock_file_content = (
-        json.dumps(
-            {
-                "timestamp": 12345,
-                "source": "A",
-                "target": "B",
-                "payload": '{"test":"payload"}',
-            }
-        )
-        + "\n"
+    # Simulate message from DLQ
+    test_msg = json.dumps(
+        {
+            "source": "A",
+            "target": "B",
+            "payload": '{"test":"payload"}',
+            "dlq_retry_count": 0,
+        }
     )
 
-    with patch("builtins.open", mock_open(read_data=mock_file_content)):
-        with patch("os.path.exists", return_value=True):
-            with patch("os.rename"):
-                with patch("asyncio.sleep", new_callable=AsyncMock) as mock_sleep:
-                    mock_sleep.side_effect = Exception("Break loop")
-                    try:
-                        await process_dlq()
-                    except Exception:
-                        pass
+    mock_broker.pop_atomic.side_effect = [
+        test_msg.encode("utf-8"),
+        Exception("broker error"),
+    ]
 
-    mock_redis.lpush.assert_called_once()
+    try:
+        await process_dlq()
+    except Exception as e:
+        if str(e) != "stop_loop":
+            raise
+
+    # Should push to main bus
+    mock_broker.push.assert_called_once()
+    assert mock_broker.push.call_args[0][0] == "sentinel.in"
+    # Should ack
+    mock_broker.acknowledge.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_process_dlq_drop_max_retries(mock_dependencies):
+    mock_broker = mock_dependencies
+
+    # Simulate message with max retries
+    test_msg = json.dumps(
+        {
+            "source": "A",
+            "target": "B",
+            "payload": '{"test":"payload"}',
+            "dlq_retry_count": 3,
+        }
+    )
+
+    mock_broker.pop_atomic.side_effect = [
+        test_msg.encode("utf-8"),
+        Exception("broker error"),
+    ]
+
+    try:
+        await process_dlq()
+    except Exception as e:
+        if str(e) != "stop_loop":
+            raise
+
+    # Should NOT push to main bus
+    mock_broker.push.assert_not_called()
+    # Should ack to clear from processing
+    mock_broker.acknowledge.assert_called_once()

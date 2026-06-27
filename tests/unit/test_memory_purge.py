@@ -1,4 +1,5 @@
 import time
+from unittest.mock import patch
 from fastapi.testclient import TestClient
 from src.core.memory_factory import InMemoryMemoryStore
 from src.gateways.fastapi_gateway import app
@@ -23,15 +24,21 @@ def test_in_memory_purge():
 
 
 def test_purge_endpoint_success(monkeypatch):
-    # Mock MemoryFactory to return an InMemoryMemoryStore that we control
+    monkeypatch.setenv("API_KEY_SECRET", "test-key")
 
-    # Force IN_MEMORY provider
-    monkeypatch.setenv("VECTOR_DB_PROVIDER", "IN_MEMORY")
+    with patch(
+        "src.core.memory_factory.MemoryFactory.get_memory_store"
+    ) as mock_get_store:
+        mock_store = mock_get_store.return_value
+        mock_store.purge_old_memories.return_value = 5
 
-    client = TestClient(app)
-    response = client.delete("/memory/purge?days=30")
+        client = TestClient(app)
+        response = client.delete(
+            "/memory/purge?days=30", headers={"Authorization": "Bearer test-key"}
+        )
 
     assert response.status_code == 200
     data = response.json()
     assert data["status"] == "success"
     assert "deleted_count" in data
+    assert data["deleted_count"] == 5

@@ -14,11 +14,15 @@ from fastapi import (
     Header,
 )
 from fastapi.responses import HTMLResponse, JSONResponse
+from rich.console import Console
+
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from fastapi.staticfiles import StaticFiles
 import redis.asyncio as redis
 from src.agents.validator_agent import SentinelCell
 from prometheus_client import make_asgi_app
+
+console = Console()
 
 app = FastAPI(
     title="SentinelCell Guardian Gateway",
@@ -95,8 +99,10 @@ async def websocket_logs(websocket: WebSocket):
     except WebSocketDisconnect:
         try:
             await pubsub.unsubscribe("sentinel.logs")
-        except Exception:
-            pass
+        except Exception as unsubscribe_err:
+            console.print(
+                f"[bold red]WebSocket pubsub unsubscribe error:[/bold red] {unsubscribe_err}"
+            )
     except Exception as e:
         try:
             await websocket.send_text(
@@ -104,8 +110,10 @@ async def websocket_logs(websocket: WebSocket):
                     "utf-8"
                 )
             )
-        except Exception:
-            pass
+        except Exception as send_err:
+            console.print(
+                f"[bold red]WebSocket error sending SYSTEM_ERROR:[/bold red] {send_err}"
+            )
 
 
 @app.post("/intercept")
@@ -133,8 +141,10 @@ async def intercept_traffic(
                     return JSONResponse(
                         status_code=208, content=orjson.loads(cached_response)
                     )
-            except Exception:
-                pass
+            except Exception as redis_err:
+                console.print(
+                    f"[bold yellow]Redis idempotency read error:[/bold yellow] {redis_err}"
+                )
 
         result = await sentinel.intercept(
             source=source, target=target, payload=raw_body
@@ -153,8 +163,10 @@ async def intercept_traffic(
                     86400,
                     orjson.dumps(result).decode("utf-8"),
                 )
-            except Exception:
-                pass
+            except Exception as redis_set_err:
+                console.print(
+                    f"[bold yellow]Redis idempotency write error:[/bold yellow] {redis_set_err}"
+                )
 
         return result
     except HTTPException:
@@ -253,8 +265,10 @@ async def get_dlq(api_key: str = Depends(verify_api_key)):
             if line.strip():
                 try:
                     logs.append(orjson.loads(line))
-                except orjson.JSONDecodeError:
-                    pass
+                except orjson.JSONDecodeError as decode_err:
+                    console.print(
+                        f"[dim yellow]DLQ log parse error on line:[/dim yellow] {line.strip()} - {decode_err}"
+                    )
     # Return latest first
     return logs[::-1]
 

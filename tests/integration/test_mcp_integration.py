@@ -30,4 +30,4 @@ async def test_mcp_integration_flow():
 
     # No schema payload
     is_valid = await validator.validate_packet("Agent_Gamma", {"anything": "goes"})
-    assert is_valid is True
+    assert is_valid is False

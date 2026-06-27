@@ -4,15 +4,26 @@ import time
 from src.agents.validator_agent import SentinelCell
 
 
+@pytest.fixture(autouse=True)
+def mock_redis():
+    with patch(
+        "src.agents.validator_agent.redis.from_url", return_value=None
+    ) as mock_r:
+        yield mock_r
+
+
 @pytest.fixture
 def mock_dependencies():
     with (
         patch("src.agents.validator_agent.SchemaRegistryClient") as _,
-        patch("src.agents.validator_agent.SemanticValidator") as _,
+        patch("src.agents.validator_agent.SemanticValidator") as mock_val_class,
         patch("src.agents.validator_agent.SelfHealingEngine") as _,
         patch("src.agents.validator_agent.SentinelOrchestrator") as MockOrchestrator,
         patch("src.agents.validator_agent.broadcaster") as mock_broadcaster,
     ):
+        mock_val = mock_val_class.return_value
+        mock_val.validate_packet = AsyncMock(return_value=(True, None, None))
+
         mock_orchestrator_instance = AsyncMock()
         MockOrchestrator.return_value = mock_orchestrator_instance
 

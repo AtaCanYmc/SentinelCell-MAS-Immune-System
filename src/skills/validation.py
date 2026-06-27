@@ -1,4 +1,5 @@
 import asyncio
+import os
 import jsonschema
 from rich.console import Console
 from rich.panel import Panel
@@ -240,10 +241,17 @@ class SemanticValidator:
             return False
 
         if not schema:
+            # Check Observation Mode
+            if os.getenv("OBSERVATION_MODE", "false").lower() == "true":
+                console.print(
+                    f"[dim yellow][?] No contract found for {agent_target}. Observation Mode Active -> Bypassing.[/dim yellow]"
+                )
+                return True
+
             console.print(
-                f"[dim yellow][?] No contract found for target: {agent_target}. Bypassing validation.[/dim yellow]"
+                f"[bold red][!] ZERO-TRUST: No contract found for target: {agent_target}. Traffic rejected![/bold red]"
             )
-            return True  # Pass through if no contract exists
+            return False
 
         try:
             # Simulate non-intrusive fast processing
@@ -273,9 +281,15 @@ class SemanticValidator:
             return False, None, "MCP Registry Unavailable"
 
         if not schema:
-            # Bypass validation, but send to observation for Auto-Schema Inference
-            self.schema_inferencer.observe(agent_target, data)
-            return True, None, None
+            # Check Observation Mode
+            if os.getenv("OBSERVATION_MODE", "false").lower() == "true":
+                self.schema_inferencer.observe(agent_target, data)
+                return True, None, None
+
+            console.print(
+                f"[bold red][!] ZERO-TRUST: No contract found for target: {agent_target}. Traffic rejected![/bold red]"
+            )
+            return False, None, "Zero-Trust: Missing Schema"
 
         # 2. Active Security Shield (Sanitizer)
         from src.core.broadcaster import broadcaster

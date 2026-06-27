@@ -18,25 +18,31 @@ def test_dashboard_route():
     assert response.status_code == 200
 
 
-def test_intercept_success(mock_sentinel):
+def test_intercept_success(mock_sentinel, monkeypatch):
+    monkeypatch.setenv("API_KEY_SECRET", "test-key")
     mock_sentinel.intercept.return_value = {
         "status": "success",
         "message": "healed data",
     }
 
     response = client.post(
-        "/intercept?source=Alpha&target=Beta", content='{"broken": "json"}'
+        "/intercept?source=Alpha&target=Beta",
+        content='{"broken": "json"}',
+        headers={"Authorization": "Bearer test-key"},
     )
     assert response.status_code == 200
     assert response.json() == {"status": "success", "message": "healed data"}
 
 
-def test_intercept_quarantine_drop(mock_sentinel):
+def test_intercept_quarantine_drop(mock_sentinel, monkeypatch):
+    monkeypatch.setenv("API_KEY_SECRET", "test-key")
     # When Sentinel returns None, it implies quarantine/malicious drop
     mock_sentinel.intercept.return_value = None
 
     response = client.post(
-        "/intercept?source=Alpha&target=Beta", content='{"malicious": "payload"}'
+        "/intercept?source=Alpha&target=Beta",
+        content='{"malicious": "payload"}',
+        headers={"Authorization": "Bearer test-key"},
     )
     assert response.status_code == 400
     assert "detail" in response.json()

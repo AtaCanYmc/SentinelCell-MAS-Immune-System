@@ -58,8 +58,10 @@ async def mq_worker():
                                     res_dict = json.loads(result)
                                     inject_trace_context(res_dict)
                                     result = json.dumps(res_dict)
-                                except Exception:
-                                    pass
+                                except Exception as e:
+                                    console.print(
+                                        f"[dim yellow]Warning: Failed to inject trace context into string payload: {e}[/dim yellow]"
+                                    )
                             elif isinstance(result, dict):
                                 inject_trace_context(result)
 

@@ -5,12 +5,14 @@ import json
 
 
 @pytest.mark.asyncio
-@patch("src.gateways.outbox_worker.redis.from_url")
+@patch("src.gateways.outbox_worker.BrokerFactory.get_broker")
 @patch("src.core.memory_factory.MemoryFactory.get_memory_store")
-async def test_process_outbox(mock_memory_factory, mock_redis_from_url):
-    mock_redis = AsyncMock()
-    mock_redis.rpop.return_value = None
-    mock_redis.brpoplpush.side_effect = [
+async def test_process_outbox(mock_memory_store_factory, mock_get_broker):
+    mock_broker = AsyncMock()
+    mock_get_broker.return_value = mock_broker
+
+    mock_broker.pop_atomic.side_effect = [
+        None,  # For startup recovery loop
         json.dumps(
             {
                 "doc_id": "test_id",
@@ -20,18 +22,21 @@ async def test_process_outbox(mock_memory_factory, mock_redis_from_url):
         ).encode(),
         Exception("Break loop"),
     ]
-    mock_redis_from_url.return_value = mock_redis
 
     mock_memory_store = MagicMock()
-    mock_memory_factory.return_value = mock_memory_store
+    mock_memory_store_factory.return_value = mock_memory_store
 
-    with patch("asyncio.sleep", new_callable=AsyncMock) as mock_sleep:
-        mock_sleep.side_effect = Exception("Break loop entirely")
+    with patch(
+        "src.gateways.outbox_worker.asyncio.sleep", new_callable=AsyncMock
+    ) as mock_sleep:
+        mock_sleep.side_effect = Exception("stop_loop")
         try:
             await process_outbox()
-        except Exception:
-            pass
+        except Exception as e:
+            if str(e) != "stop_loop":
+                raise
 
     mock_memory_store.add_memory.assert_called_once_with(
         doc_id="test_id", memory_doc="test_doc", metadata={"test": "meta"}
     )
+    mock_broker.acknowledge.assert_called_once()

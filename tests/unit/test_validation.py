@@ -33,6 +33,14 @@ async def test_validate_packet_invalid(validator):
 async def test_validate_packet_no_schema(validator):
     data = {"random": "data"}
     result = await validator.validate_packet("Agent_Gamma", data)
+    assert result is False
+
+
+@pytest.mark.asyncio
+async def test_validate_packet_no_schema_observation_mode(validator, monkeypatch):
+    monkeypatch.setenv("OBSERVATION_MODE", "true")
+    data = {"random": "data"}
+    result = await validator.validate_packet("Agent_Gamma", data)
     assert result is True
 
 
