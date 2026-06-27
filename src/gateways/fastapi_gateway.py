@@ -219,9 +219,47 @@ async def websocket_chat(websocket: WebSocket):
                 orjson.dumps({"type": "start", "provider": provider}).decode("utf-8")
             )
 
+            # Fetch real-time system state for context
+            from langchain_core.messages import SystemMessage, HumanMessage
+
+            breakers = getattr(sentinel.orchestrator, "agent_circuit_breakers", {})
+            agents_status = (
+                ", ".join([f"{a}: {e} errors" for a, e in breakers.items()])
+                if breakers
+                else "All agents healthy."
+            )
+
+            try:
+                r = redis.from_url(os.getenv("REDIS_URL", "redis://localhost:6379/0"))
+                current_min = int(time.time() / 60)
+                llm_reqs = await r.get(f"sentinel:llm_rate_limit:{current_min}")
+                llm_reqs = int(llm_reqs) if llm_reqs else 0
+            except Exception:
+                llm_reqs = "Unknown"
+
+            mode = (
+                "Sniffer Mode (Passive)"
+                if os.getenv("PASSIVE_MONITORING") == "true"
+                else "Guardian Mode (Active)"
+            )
+
+            system_prompt = f"""You are the SentinelCell AI Dashboard Assistant.
+The user is chatting with you via the Dashboard. You have access to real-time Multi-Agent System state.
+Current System Time: {time.strftime('%Y-%m-%d %H:%M:%S')}
+Operation Mode: {mode}
+LLM Rate Limit Usage (Current Min): {llm_reqs}
+Agent Circuit Breakers: {agents_status}
+
+Provide helpful, concise, and technical answers. If the user asks about the system state, refer to the data above. Answer in the language the user speaks."""
+
+            messages = [
+                SystemMessage(content=system_prompt),
+                HumanMessage(content=data),
+            ]
+
             # Stream response
             try:
-                async for chunk in llm.astream(data):
+                async for chunk in llm.astream(messages):
                     # For langchain models, chunk is an AIMessageChunk
                     content = chunk.content if hasattr(chunk, "content") else str(chunk)
                     if content:
