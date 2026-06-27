@@ -8,6 +8,7 @@
 ![Docker](https://img.shields.io/badge/Docker-2496ED?style=for-the-badge&logo=docker&logoColor=white)
 ![Llama3](https://img.shields.io/badge/Llama_3-0466C8?style=for-the-badge)
 ![Mistral](https://img.shields.io/badge/Mistral_AI-F47C20?style=for-the-badge)
+![Qwen](https://img.shields.io/badge/Qwen-6152FF?style=for-the-badge)
 
 The **SentinelCell MAS Immune System** supports a 100% offline, air-gapped environment using **Ollama**. This ensures that sensitive multi-agent traffic never leaves your local network during AI-driven semantic repair sequences.
 
@@ -63,6 +64,7 @@ OLLAMA_MODEL=mistral
 |-------|------|----------------|-------------|
 | **Llama 3 (Meta)** | 8B | `llama3` | Fast and highly capable. Excellent at adhering to strict JSON outputs and detecting adversarial payloads. |
 | **Mistral** | 7B | `mistral` | Best-in-class 7B model. Known for deep reasoning and code/JSON generation. |
+| **Qwen 2.5** | 7B / 14B | `qwen2.5` | Alibaba's highly advanced open weights model. Excellent multilingual capabilities and coding performance. |
 | **Code Llama** | 7B/13B | `codellama` | Specifically trained on code. Exceptional at repairing syntactical JSON brackets and missing commas. |
 | **Gemma** | 7B | `gemma:7b` | Google's open weights model. Very lightweight and accurate for edge-node deployments. |
 
