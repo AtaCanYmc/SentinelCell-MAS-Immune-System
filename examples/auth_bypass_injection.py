@@ -1,6 +1,7 @@
 import asyncio
 from src.core.orchestrator import SentinelOrchestrator
-from src.skills.validation import SchemaValidator
+from src.mcp_integration.client import SchemaRegistryClient
+from src.skills.validation import SemanticValidator
 from src.skills.repair import SelfHealingEngine
 from rich.console import Console
 
@@ -8,12 +9,14 @@ console = Console()
 
 
 async def main():
-    validator = SchemaValidator()
+    validator = SemanticValidator(
+        SchemaRegistryClient("src/mcp_integration/registry.py")
+    )
     healer = SelfHealingEngine()
     orchestrator = SentinelOrchestrator(validator=validator, healer=healer)
 
     # Register a strict schema without additionalProperties
-    validator.register_schema(
+    await validator.mcp_client.register_schema(
         "AuthService",
         {
             "title": "AuthToken",

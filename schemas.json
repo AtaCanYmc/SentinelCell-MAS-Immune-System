@@ -1,3 +1,7 @@
 {
-  "AgentFile": "{\"id\": 1}"
+  "AgentFile": "{\"id\": 1}",
+  "Agent_Gamma": "{\"title\": \"Agent_Gamma Schema\", \"type\": \"object\", \"properties\": {\"temperature\": {\"type\": \"number\"}, \"sensor_id\": {\"type\": \"string\"}, \"status\": {\"type\": \"string\"}}, \"required\": [\"temperature\", \"sensor_id\", \"status\"], \"additionalProperties\": false}",
+  "Agent_Beta": "{\"description\": \"Example specific contract for status updates.\", \"properties\": {\"status\": {\"description\": \"Status string, e.g. 'ok', 'error'\", \"title\": \"Status\", \"type\": \"string\"}, \"message\": {\"description\": \"Accompanying message\", \"title\": \"Message\", \"type\": \"string\"}}, \"required\": [\"status\", \"message\"], \"title\": \"StatusContract\", \"type\": \"object\"}",
+  "ProfileUpdate": "{\"title\": \"Profile\", \"type\": \"object\", \"properties\": {\"age\": {\"type\": \"integer\"}}, \"required\": [\"age\"]}",
+  "AuthService": "{\"title\": \"AuthToken\", \"type\": \"object\", \"properties\": {\"user_id\": {\"type\": \"string\"}, \"session_token\": {\"type\": \"string\"}}, \"required\": [\"user_id\", \"session_token\"], \"additionalProperties\": false}"
 }

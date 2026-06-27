@@ -26,11 +26,13 @@ async def main():
         "required": ["sender_account", "receiver_account", "amount", "currency"],
     }
 
-    from src.core.mcp_client import FastMCPClient
-    from src.skills.validation import SchemaValidator
+    from src.mcp_integration.client import SchemaRegistryClient
+    from src.skills.validation import SemanticValidator
     from src.skills.repair import SelfHealingEngine
 
-    validator = SchemaValidator(FastMCPClient())
+    validator = SemanticValidator(
+        SchemaRegistryClient("src/mcp_integration/registry.py")
+    )
     validator._cache["core_ledger"] = {
         "schema": fintech_schema,
         "expires_at": 9999999999,

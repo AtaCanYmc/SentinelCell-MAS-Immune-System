@@ -5,6 +5,7 @@ import json
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 from src.core.orchestrator import SentinelOrchestrator
+from src.skills.repair import SelfHealingEngine
 from rich.console import Console
 
 console = Console()
@@ -29,15 +30,13 @@ async def main():
     }
 
     # Register this schema
-    from src.core.mcp_client import FastMCPClient
-    from src.skills.validation import SchemaValidator
+    from src.mcp_integration.client import SchemaRegistryClient
+    from src.skills.validation import SemanticValidator
 
-    validator = SchemaValidator(FastMCPClient())
+    validator = SemanticValidator(
+        SchemaRegistryClient("src/mcp_integration/registry.py")
+    )
     validator._cache["data_lake"] = {"schema": iot_schema, "expires_at": 9999999999}
-
-    orchestrator = SentinelOrchestrator(validator=validator, healer=None)
-    # Re-import properly because orchestrator init defaults are complex
-    from src.skills.repair import SelfHealingEngine
 
     orchestrator = SentinelOrchestrator(validator=validator, healer=SelfHealingEngine())
 

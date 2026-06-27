@@ -10,7 +10,7 @@ console = Console()
 async def fetch(client, i, headers):
     try:
         await client.post(
-            "http://localhost:8000/intercept?source=AgentB&target=InternalDB",
+            "/intercept?source=AgentB&target=InternalDB",
             data='{"foo": "bar"}',
             headers=headers,
         )

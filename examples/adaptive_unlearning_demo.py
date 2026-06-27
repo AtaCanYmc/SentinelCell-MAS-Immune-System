@@ -1,5 +1,6 @@
 import asyncio
-from src.skills.validation import SchemaValidator
+from src.mcp_integration.client import SchemaRegistryClient
+from src.skills.validation import SemanticValidator
 from src.skills.repair import SelfHealingEngine
 from rich.console import Console
 
@@ -7,10 +8,12 @@ console = Console()
 
 
 async def main():
-    validator = SchemaValidator()
+    validator = SemanticValidator(
+        SchemaRegistryClient("src/mcp_integration/registry.py")
+    )
     healer = SelfHealingEngine()
 
-    validator.register_schema(
+    await validator.mcp_client.register_schema(
         "ProfileUpdate",
         {
             "title": "Profile",

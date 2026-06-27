@@ -6,6 +6,9 @@ import time
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 from src.core.orchestrator import SentinelOrchestrator
+from src.skills.validation import SemanticValidator
+from src.mcp_integration.client import SchemaRegistryClient
+from src.skills.repair import SelfHealingEngine
 from rich.console import Console
 
 console = Console()
@@ -17,7 +20,12 @@ async def main():
     # Enable passive monitoring explicitly
     os.environ["PASSIVE_MONITORING"] = "true"
 
-    orchestrator = SentinelOrchestrator()
+    orchestrator = SentinelOrchestrator(
+        validator=SemanticValidator(
+            SchemaRegistryClient("src/mcp_integration/registry.py")
+        ),
+        healer=SelfHealingEngine(),
+    )
 
     # Heavy broken payload
     iot_payload = {

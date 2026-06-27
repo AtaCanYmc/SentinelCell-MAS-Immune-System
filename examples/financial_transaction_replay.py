@@ -8,6 +8,8 @@ console = Console()
 
 
 async def main():
+    from src.gateways.fastapi_gateway import app
+
     console.print(
         "[bold cyan]Starting Financial Transaction Idempotency Test...[/bold cyan]"
     )
@@ -21,12 +23,13 @@ async def main():
 
     payload = '{"amount": "500.00", "currency": "USD"}'
 
-    async with httpx.AsyncClient() as client:
+    transport = httpx.ASGITransport(app=app)
+    async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
         console.print(
             f"[cyan]1. Sending Initial Transaction (Key: {idem_key})...[/cyan]"
         )
         res1 = await client.post(
-            "http://localhost:8000/intercept?source=ATM&target=Ledger",
+            "/intercept?source=ATM&target=Ledger",
             data=payload,
             headers=headers,
         )
@@ -36,7 +39,7 @@ async def main():
             "\n[cyan]2. Replaying SAME Transaction (Simulating Network Retry/Duplicate)...[/cyan]"
         )
         res2 = await client.post(
-            "http://localhost:8000/intercept?source=ATM&target=Ledger",
+            "/intercept?source=ATM&target=Ledger",
             data=payload,
             headers=headers,
         )

@@ -32,7 +32,8 @@ async def main():
         console.print(f"[bold yellow]--- Packet #{i} ---[/bold yellow]")
         result = await sentinel.intercept("AttackerBot", "Agent_Beta", invalid_payload)
 
-        if sentinel.quarantine_mode:
+        q_mode, _ = await sentinel._get_quarantine_state()
+        if q_mode:
             console.print(
                 f"\n[bold red]🚨 QUARANTINE TRIGGERED AFTER {i} ATTACKS 🚨[/bold red]\n"
             )
@@ -65,7 +66,8 @@ async def main():
     # but we just want to show that it allows it through.
     await sentinel.intercept("HealthChecker", "Agent_Beta", valid_payload)
 
-    assert sentinel.quarantine_mode is False, "Failed to exit quarantine mode!"
+    q_mode, _ = await sentinel._get_quarantine_state()
+    assert q_mode is False, "Failed to exit quarantine mode!"
     console.print(
         "\n[bold green]✅ SYSTEM RECOVERED:[/bold green] Quarantine was lifted automatically after cooldown."
     )

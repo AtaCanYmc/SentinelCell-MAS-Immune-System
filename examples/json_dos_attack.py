@@ -15,7 +15,7 @@ async def simulate_json_dos():
     os.environ["MAX_PAYLOAD_DEPTH"] = "15"
     os.environ["MAX_PAYLOAD_KEYS"] = "500"
 
-    mcp = SchemaRegistryClient()
+    mcp = SchemaRegistryClient("src/mcp_integration/registry.py")
     validator = SemanticValidator(mcp)
     healer = SelfHealingEngine()
     orchestrator = SentinelOrchestrator(validator, healer)

@@ -28,11 +28,13 @@ async def main():
         "required": ["first_name", "last_name", "email"],
     }
 
-    from src.core.mcp_client import FastMCPClient
-    from src.skills.validation import SchemaValidator
+    from src.mcp_integration.client import SchemaRegistryClient
+    from src.skills.validation import SemanticValidator
     from src.skills.repair import SelfHealingEngine
 
-    validator = SchemaValidator(FastMCPClient())
+    validator = SemanticValidator(
+        SchemaRegistryClient("src/mcp_integration/registry.py")
+    )
     validator._cache["user_profile_agent"] = {
         "schema": user_profile_schema,
         "expires_at": 9999999999,

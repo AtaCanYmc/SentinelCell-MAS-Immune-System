@@ -46,6 +46,7 @@ async def mq_guardian_worker(
                 console.print(
                     "\n[bold red][SentinelCell] ⛔ Infection unrecoverable. Packet burned.[/bold red]\n"
                 )
+                await out_queue.put("DROPPED")
         except json.JSONDecodeError:
             pass
 

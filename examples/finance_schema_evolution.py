@@ -31,14 +31,17 @@ async def main():
     }
 
     # Register this v1 schema
-    from src.core.mcp_client import FastMCPClient
-    from src.skills.validation import SchemaValidator
+    from src.mcp_integration.client import SchemaRegistryClient
+    from src.skills.validation import SemanticValidator
 
-    validator = SchemaValidator(FastMCPClient())
+    validator = SemanticValidator(
+        SchemaRegistryClient("src/mcp_integration/registry.py")
+    )
     validator._cache["fraud_agent"] = {"schema": v1_schema, "expires_at": 9999999999}
 
-    orchestrator = SentinelOrchestrator()
-    orchestrator.validator = validator  # override
+    from src.skills.repair import SelfHealingEngine
+
+    orchestrator = SentinelOrchestrator(validator=validator, healer=SelfHealingEngine())
 
     # 2. Produce V2 Payload
     v2_payload = {

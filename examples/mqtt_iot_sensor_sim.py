@@ -82,7 +82,12 @@ async def simulate_mqtt_sniffing():
 
     # Wait for the simulation to finish
     await pub_task
-    await listen_task
+    try:
+        await asyncio.wait_for(listen_task, timeout=10.0)
+    except asyncio.TimeoutError:
+        console.print(
+            "[dim][Clean Listener] Timeout reached (expected if packet was dropped).[/dim]"
+        )
 
     await gateway.stop()
 

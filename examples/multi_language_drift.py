@@ -1,5 +1,6 @@
 import asyncio
 import httpx
+from src.gateways.fastapi_gateway import app
 import os
 from rich.console import Console
 
@@ -20,9 +21,10 @@ async def main():
         "[cyan]Expected Schema Language: English (username, password, login_count)[/cyan]"
     )
 
-    async with httpx.AsyncClient() as client:
+    transport = httpx.ASGITransport(app=app)
+    async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
         res = await client.post(
-            "http://localhost:8000/intercept?source=AuthTR&target=AuthGlobal",
+            "/intercept?source=AuthTR&target=AuthGlobal",
             data=payload,
             headers=headers,
         )

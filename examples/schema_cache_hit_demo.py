@@ -1,5 +1,6 @@
 import asyncio
 import httpx
+from src.gateways.fastapi_gateway import app
 import time
 import os
 from rich.console import Console
@@ -12,11 +13,12 @@ async def main():
     api_key = os.getenv("API_KEY_SECRET", "")
     headers = {"Authorization": f"Bearer {api_key}"} if api_key else {}
 
-    async with httpx.AsyncClient() as client:
+    transport = httpx.ASGITransport(app=app)
+    async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
         # First request (should hit LLM)
         start = time.time()
         await client.post(
-            "http://localhost:8000/intercept?source=AgentA&target=LedgerConsumer",
+            "/intercept?source=AgentA&target=LedgerConsumer",
             data='{"amount": "100"}',
             headers=headers,
         )
@@ -30,7 +32,7 @@ async def main():
         start = time.time()
         for i in range(100):
             await client.post(
-                "http://localhost:8000/intercept?source=AgentA&target=LedgerConsumer",
+                "/intercept?source=AgentA&target=LedgerConsumer",
                 data='{"amount": "100"}',
                 headers=headers,
             )

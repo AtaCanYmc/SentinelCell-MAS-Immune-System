@@ -5,6 +5,9 @@ import json
 
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 from src.core.orchestrator import SentinelOrchestrator
+from src.skills.validation import SemanticValidator
+from src.mcp_integration.client import SchemaRegistryClient
+from src.skills.repair import SelfHealingEngine
 from rich.console import Console
 
 console = Console()
@@ -15,7 +18,12 @@ async def main():
         "[bold cyan]=== Poison Pill (Data Poisoning Shield) Simulation ===[/bold cyan]"
     )
 
-    orchestrator = SentinelOrchestrator()
+    orchestrator = SentinelOrchestrator(
+        validator=SemanticValidator(
+            SchemaRegistryClient("src/mcp_integration/registry.py")
+        ),
+        healer=SelfHealingEngine(),
+    )
 
     # Payload looks like a normal error but has a sneaky injection
     poison_payload = {
