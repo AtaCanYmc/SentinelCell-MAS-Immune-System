@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Send, Bot, User, Loader2 } from 'lucide-react';
 
@@ -7,10 +7,66 @@ export default function ChatTest() {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
+  const wsRef = useRef(null);
+
+  useEffect(() => {
+    // When in dev mode, we connect to localhost:3000 but the ws proxy in vite is tricky.
+    // Usually it goes to the host. If running via nginx, it goes to window.location.host.
+    // If Vite, we might need a fallback or ensure proxy config.
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    // If running in dev server (port 5173 or 3000), point to 8000. In prod, use current host.
+    const host = window.location.port === '5173' || window.location.port === '3000'
+      ? 'localhost:8000'
+      : window.location.host;
+
+    const wsUrl = `${protocol}//${host}/ws/chat`;
+
+    const connectWs = () => {
+      wsRef.current = new WebSocket(wsUrl);
+
+      wsRef.current.onmessage = (event) => {
+        const data = JSON.parse(event.data);
+
+        if (data.type === 'start') {
+          setMessages(prev => [...prev, { role: 'bot', content: '', provider: data.provider }]);
+        } else if (data.type === 'chunk') {
+          setMessages(prev => {
+            const newMsgs = [...prev];
+            if (newMsgs.length > 0 && newMsgs[newMsgs.length - 1].role === 'bot') {
+              newMsgs[newMsgs.length - 1].content += data.content;
+            }
+            return newMsgs;
+          });
+        } else if (data.type === 'end') {
+          setLoading(false);
+        } else if (data.type === 'error') {
+          setMessages(prev => [...prev, { role: 'error', content: data.content }]);
+          setLoading(false);
+        }
+      };
+
+      wsRef.current.onerror = (error) => {
+        console.error('WebSocket Error:', error);
+      };
+
+      wsRef.current.onclose = () => {
+        // Simple reconnect logic if needed
+        setTimeout(connectWs, 3000);
+      };
+    };
+
+    connectWs();
+
+    return () => {
+      if (wsRef.current) {
+        wsRef.current.close();
+      }
+    };
+  }, []);
 
   const sendMessage = async (e) => {
     e.preventDefault();
-    if (!input.trim() || loading) return;
+    if (!input.trim() || loading || !wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) return;
 
     const userMsg = input.trim();
     setMessages(prev => [...prev, { role: 'user', content: userMsg }]);
@@ -18,31 +74,9 @@ export default function ChatTest() {
     setLoading(true);
 
     try {
-      const response = await fetch('/api/chat/test', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ message: userMsg })
-      });
-
-      const data = await response.json();
-
-      if (response.ok && data.status === 'success') {
-        setMessages(prev => [...prev, {
-          role: 'bot',
-          content: data.response,
-          provider: data.provider
-        }]);
-      } else {
-        setMessages(prev => [...prev, {
-          role: 'error',
-          content: data.detail || 'Error communicating with LLM'
-        }]);
-      }
+      wsRef.current.send(userMsg);
     } catch (err) {
       setMessages(prev => [...prev, { role: 'error', content: err.toString() }]);
-    } finally {
       setLoading(false);
     }
   };

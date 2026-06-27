@@ -199,6 +199,57 @@ async def chat_test(req: ChatRequest, api_key: str = Depends(verify_api_key)):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@app.websocket("/ws/chat")
+async def websocket_chat(websocket: WebSocket):
+    """
+    WebSocket endpoint for real-time LLM chat streaming.
+    """
+    await websocket.accept()
+    from src.core.llm_factory import LLMFactory
+
+    provider = os.getenv("PROVIDER_ORDER", "OPENAI").split(",")[0].strip()
+
+    try:
+        llm = LLMFactory.get_llm(provider)
+        while True:
+            data = await websocket.receive_text()
+
+            # Send initial metadata
+            await websocket.send_text(
+                orjson.dumps({"type": "start", "provider": provider}).decode("utf-8")
+            )
+
+            # Stream response
+            try:
+                async for chunk in llm.astream(data):
+                    # For langchain models, chunk is an AIMessageChunk
+                    content = chunk.content if hasattr(chunk, "content") else str(chunk)
+                    if content:
+                        await websocket.send_text(
+                            orjson.dumps({"type": "chunk", "content": content}).decode(
+                                "utf-8"
+                            )
+                        )
+
+                await websocket.send_text(orjson.dumps({"type": "end"}).decode("utf-8"))
+            except Exception as stream_err:
+                await websocket.send_text(
+                    orjson.dumps({"type": "error", "content": str(stream_err)}).decode(
+                        "utf-8"
+                    )
+                )
+    except WebSocketDisconnect:
+        pass
+    except Exception as e:
+        console.print(f"[bold red]WebSocket chat error:[/bold red] {e}")
+        try:
+            await websocket.send_text(
+                orjson.dumps({"type": "error", "content": str(e)}).decode("utf-8")
+            )
+        except Exception:
+            pass
+
+
 @app.delete("/memory/purge")
 async def purge_memory(days: int = 30, api_key: str = Depends(verify_api_key)):
     """
