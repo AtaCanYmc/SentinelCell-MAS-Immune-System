@@ -332,6 +332,26 @@ async def refresh_schema(
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@app.get("/api/schemas")
+async def get_all_schemas(api_key: str = Depends(verify_api_key)):
+    """Returns all schemas currently stored in the active Registry Store."""
+    try:
+        from src.core.registry_factory import RegistryFactory
+
+        store = RegistryFactory.get_store()
+        schemas = await store.get_all_schemas()
+        # The schemas are stored as JSON strings in the registry,
+        # so we load them back into dicts to return a clean JSON response.
+        return {
+            agent_id: orjson.loads(schema_str)
+            if isinstance(schema_str, str)
+            else schema_str
+            for agent_id, schema_str in schemas.items()
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @app.get("/api/config")
 async def get_config(api_key: str = Depends(verify_api_key)):
     """Returns all environment variables for the settings dashboard."""

@@ -1,6 +1,6 @@
 import React from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
-import { Shield, Activity, ShieldAlert, Settings, Zap, List, MessageSquare } from 'lucide-react';
+import { Shield, Activity, ShieldAlert, Settings, Zap, List, MessageSquare, Database } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 
@@ -111,6 +111,10 @@ const Layout = ({ children }) => {
         <NavLink to="/quarantine" className={getTabClass('/quarantine')}>
           <ShieldAlert className="w-5 h-5" />
           {t('sidebar.quarantine')}
+        </NavLink>
+        <NavLink to="/schemas" className={getTabClass('/schemas')}>
+          <Database className="w-5 h-5" />
+          {t('sidebar.schemas')}
         </NavLink>
         <NavLink to="/audit" className={getTabClass('/audit')}>
           <List className="w-5 h-5" />

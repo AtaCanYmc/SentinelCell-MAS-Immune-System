@@ -4,6 +4,7 @@
     "quarantine": "Karantina",
     "audit_logs": "Denetim Kayıtları",
     "chat_test": "LLM Test Sohbet",
+    "schemas": "Şema Kayıtları",
     "settings": "Ayarlar"
   },
   "settings": {
@@ -17,5 +18,15 @@
     "placeholder": "Mesajınızı buraya yazın...",
     "send": "Gönder",
     "provider": "Sağlayıcı"
+  },
+  "schemas": {
+    "title": "Şema Kayıtları",
+    "subtitle": "SentinelCell bağışıklık sistemi tarafından yönetilen JSON şemalarını görüntüleyin.",
+    "agent_id": "Ajan ID",
+    "schema_title": "Şema Başlığı",
+    "actions": "İşlemler",
+    "view_details": "Detayları Gör",
+    "close": "Kapat",
+    "empty": "Henüz kayıtlı bir şema yok."
   }
 }

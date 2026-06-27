@@ -4,6 +4,7 @@
     "quarantine": "Quarantine",
     "audit_logs": "Audit Logs",
     "chat_test": "LLM Test Chat",
+    "schemas": "Schema Registry",
     "settings": "Settings"
   },
   "settings": {
@@ -17,5 +18,15 @@
     "placeholder": "Type your message here...",
     "send": "Send",
     "provider": "Provider"
+  },
+  "schemas": {
+    "title": "Schema Registry",
+    "subtitle": "View JSON schemas managed by the SentinelCell immune system.",
+    "agent_id": "Agent ID",
+    "schema_title": "Schema Title",
+    "actions": "Actions",
+    "view_details": "View Details",
+    "close": "Close",
+    "empty": "No schemas registered yet."
   }
 }

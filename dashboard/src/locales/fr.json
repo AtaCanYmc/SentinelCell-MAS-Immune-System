@@ -17,5 +17,15 @@
     "placeholder": "Tapez votre message ici...",
     "send": "Envoyer",
     "provider": "Fournisseur"
+  },
+  "schemas": {
+    "title": "Registre de Schéma",
+    "subtitle": "Affichez les schémas JSON gérés par le système immunitaire SentinelCell.",
+    "agent_id": "ID Agent",
+    "schema_title": "Titre du Schéma",
+    "actions": "Actions",
+    "view_details": "Voir les détails",
+    "close": "Fermer",
+    "empty": "Aucun schéma enregistré pour le moment."
   }
 }

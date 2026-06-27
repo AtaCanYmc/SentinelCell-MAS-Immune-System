@@ -21,6 +21,11 @@ class BaseRegistryStore(ABC):
     async def update_schema(self, agent_id: str, schema_json: str) -> None:
         pass
 
+    @abstractmethod
+    async def get_all_schemas(self) -> dict[str, str]:
+        """Returns all registered schemas as {agent_id: schema_json}."""
+        pass
+
 
 class InMemoryRegistryStore(BaseRegistryStore):
     """
@@ -35,6 +40,9 @@ class InMemoryRegistryStore(BaseRegistryStore):
 
     async def update_schema(self, agent_id: str, schema_json: str) -> None:
         self._registry[agent_id] = schema_json
+
+    async def get_all_schemas(self) -> dict[str, str]:
+        return dict(self._registry)
 
 
 class FileRegistryStore(BaseRegistryStore):
@@ -69,6 +77,9 @@ class FileRegistryStore(BaseRegistryStore):
         data[agent_id] = schema_json
         self._write_data(data)
 
+    async def get_all_schemas(self) -> dict[str, str]:
+        return self._read_data()
+
 
 class RedisRegistryStore(BaseRegistryStore):
     """
@@ -98,6 +109,24 @@ class RedisRegistryStore(BaseRegistryStore):
             await self.client.set(f"schema:{agent_id}", schema_json)
         except Exception as e:
             logger.error(f"Redis update_schema error: {e}")
+
+    async def get_all_schemas(self) -> dict[str, str]:
+        try:
+            keys = await self.client.keys("schema:*")
+            if not keys:
+                return {}
+
+            # Fetch all values
+            values = await self.client.mget(keys)
+            result = {}
+            for k, v in zip(keys, values):
+                agent_id = k.decode("utf-8").replace("schema:", "")
+                if v:
+                    result[agent_id] = v.decode("utf-8")
+            return result
+        except Exception as e:
+            logger.error(f"Redis get_all_schemas error: {e}")
+            return {}
             raise
 
 
@@ -146,6 +175,20 @@ class SupabaseRegistryStore(BaseRegistryStore):
             logger.error(f"Supabase update_schema error: {e}")
             raise
 
+    async def get_all_schemas(self) -> dict[str, str]:
+        try:
+            import asyncio
+
+            response = await asyncio.to_thread(
+                self.client.table("schemas").select("agent_id, schema_json").execute
+            )
+            if response.data:
+                return {item["agent_id"]: item["schema_json"] for item in response.data}
+            return {}
+        except Exception as e:
+            logger.error(f"Supabase get_all_schemas error: {e}")
+            return {}
+
 
 class MongoRegistryStore(BaseRegistryStore):
     """
@@ -183,6 +226,17 @@ class MongoRegistryStore(BaseRegistryStore):
         except Exception as e:
             logger.error(f"Mongo update_schema error: {e}")
             raise
+
+    async def get_all_schemas(self) -> dict[str, str]:
+        try:
+            cursor = self.collection.find({})
+            result = {}
+            async for doc in cursor:
+                result[doc["agent_id"]] = doc["schema_json"]
+            return result
+        except Exception as e:
+            logger.error(f"Mongo get_all_schemas error: {e}")
+            return {}
 
 
 class FirebaseRegistryStore(BaseRegistryStore):
@@ -227,6 +281,16 @@ class FirebaseRegistryStore(BaseRegistryStore):
         except Exception as e:
             logger.error(f"Firebase update_schema error: {e}")
             raise
+
+    async def get_all_schemas(self) -> dict[str, str]:
+        try:
+            docs = await self.db.collection("schemas").get()
+            return {
+                doc.id: doc.to_dict().get("schema_json") for doc in docs if doc.exists
+            }
+        except Exception as e:
+            logger.error(f"Firebase get_all_schemas error: {e}")
+            return {}
 
 
 class SqliteRegistryStore(BaseRegistryStore):
@@ -295,6 +359,23 @@ class SqliteRegistryStore(BaseRegistryStore):
         except Exception as e:
             logger.error(f"SQLite update_schema error: {e}")
             raise
+
+    async def get_all_schemas(self) -> dict[str, str]:
+        try:
+            import sqlite3
+            import asyncio
+
+            def _fetch_all():
+                with sqlite3.connect(self.db_path) as conn:
+                    cursor = conn.cursor()
+                    cursor.execute("SELECT agent_id, schema_json FROM schemas")
+                    rows = cursor.fetchall()
+                    return {row[0]: row[1] for row in rows} if rows else {}
+
+            return await asyncio.to_thread(_fetch_all)
+        except Exception as e:
+            logger.error(f"SQLite get_all_schemas error: {e}")
+            return {}
 
 
 class PostgresRegistryStore(BaseRegistryStore):
@@ -375,6 +456,23 @@ class PostgresRegistryStore(BaseRegistryStore):
         except Exception as e:
             logger.error(f"Postgres update_schema error: {e}")
             raise
+
+    async def get_all_schemas(self) -> dict[str, str]:
+        try:
+            import psycopg2
+            import asyncio
+
+            def _fetch_all():
+                with psycopg2.connect(self.uri) as conn:
+                    with conn.cursor() as cursor:
+                        cursor.execute("SELECT agent_id, schema_json FROM mcp_schemas")
+                        rows = cursor.fetchall()
+                        return {row[0]: row[1] for row in rows} if rows else {}
+
+            return await asyncio.to_thread(_fetch_all)
+        except Exception as e:
+            logger.error(f"Postgres get_all_schemas error: {e}")
+            return {}
 
 
 class RegistryFactory:

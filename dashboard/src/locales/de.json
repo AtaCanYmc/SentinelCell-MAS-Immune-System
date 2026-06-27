@@ -17,5 +17,15 @@
     "placeholder": "Geben Sie Ihre Nachricht hier ein...",
     "send": "Senden",
     "provider": "Anbieter"
+  },
+  "schemas": {
+    "title": "Schema Register",
+    "subtitle": "Zeigen Sie JSON-Schemas an, die vom SentinelCell-Immunsystem verwaltet werden.",
+    "agent_id": "Agent ID",
+    "schema_title": "Schema-Titel",
+    "actions": "Aktionen",
+    "view_details": "Details anzeigen",
+    "close": "Schließen",
+    "empty": "Noch keine Schemas registriert."
   }
 }
