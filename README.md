@@ -102,11 +102,13 @@ flowchart TD
 |---------|-------------|--------------|
 | **Model Agnostic Fallback** | Seamless fallback if an LLM provider fails. | OpenAI, Anthropic, Groq, Local Ollama |
 | **Database Agnostic Memory** | Adaptive RAG decoupled from underlying storage. | ChromaDB, PGVector, Pinecone |
+| **OpenTelemetry Distributed Tracing** | Full W3C trace context propagation across Agent logic, LLM calls, and MQ. | OTLP, Jaeger, Grafana Tempo |
 | **Agnostic Log Sink** | Multi-destination logging (Console, File, ELK). | `rich`, `elasticsearch-py` |
 | **Time-Series Telemetry** | Success/Failure rates and Latency tracking. | Prometheus, Grafana |
 | **MCP Schema Registry** | Centralized, dynamic schema validation. | Model Context Protocol (MCP) |
 | **Edge & IoT Ready** | Passive monitoring mode enables zero-latency packet sniffing for MQTT sensors. | MQTT, Edge Nodes |
-| **Hybrid Gateway** | SDK, FastAPI, Redis MQ, or Envoy proxy support. | Redis, FastAPI, Envoy |
+| **Hybrid Gateway** | SDK, FastAPI, Redis MQ, Kafka, or RabbitMQ proxy support. | Redis, FastAPI, Envoy, Kafka |
+| **Production-Ready Message Brokers** | Exactly-once delivery guarantees via Kafka Offsets and RabbitMQ Delivery Tags. | `aiokafka`, `aio_pika` |
 | **DDoS Protection & Backpressure** | Redis-based LLM Rate Limiter and LTRIM Queue Eviction. | `redis.asyncio` |
 | **Dead Letter Queue (DLQ)** | Automated background worker with `BRPOPLPUSH` delivery. | Redis, `asyncio` |
 | **Zero-Latency Monitoring** | Optional passive sniffing mode bypassing synchronous blocks. | `asyncio` |
