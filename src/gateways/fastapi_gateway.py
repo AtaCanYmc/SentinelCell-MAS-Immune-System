@@ -175,6 +175,30 @@ async def intercept_traffic(
         raise HTTPException(status_code=500, detail=str(e))
 
 
+class ChatRequest(BaseModel):
+    message: str
+
+
+@app.post("/chat/test")
+async def chat_test(req: ChatRequest, api_key: str = Depends(verify_api_key)):
+    """
+    Direct endpoint to test the configured LLM models.
+    """
+    try:
+        from src.core.llm_factory import LLMFactory
+
+        provider = os.getenv("PROVIDER_ORDER", "OPENAI").split(",")[0].strip()
+        llm = LLMFactory.get_llm(provider)
+        response = await llm.ainvoke(req.message)
+        return {
+            "status": "success",
+            "response": response.content,
+            "provider": provider,
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @app.delete("/memory/purge")
 async def purge_memory(days: int = 30, api_key: str = Depends(verify_api_key)):
     """

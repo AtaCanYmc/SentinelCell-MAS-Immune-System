@@ -1,0 +1,21 @@
+{
+  "sidebar": {
+    "dashboard": "Gösterge Paneli",
+    "quarantine": "Karantina",
+    "audit_logs": "Denetim Kayıtları",
+    "chat_test": "LLM Test Sohbet",
+    "settings": "Ayarlar"
+  },
+  "settings": {
+    "title": "Ayarlar",
+    "language": "Dil",
+    "language_desc": "Uygulama dilini seçin.",
+    "theme": "Tema"
+  },
+  "chat": {
+    "title": "LLM Test Sohbet",
+    "placeholder": "Mesajınızı buraya yazın...",
+    "send": "Gönder",
+    "provider": "Sağlayıcı"
+  }
+}

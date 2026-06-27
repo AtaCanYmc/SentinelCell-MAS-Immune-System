@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { Settings as SettingsIcon, Save, Activity, Eye, EyeOff } from 'lucide-react';
+import { Settings as SettingsIcon, Save, Activity, Eye, EyeOff, Globe } from 'lucide-react';
 import { useQuery, useMutation } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import { AgentTable } from '../components/AgentTable';
 
 const ConfigInput = ({ configKey, value, onChange }) => {
@@ -47,10 +48,16 @@ const categorizeKey = (key) => {
 };
 
 const Settings = () => {
+  const { t, i18n } = useTranslation();
   const { data: initialConfig, isLoading } = useQuery({ queryKey: ['config'], queryFn: fetchConfig });
   const [config, setConfig] = useState({});
   const [saveMessage, setSaveMessage] = useState("");
   const [activeTab, setActiveTab] = useState('API Keys');
+
+  const handleLanguageChange = (e) => {
+    i18n.changeLanguage(e.target.value);
+    localStorage.setItem('i18nextLng', e.target.value);
+  };
 
   React.useEffect(() => {
     if (initialConfig) setConfig(initialConfig);
@@ -84,10 +91,29 @@ const Settings = () => {
 
   return (
     <div className="glass-panel p-8 max-w-4xl mx-auto animate-in slide-in-from-bottom-4 duration-300">
-      <h2 className="text-2xl font-semibold mb-6 flex items-center gap-2">
-        <SettingsIcon className="w-6 h-6 text-blue-400" />
-        Environment Configuration
-      </h2>
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
+        <h2 className="text-2xl font-semibold flex items-center gap-2">
+          <SettingsIcon className="w-6 h-6 text-blue-400" />
+          {t('settings.title')}
+        </h2>
+
+        <div className="flex items-center gap-3 bg-black/40 p-2 rounded-lg border border-white/10">
+          <Globe className="w-5 h-5 text-gray-400" />
+          <div className="flex flex-col">
+            <span className="text-xs text-gray-400 font-semibold">{t('settings.language')}</span>
+            <select
+              value={i18n.language}
+              onChange={handleLanguageChange}
+              className="bg-transparent text-white border-none focus:ring-0 cursor-pointer text-sm font-medium"
+            >
+              <option value="en">English</option>
+              <option value="tr">Türkçe</option>
+              <option value="de">Deutsch</option>
+              <option value="fr">Français</option>
+            </select>
+          </div>
+        </div>
+      </div>
 
       {(() => {
         const groupedConfig = Object.entries(config).reduce((acc, [key, value]) => {

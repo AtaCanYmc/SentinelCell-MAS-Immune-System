@@ -1,0 +1,21 @@
+{
+  "sidebar": {
+    "dashboard": "Tableau de Bord",
+    "quarantine": "Quarantaine",
+    "audit_logs": "Journaux d'Audit",
+    "chat_test": "Chat Test LLM",
+    "settings": "Paramètres"
+  },
+  "settings": {
+    "title": "Paramètres",
+    "language": "Langue",
+    "language_desc": "Sélectionnez la langue de l'application.",
+    "theme": "Thème"
+  },
+  "chat": {
+    "title": "Chat Test LLM",
+    "placeholder": "Tapez votre message ici...",
+    "send": "Envoyer",
+    "provider": "Fournisseur"
+  }
+}

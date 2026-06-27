@@ -8,6 +8,7 @@ const Dashboard = React.lazy(() => import('./pages/Dashboard'));
 const Quarantine = React.lazy(() => import('./pages/Quarantine'));
 const Settings = React.lazy(() => import('./pages/Settings'));
 const AuditLogs = React.lazy(() => import('./pages/AuditLogs'));
+const ChatTest = React.lazy(() => import('./pages/ChatTest'));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -64,6 +65,7 @@ function App() {
                 <Route path="/quarantine" element={<Quarantine />} />
                 <Route path="/settings" element={<Settings />} />
                 <Route path="/audit" element={<AuditLogs />} />
+                <Route path="/chat" element={<ChatTest />} />
                 <Route path="*" element={<Navigate to="/dashboard" replace />} />
               </Routes>
             </Suspense>

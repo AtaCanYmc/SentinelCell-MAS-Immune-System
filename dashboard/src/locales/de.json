@@ -1,0 +1,21 @@
+{
+  "sidebar": {
+    "dashboard": "Dashboard",
+    "quarantine": "Quarantäne",
+    "audit_logs": "Prüfprotokolle",
+    "chat_test": "LLM Test Chat",
+    "settings": "Einstellungen"
+  },
+  "settings": {
+    "title": "Einstellungen",
+    "language": "Sprache",
+    "language_desc": "Wählen Sie die Anwendungssprache.",
+    "theme": "Thema"
+  },
+  "chat": {
+    "title": "LLM Test Chat",
+    "placeholder": "Geben Sie Ihre Nachricht hier ein...",
+    "send": "Senden",
+    "provider": "Anbieter"
+  }
+}

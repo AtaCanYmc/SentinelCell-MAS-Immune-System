@@ -1,7 +1,8 @@
 import React from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
-import { Shield, Activity, ShieldAlert, Settings, Zap, List } from 'lucide-react';
+import { Shield, Activity, ShieldAlert, Settings, Zap, List, MessageSquare } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 
 const fetchMetrics = async () => {
   const res = await fetch('/api/metrics');
@@ -16,6 +17,7 @@ const fetchConfig = async () => {
 };
 
 const Layout = ({ children }) => {
+  const { t } = useTranslation();
   const location = useLocation();
 
   const getTabClass = (path) => {
@@ -97,22 +99,26 @@ const Layout = ({ children }) => {
         </div>
       </div>
 
-      <div className="flex gap-4 mb-8 border-b border-gray-800 pb-2">
+      <div className="flex gap-4 mb-8 border-b border-gray-800 pb-2 overflow-x-auto">
         <NavLink to="/dashboard" className={getTabClass('/dashboard')}>
           <Activity className="w-5 h-5" />
-          Dashboard
+          {t('sidebar.dashboard')}
         </NavLink>
         <NavLink to="/settings" className={getTabClass('/settings')}>
           <Settings className="w-5 h-5" />
-          Settings
+          {t('sidebar.settings')}
         </NavLink>
         <NavLink to="/quarantine" className={getTabClass('/quarantine')}>
           <ShieldAlert className="w-5 h-5" />
-          Quarantine Room
+          {t('sidebar.quarantine')}
         </NavLink>
         <NavLink to="/audit" className={getTabClass('/audit')}>
           <List className="w-5 h-5" />
-          Audit Logs
+          {t('sidebar.audit_logs')}
+        </NavLink>
+        <NavLink to="/chat" className={getTabClass('/chat')}>
+          <MessageSquare className="w-5 h-5" />
+          {t('sidebar.chat_test')}
         </NavLink>
       </div>
 
