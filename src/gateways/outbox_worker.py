@@ -24,7 +24,7 @@ async def process_outbox():
     while True:
         # Startup Recovery for Redis, not strictly needed for Kafka offset-based but safe
         try:
-            stuck_item = await broker.pop_atomic(
+            stuck_item, _ = await broker.pop_atomic(
                 "sentinel.outbox_processing", "sentinel.outbox", timeout=1
             )
             if not stuck_item:
@@ -39,7 +39,7 @@ async def process_outbox():
         try:
             # Pop from outbox to processing (blocking with timeout)
             # Reliable Queue Pattern (At-least-once delivery)
-            message = await broker.pop_atomic(
+            message, ack_token = await broker.pop_atomic(
                 "sentinel.outbox", "sentinel.outbox_processing", timeout=5
             )
             if message:
@@ -57,7 +57,7 @@ async def process_outbox():
                     )
 
                     # Acknowledge: remove from processing queue
-                    await broker.acknowledge("sentinel.outbox_processing", message)
+                    await broker.acknowledge("sentinel.outbox_processing", ack_token)
 
                 console.print(
                     f"[dim green]Outbox -> Synced doc {entry['doc_id']} to VectorDB[/dim green]"

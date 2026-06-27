@@ -12,14 +12,17 @@ async def test_process_outbox(mock_memory_store_factory, mock_get_broker):
     mock_get_broker.return_value = mock_broker
 
     mock_broker.pop_atomic.side_effect = [
-        None,  # For startup recovery loop
-        json.dumps(
-            {
-                "doc_id": "test_id",
-                "memory_doc": "test_doc",
-                "metadata": {"test": "meta"},
-            }
-        ).encode(),
+        (None, None),  # For startup recovery loop
+        (
+            json.dumps(
+                {
+                    "doc_id": "test_id",
+                    "memory_doc": "test_doc",
+                    "metadata": {"test": "meta"},
+                }
+            ).encode(),
+            "mock_ack",
+        ),
         Exception("Break loop"),
     ]
 

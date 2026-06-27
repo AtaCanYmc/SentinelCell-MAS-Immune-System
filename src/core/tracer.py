@@ -26,7 +26,10 @@ def init_tracer(service_name="SentinelCell"):
         provider.add_span_processor(BatchSpanProcessor(otlp_exporter))
     else:
         # Fallback to console exporter if no OTLP endpoint is provided
-        provider.add_span_processor(BatchSpanProcessor(ConsoleSpanExporter()))
+        import sys
+
+        if "pytest" not in sys.modules:
+            provider.add_span_processor(BatchSpanProcessor(ConsoleSpanExporter()))
 
     trace.set_tracer_provider(provider)
     _tracer = trace.get_tracer(__name__)

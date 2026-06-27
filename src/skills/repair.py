@@ -7,6 +7,9 @@ from dotenv import load_dotenv
 from src.core.llm_factory import LLMFactory
 from src.core.broadcaster import broadcaster
 from src.core.memory_factory import MemoryFactory
+from src.core.tracer import get_tracer
+
+tracer = get_tracer()
 
 load_dotenv()
 console = Console()
@@ -203,7 +206,15 @@ class SelfHealingEngine:
             Return ONLY the corrected JSON payload. Do not include markdown blocks, explanations, or any text other than the valid JSON.
             """
 
-            response = await llm.ainvoke(prompt)
+            with tracer.start_as_current_span("LLM.Inference") as span:
+                span.set_attribute("llm.provider", provider)
+                try:
+                    response = await llm.ainvoke(prompt)
+                    span.set_attribute("llm.success", True)
+                except Exception as e:
+                    span.record_exception(e)
+                    span.set_attribute("llm.success", False)
+                    raise
 
             # Clean response text
             cleaned_text = response.content.strip()

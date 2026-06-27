@@ -4,8 +4,10 @@ import jsonschema
 from rich.console import Console
 from rich.panel import Panel
 from src.mcp_integration.client import SchemaRegistryClient
+from src.core.tracer import get_tracer
 
 console = Console()
+tracer = get_tracer()
 
 
 class SecuritySanitizer:
@@ -185,7 +187,9 @@ class SemanticValidator:
             f"[dim]Fetching schema from MCP Registry for {agent_target}...[/dim]"
         )
         try:
-            schema = await self.mcp_client.fetch_schema(agent_target)
+            with tracer.start_as_current_span("MCP.FetchSchema") as span:
+                span.set_attribute("mcp.agent_target", agent_target)
+                schema = await self.mcp_client.fetch_schema(agent_target)
         except Exception as e:
             import os
 

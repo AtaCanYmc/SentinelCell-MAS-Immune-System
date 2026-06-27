@@ -30,7 +30,7 @@ async def test_process_dlq_success(mock_dependencies):
     )
 
     mock_broker.pop_atomic.side_effect = [
-        test_msg.encode("utf-8"),
+        (test_msg.encode("utf-8"), "mock_ack"),
         Exception("broker error"),
     ]
 
@@ -62,7 +62,7 @@ async def test_process_dlq_drop_max_retries(mock_dependencies):
     )
 
     mock_broker.pop_atomic.side_effect = [
-        test_msg.encode("utf-8"),
+        (test_msg.encode("utf-8"), "mock_ack"),
         Exception("broker error"),
     ]
 

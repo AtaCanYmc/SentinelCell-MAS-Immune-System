@@ -8,8 +8,10 @@ from src.core.logger import get_console
 from src.mcp_integration.client import SchemaRegistryClient
 from src.core.orchestrator import SentinelOrchestrator
 from src.core.broadcaster import broadcaster
+from src.core.tracer import get_tracer
 
 console = get_console()
+tracer = get_tracer()
 
 
 class SentinelCell:
@@ -106,6 +108,14 @@ class SentinelCell:
         """
         Entry point for intercepting and routing traffic through the MAS Immune System.
         """
+        with tracer.start_as_current_span("SentinelCell.Intercept") as span:
+            span.set_attribute("sentinel.source", source)
+            span.set_attribute("sentinel.target", target)
+            return await self._intercept_internal(source, target, payload, context)
+
+    async def _intercept_internal(
+        self, source: str, target: str, payload: str, context: dict | None = None
+    ) -> dict | None:
         now = time.time()
         q_mode, q_ts = await self._get_quarantine_state()
 

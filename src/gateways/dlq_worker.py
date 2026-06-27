@@ -18,7 +18,9 @@ async def process_dlq():
     while True:
         try:
             # 1. ATOMIC POP: Move item from DLQ to processing queue safely
-            raw_entry = await broker.pop_atomic(dlq_queue, processing_queue, timeout=5)
+            raw_entry, ack_token = await broker.pop_atomic(
+                dlq_queue, processing_queue, timeout=5
+            )
 
             if not raw_entry:
                 continue  # Timeout reached, no messages
@@ -58,7 +60,7 @@ async def process_dlq():
                         )
 
                     # 4. COMMIT: Remove from processing queue ONLY after we've successfully handled it
-                    await broker.acknowledge(processing_queue, raw_entry)
+                    await broker.acknowledge(processing_queue, ack_token)
 
             except Exception as e:
                 console.print(
@@ -66,7 +68,7 @@ async def process_dlq():
                 )
                 # We could leave it in the processing queue or move it to a 'poison' queue.
                 # For now, remove it to prevent endless loops on totally broken data.
-                await broker.acknowledge(processing_queue, raw_entry)
+                await broker.acknowledge(processing_queue, ack_token)
 
         except Exception as e:
             console.print(

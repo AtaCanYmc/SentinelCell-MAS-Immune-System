@@ -2,6 +2,9 @@ import os
 from abc import ABC, abstractmethod
 
 
+from typing import Any, Tuple, Optional
+
+
 class MessageBroker(ABC):
     @abstractmethod
     async def push(self, queue_name: str, payload: str):
@@ -11,17 +14,18 @@ class MessageBroker(ABC):
     @abstractmethod
     async def pop_atomic(
         self, source_queue: str, processing_queue: str, timeout: int = 5
-    ) -> str | None:
+    ) -> Tuple[Optional[str], Any]:
         """
         Atomically pops from source and pushes to processing queue.
-        Returns the payload or None if timeout.
+        Returns a tuple of (payload, ack_token) or (None, None) if timeout.
         """
         pass
 
     @abstractmethod
-    async def acknowledge(self, processing_queue: str, payload: str):
+    async def acknowledge(self, processing_queue: str, ack_token: Any):
         """
         Acknowledges a message (e.g. removes it from processing queue or commits offset).
+        The ack_token is the opaque token returned by pop_atomic.
         """
         pass
 
@@ -45,11 +49,16 @@ class RedisBroker(MessageBroker):
 
     async def pop_atomic(
         self, source_queue: str, processing_queue: str, timeout: int = 5
-    ) -> str | None:
-        return await self.r.brpoplpush(source_queue, processing_queue, timeout=timeout)
+    ) -> Tuple[Optional[str], Any]:
+        payload = await self.r.brpoplpush(
+            source_queue, processing_queue, timeout=timeout
+        )
+        # For Redis, the payload itself acts as the ack_token for LREM
+        return payload, payload
 
-    async def acknowledge(self, processing_queue: str, payload: str):
-        await self.r.lrem(processing_queue, 1, payload)
+    async def acknowledge(self, processing_queue: str, ack_token: Any):
+        if ack_token:
+            await self.r.lrem(processing_queue, 1, ack_token)
 
     async def consume(self, queue_name: str, timeout: int = 0) -> str | None:
         res = await self.r.blpop(queue_name, timeout=timeout)
@@ -94,36 +103,41 @@ class KafkaBroker(MessageBroker):
 
     async def pop_atomic(
         self, source_queue: str, processing_queue: str, timeout: int = 5
-    ) -> str | None:
+    ) -> Tuple[Optional[str], Any]:
         # Kafka's atomic transfer is handled via Consumer Groups and explicit commits.
-        # The processing_queue parameter is ignored in Kafka context, as the consumer group offset tracks it.
-        # We will use a group_id based on the source_queue
+        # The processing_queue parameter is ignored in Kafka context.
         consumer = await self._get_consumer(
             source_queue, group_id=f"{source_queue}_workers"
         )
         try:
-            # We use getmany with a timeout
+            from aiokafka import OffsetAndMetadata
+
             msg_dict = await consumer.getmany(timeout_ms=timeout * 1000, max_records=1)
             for tp, msgs in msg_dict.items():
                 if msgs:
-                    return msgs[0].value.decode("utf-8")
-            return None
+                    msg = msgs[0]
+                    # The ack_token is a dict containing consumer reference and offset info
+                    ack_token = {
+                        "consumer": consumer,
+                        "offsets": {tp: OffsetAndMetadata(msg.offset + 1, "")},
+                    }
+                    return msg.value.decode("utf-8"), ack_token
+            return None, None
         except Exception:
-            return None
+            return None, None
 
-    async def acknowledge(self, processing_queue: str, payload: str):
-        # We find the consumer that handles the source queue (which is inferable by how we use it)
-        # To be purely agnostic, we should probably commit the offset.
-        # In a real heavy-duty setup, we'd track partitions and offsets.
-        # For simplicity here, we commit all messages for the consumers.
-        for consumer in self.consumers.values():
-            await consumer.commit()
+    async def acknowledge(self, processing_queue: str, ack_token: Any):
+        if ack_token and isinstance(ack_token, dict) and "consumer" in ack_token:
+            consumer = ack_token["consumer"]
+            offsets = ack_token["offsets"]
+            await consumer.commit(offsets)
 
     async def consume(self, queue_name: str, timeout: int = 0) -> str | None:
         # Same logic as pop_atomic but maybe different group
-        return await self.pop_atomic(
+        payload, _ = await self.pop_atomic(
             queue_name, processing_queue="", timeout=timeout if timeout > 0 else 1
         )
+        return payload
 
 
 class RabbitMQBroker(MessageBroker):
@@ -158,7 +172,7 @@ class RabbitMQBroker(MessageBroker):
 
     async def pop_atomic(
         self, source_queue: str, processing_queue: str, timeout: int = 5
-    ) -> str | None:
+    ) -> Tuple[Optional[str], Any]:
         import asyncio
         import aio_pika
 
@@ -170,16 +184,15 @@ class RabbitMQBroker(MessageBroker):
             try:
                 message = await queue.get(no_ack=False, timeout=1)
                 payload = message.body.decode("utf-8")
-                self._unacked_messages[payload] = message
-                return payload
+                # Return the actual message object as the ack_token
+                return payload, message
             except aio_pika.exceptions.QueueEmpty:
                 await asyncio.sleep(0.5)
-        return None
+        return None, None
 
-    async def acknowledge(self, processing_queue: str, payload: str):
-        message = self._unacked_messages.pop(payload, None)
-        if message:
-            await message.ack()
+    async def acknowledge(self, processing_queue: str, ack_token: Any):
+        if ack_token:
+            await ack_token.ack()
 
     async def consume(self, queue_name: str, timeout: int = 0) -> str | None:
         import aio_pika
