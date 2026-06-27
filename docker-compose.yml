@@ -61,33 +61,7 @@ services:
       - /var/cache/nginx
       - /var/run
 
-  # 4. Local Ollama LLM
-  ollama:
-    build:
-      context: ./docker/ollama
-      dockerfile: Dockerfile
-    container_name: sentinelcell_ollama
-    ports:
-      - "11434:11434"
-    networks:
-      - sentinel_net
-    volumes:
-      - ollama_data:/root/.ollama
-    cap_drop:
-      - MAC_ADMIN
-    # Optional GPU support:
-    # deploy:
-    #   resources:
-    #     reservations:
-    #       devices:
-    #         - driver: nvidia
-    #           count: 1
-    #           capabilities: [gpu]
-
 networks:
   sentinel_net:
     name: sentinel_net
     external: true
-
-volumes:
-  ollama_data:
