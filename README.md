@@ -178,6 +178,12 @@ Spins up the FastAPI Gateway, Redis MQ Worker, and Nginx Dashboard securely:
 docker compose up -d --build
 ```
 
+**Optional: Run with Local LLM (Ollama & Llama3)**
+If you want to run the system in a 100% offline, Zero-Trust environment without cloud API keys, you can spin up the optional Ollama extension. This will automatically download and serve the `llama3` model locally:
+```bash
+docker compose -f docker-compose.yml -f docker-compose.ollama.yml up -d --build
+```
+
 ### Frontend Execution (Development)
 To run the React Dashboard Command Center locally with Hot Module Replacement (HMR):
 ```bash
