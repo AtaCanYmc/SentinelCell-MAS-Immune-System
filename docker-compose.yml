@@ -26,6 +26,8 @@ services:
       dockerfile: Dockerfile
     container_name: sentinelcell_fastapi
     command: ["uvicorn", "src.gateways.fastapi_gateway:app", "--host", "0.0.0.0", "--port", "8000"]
+    environment:
+      - REDIS_URL=redis://redis:6379/0
     networks:
       - sentinel_net
     <<: *sentinel-constraints
@@ -37,6 +39,8 @@ services:
       dockerfile: Dockerfile
     container_name: sentinelcell_redis_worker
     command: ["python", "-m", "src.gateways.redis_mq"]
+    environment:
+      - REDIS_URL=redis://redis:6379/0
     networks:
       - sentinel_net
     <<: *sentinel-constraints
@@ -60,8 +64,21 @@ services:
       - /temp
       - /var/cache/nginx
       - /var/run
+  # 4. Redis In-Memory Datastore (Message Broker & Cache)
+  redis:
+    image: redis:7-alpine
+    container_name: sentinelcell_redis
+    ports:
+      - "6379:6379"
+    networks:
+      - sentinel_net
+    volumes:
+      - redis_data:/data
+    command: ["redis-server", "--appendonly", "yes"]
 
 networks:
   sentinel_net:
     name: sentinel_net
-    external: true
+
+volumes:
+  redis_data:
