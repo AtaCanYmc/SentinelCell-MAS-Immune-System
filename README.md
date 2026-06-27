@@ -240,6 +240,8 @@ Alternatively, run these chaos simulations individually (ensure your `.env` is c
 ### 📖 Technical Docs
 Explore our detailed documentation for a deeper dive:
 - **[Examples & Simulations](examples/README.md)**
+- **[LangChain Models Fallback](docs/langchain_models.md)**
+- **[Local Ollama & Offline Setup](docs/local_ollama.md)**
 - **[Deployment Strategies](docs/deployment_strategies.md)**
 - **[Docker Setup & Container Policy](docs/docker_setup.md)**
 - **[Testing & Coverage Guide](docs/testing_guide.md)**
