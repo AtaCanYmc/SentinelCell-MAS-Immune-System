@@ -3,6 +3,7 @@
   <h1>SentinelCell - MAS Immune System</h1>
 
   ![Version](https://img.shields.io/github/v/release/atacanymc/SentinelCell-MAS-Immune-System?style=flat-square&color=blue)
+  ![Tests](https://img.shields.io/badge/tests-62%2F62_passing-brightgreen?style=flat-square)
   ![Python](https://img.shields.io/badge/python-3.11+-blue?style=flat-square)
   ![Docker](https://img.shields.io/badge/docker-containerized-2496ED?logo=docker&style=flat-square)
   ![License](https://img.shields.io/badge/License-Apache_2.0-green.svg?style=flat-square)
@@ -114,7 +115,8 @@ flowchart TD
 | **ChatOps Alerting** | Automated Webhook dispatch to Slack/Discord on breaches. | `httpx`, Webhooks |
 
 ### 🛡️ Enterprise-Grade Security & Hardening
-- **Dynamic Fail-Closed Policy**: Configurable blocking if the Schema Registry goes down.
+- **Zero-Trust by Default (Fail-Closed)**: Unregistered agents or undefined schemas are blocked unconditionally. If the Schema Registry goes down, the system maintains a strict `Fail-Closed` posture. Observation mode must be manually enabled to bypass.
+- **Production-Ready & Mock-Free**: Completely stripped of dummy API keys and mock databases in production mode. Real Redis instances and true Vector DB components (ChromaDB, PGVector) enforce end-to-end reliability.
 - **Data Poisoning Shield**: Pre-repair sanitization with **Base64/Hex Deobfuscation** to block hidden payloads.
 - **Type-Aware Numeric Drift Guard**: Strict dual-layer checker preventing financial semantic logic attacks.
 - **LLM Rate Limiting & Backpressure (OOM Protection)**: Enforces strict queue lengths during DB outages.
@@ -212,10 +214,12 @@ Sending Obfuscated Payload: {"message": "Hello", "metadata": "aWdub3JlIHByZXZpb3
   <img src="assets/examples_simulation_cli.png" width="700" alt="Simulation Command Center" style="border-radius: 10px; margin-bottom: 15px;">
 </div>
 
-You can now run all simulations via the interactive Command Center:
+You can now run all 41 simulations via the interactive Command Center. These examples simulate deep anomalies including Prompt Injection, Semantic Drift, Quarantines, and Payload Corruption with 100% test coverage:
 ```bash
 python simulate.py
 ```
+> **Developer Note on Examples**: Because SentinelCell employs robust `asyncio` background workers (e.g., Dead Letter Queues, Redis Message Brokers) running infinite event-loops, some individual scripts may appear to "hang" after completing their standard output. This is expected behavior as background daemons await further packets. Use `Ctrl+C` to exit safely or integrate `.close()` hooks in your custom workflows.
+
 Alternatively, run these chaos simulations individually (ensure your `.env` is configured):
 - `PYTHONPATH=. python examples/base64_poison_pill.py` (Security Drop)
 - `PYTHONPATH=. python examples/stealth_financial_drift.py` (Numeric Drift Catch)
