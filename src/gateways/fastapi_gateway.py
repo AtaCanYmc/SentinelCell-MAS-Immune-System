@@ -221,6 +221,7 @@ async def websocket_chat(websocket: WebSocket):
 
             # Fetch real-time system state for context
             from langchain_core.messages import SystemMessage, HumanMessage
+            from src.core.prompt_manager import PromptManager
 
             breakers = getattr(sentinel.orchestrator, "agent_circuit_breakers", {})
             agents_status = (
@@ -243,14 +244,15 @@ async def websocket_chat(websocket: WebSocket):
                 else "Guardian Mode (Active)"
             )
 
-            system_prompt = f"""You are the SentinelCell AI Dashboard Assistant.
-The user is chatting with you via the Dashboard. You have access to real-time Multi-Agent System state.
-Current System Time: {time.strftime('%Y-%m-%d %H:%M:%S')}
-Operation Mode: {mode}
-LLM Rate Limit Usage (Current Min): {llm_reqs}
-Agent Circuit Breakers: {agents_status}
-
-Provide helpful, concise, and technical answers. If the user asks about the system state, refer to the data above. Answer in the language the user speaks."""
+            system_prompt = PromptManager.render(
+                "assistant.jinja2",
+                {
+                    "current_time": time.strftime("%Y-%m-%d %H:%M:%S"),
+                    "mode": mode,
+                    "llm_reqs": llm_reqs,
+                    "agents_status": agents_status,
+                },
+            )
 
             messages = [
                 SystemMessage(content=system_prompt),

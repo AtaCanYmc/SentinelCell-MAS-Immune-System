@@ -7,6 +7,7 @@ from rich.panel import Panel
 from src.core.llm_factory import LLMFactory
 from src.mcp_integration.client import SchemaRegistryClient
 from src.core.tracer import get_tracer
+from src.core.prompt_manager import PromptManager
 
 console = Console()
 tracer = get_tracer()
@@ -97,21 +98,10 @@ class AutoSchemaInferencer:
         """
         Prompts the LLM to generate a strict JSON Schema Draft 7 from the payloads.
         """
-        prompt = f"""
-You are a strict Data Architect. Your task is to generate a strict JSON Schema (Draft 7) that perfectly validates all of the following JSON examples.
-The schema is for an agent named '{agent_target}'.
-
-Rules:
-1. Return ONLY valid JSON representing the JSON Schema. No markdown formatting, no explanations.
-2. The schema must be strict: specify types, required fields, and do not allow additional properties at the top level if possible, based on the examples.
-3. Include a descriptive title and description.
-4. Try to infer the types correctly (string, number, boolean, object, array).
-
-Examples:
-{json.dumps(payloads, indent=2)}
-
-JSON Schema ONLY:
-"""
+        prompt = PromptManager.render(
+            "schema_inference.jinja2",
+            {"target": agent_target, "payloads": json.dumps(payloads, indent=2)},
+        )
         response = await self.llm.ainvoke(prompt)
         try:
             # Strip markdown if LLM returned it anyway
