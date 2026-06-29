@@ -11,12 +11,12 @@ def get_chat_tools(sentinel_cell):
 
     @tool
     def get_system_time() -> str:
-        """Returns the current system date and time."""
+        """Returns the current system date and time. ONLY call this tool if the user explicitly asks for the current date, time, or system timestamp. Do NOT call this for greetings."""
         return time.strftime("%Y-%m-%d %H:%M:%S")
 
     @tool
     def get_operation_mode() -> str:
-        """Returns the current system operation mode (Active/Passive)."""
+        """Returns the current system operation mode (Active/Passive). ONLY call this tool if the user explicitly asks about the active/passive mode or operation mode. Do NOT call this for greetings."""
         mode = (
             "Sniffer Mode (Passive)"
             if os.getenv("PASSIVE_MONITORING") == "true"
@@ -26,7 +26,7 @@ def get_chat_tools(sentinel_cell):
 
     @tool
     async def get_llm_metrics() -> str:
-        """Queries Redis to get current LLM rate limits and request counts for the current minute."""
+        """Queries Redis to get current LLM rate limits and request counts for the current minute. ONLY call this tool if the user explicitly asks for LLM metrics, rate limits, or usage. Do NOT call this for greetings."""
         try:
             r = redis.from_url(os.getenv("REDIS_URL", "redis://redis:6379/0"))
             current_minute = int(time.time() / 60)
@@ -39,7 +39,7 @@ def get_chat_tools(sentinel_cell):
 
     @tool
     def get_agent_circuit_breakers() -> str:
-        """Returns the health status and error count of all agent circuit breakers in the system."""
+        """Returns the health status and error count of all agent circuit breakers in the system. ONLY call this tool if the user explicitly asks about agent health, circuit breakers, or error counts. Do NOT call this for greetings."""
         try:
             threshold = int(os.getenv("CIRCUIT_BREAKER_THRESHOLD", "5"))
             breakers = sentinel_cell.orchestrator.agent_circuit_breakers
