@@ -91,7 +91,7 @@ export default function ChatTest() {
   }, [messages, loading]);
 
   return (
-    <div className="flex flex-col h-[calc(100vh-320px)] min-h-[450px] max-w-4xl mx-auto bg-gray-900 border border-gray-800 rounded-xl overflow-hidden shadow-2xl">
+    <div className="flex flex-col h-[calc(100vh-280px)] min-h-[550px] max-w-6xl mx-auto bg-gray-900 border border-gray-800 rounded-xl overflow-hidden shadow-2xl">
       <div className="bg-gray-800 p-4 border-b border-gray-700 flex items-center justify-between">
         <h2 className="text-lg font-semibold flex items-center gap-2">
           <Bot className="text-blue-400" />
