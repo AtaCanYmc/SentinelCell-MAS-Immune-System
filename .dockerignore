@@ -1,0 +1,15 @@
+.git
+.github
+.idea
+.venv
+venv
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+.DS_Store
+._*
+.antigravity
+chroma_db
+logs
+temp

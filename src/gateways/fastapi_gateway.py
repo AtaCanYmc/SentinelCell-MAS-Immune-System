@@ -338,7 +338,7 @@ async def get_all_schemas(api_key: str = Depends(verify_api_key)):
     try:
         from src.core.registry_factory import RegistryFactory
 
-        store = RegistryFactory.get_store()
+        store = RegistryFactory.get_registry_store()
         schemas = await store.get_all_schemas()
         # The schemas are stored as JSON strings in the registry,
         # so we load them back into dicts to return a clean JSON response.

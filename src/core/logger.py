@@ -34,7 +34,12 @@ class ConsoleSink(LogSink):
 class FileSink(LogSink):
     """Writes plain text logs to a file."""
 
-    def __init__(self, filepath="logs/sentinel.log"):
+    def __init__(self, filepath=None):
+        if filepath is None:
+            if os.path.exists("/logs") and os.access("/logs", os.W_OK):
+                filepath = "/logs/sentinel.log"
+            else:
+                filepath = "logs/sentinel.log"
         self.filepath = filepath
         os.makedirs(os.path.dirname(self.filepath), exist_ok=True)
         # Regex to strip rich tags like [bold red] or [/bold red]

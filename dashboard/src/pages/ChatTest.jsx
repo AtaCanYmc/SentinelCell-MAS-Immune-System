@@ -10,18 +10,17 @@ export default function ChatTest() {
   const wsRef = useRef(null);
 
   useEffect(() => {
-    // When in dev mode, we connect to localhost:3000 but the ws proxy in vite is tricky.
-    // Usually it goes to the host. If running via nginx, it goes to window.location.host.
-    // If Vite, we might need a fallback or ensure proxy config.
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    // If running in dev server (port 5173 or 3000), point to 8000. In prod, use current host.
-    const host = window.location.port === '5173' || window.location.port === '3000'
-      ? 'localhost:8000'
+    // If running in dev server (Vite - port 5173), point to 8000.
+    // Port 3000 is Nginx in Docker, which proxies requests, so use window.location.host.
+    const host = window.location.port === '5173'
+      ? `${window.location.hostname}:8000`
       : window.location.host;
 
     const wsUrl = `${protocol}//${host}/ws/chat`;
 
     const connectWs = () => {
+      console.log('Connecting to WebSocket:', wsUrl);
       wsRef.current = new WebSocket(wsUrl);
 
       wsRef.current.onmessage = (event) => {
@@ -81,8 +80,18 @@ export default function ChatTest() {
     }
   };
 
+  const messagesEndRef = useRef(null);
+
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
+
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages, loading]);
+
   return (
-    <div className="flex flex-col h-[calc(100vh-100px)] max-w-4xl mx-auto bg-gray-900 border border-gray-800 rounded-xl overflow-hidden shadow-2xl">
+    <div className="flex flex-col h-[calc(100vh-320px)] min-h-[450px] max-w-4xl mx-auto bg-gray-900 border border-gray-800 rounded-xl overflow-hidden shadow-2xl">
       <div className="bg-gray-800 p-4 border-b border-gray-700 flex items-center justify-between">
         <h2 className="text-lg font-semibold flex items-center gap-2">
           <Bot className="text-blue-400" />
@@ -123,6 +132,7 @@ export default function ChatTest() {
             </div>
           </div>
         )}
+        <div ref={messagesEndRef} />
       </div>
 
       <form onSubmit={sendMessage} className="p-4 bg-gray-800 border-t border-gray-700">

@@ -14,9 +14,10 @@ x-sentinel-constraints: &sentinel-constraints
     - .env
   volumes:
     - ./logs:/logs
-    - ./chroma_db:/app/chroma_db
+    - chroma_db:/app/chroma_db
   tmpfs:
     - /temp
+    - /tmp
 
 services:
   # 1. FastAPI Gateway (Guardian Mode)
@@ -38,7 +39,7 @@ services:
       context: .
       dockerfile: Dockerfile
     container_name: sentinelcell_redis_worker
-    command: ["python", "-m", "src.gateways.redis_mq"]
+    command: ["python", "-m", "src.gateways.ingress_mq"]
     environment:
       - REDIS_URL=redis://redis:6379/0
     networks:
@@ -96,7 +97,9 @@ services:
 networks:
   sentinel_net:
     name: sentinel_net
+    external: true
 
 volumes:
   redis_data:
   ollama_data:
+  chroma_db:

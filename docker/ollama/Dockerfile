@@ -5,5 +5,5 @@ FROM ollama/ollama:latest
 # so the image can be committed with the model baked in.
 RUN nohup bash -c "ollama serve &" && \
     sleep 5 && \
-    ollama pull llama3 && \
+    ollama pull llama3.1 && \
     pkill ollama

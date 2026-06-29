@@ -9,8 +9,8 @@ ENV PYTHONUNBUFFERED=1
 ENV PYTHONPATH=/app
 
 # Create necessary directories and set ownership before switching user
-RUN mkdir -p /app /logs /temp && \
-    chown -R sentinel:sentinel /app /logs /temp
+RUN mkdir -p /app /app/chroma_db /logs /temp && \
+    chown -R sentinel:sentinel /app /app/chroma_db /logs /temp
 
 # Set working directory
 WORKDIR /app

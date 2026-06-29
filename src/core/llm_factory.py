@@ -41,7 +41,11 @@ class LLMFactory:
                 stop=None,
             )
         elif provider == "LOCAL_OLLAMA":
-            return ChatOllama(model=os.getenv("OLLAMA_MODEL", "llama3"), temperature=0)
+            return ChatOllama(
+                model=os.getenv("OLLAMA_MODEL", "llama3.1"),
+                base_url=os.getenv("OLLAMA_BASE_URL", "http://localhost:11434"),
+                temperature=0,
+            )
         elif provider == "GROQ":
             return ChatGroq(
                 api_key=LLMFactory._get_key("GROQ_API_KEY"),
