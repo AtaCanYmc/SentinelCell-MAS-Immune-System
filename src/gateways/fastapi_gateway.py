@@ -206,11 +206,20 @@ async def websocket_chat(websocket: WebSocket):
     """
     await websocket.accept()
     from src.core.llm_factory import LLMFactory
+    from src.core.chat_tools import get_chat_tools
+    from langchain_core.messages import SystemMessage, HumanMessage, ToolMessage
+    from src.core.prompt_manager import PromptManager
 
     provider = os.getenv("PROVIDER_ORDER", "OPENAI").split(",")[0].strip()
 
     try:
         llm = LLMFactory.get_llm(provider)
+        
+        # Initialize and bind tools
+        tools = get_chat_tools(sentinel)
+        tools_map = {t.name: t for t in tools}
+        llm_with_tools = llm.bind_tools(tools)
+
         while True:
             data = await websocket.receive_text()
 
@@ -219,64 +228,60 @@ async def websocket_chat(websocket: WebSocket):
                 orjson.dumps({"type": "start", "provider": provider}).decode("utf-8")
             )
 
-            # Fetch real-time system state for context
-            from langchain_core.messages import SystemMessage, HumanMessage
-            from src.core.prompt_manager import PromptManager
-
-            breakers = getattr(sentinel.orchestrator, "agent_circuit_breakers", {})
-            agents_status = (
-                ", ".join([f"{a}: {e} errors" for a, e in breakers.items()])
-                if breakers
-                else "All agents healthy."
-            )
-
-            try:
-                r = redis.from_url(os.getenv("REDIS_URL", "redis://localhost:6379/0"))
-                current_min = int(time.time() / 60)
-                llm_reqs = await r.get(f"sentinel:llm_rate_limit:{current_min}")
-                llm_reqs = int(llm_reqs) if llm_reqs else 0
-            except Exception:
-                llm_reqs = "Unknown"
-
-            mode = (
-                "Sniffer Mode (Passive)"
-                if os.getenv("PASSIVE_MONITORING") == "true"
-                else "Guardian Mode (Active)"
-            )
-
-            system_prompt = PromptManager.render(
-                "assistant.jinja2",
-                {
-                    "current_time": time.strftime("%Y-%m-%d %H:%M:%S"),
-                    "mode": mode,
-                    "llm_reqs": llm_reqs,
-                    "agents_status": agents_status,
-                },
-            )
+            system_prompt = PromptManager.render("assistant.jinja2", {})
 
             messages = [
                 SystemMessage(content=system_prompt),
                 HumanMessage(content=data),
             ]
 
-            # Stream response
             try:
-                async for chunk in llm.astream(messages):
-                    # For langchain models, chunk is an AIMessageChunk
-                    content = chunk.content if hasattr(chunk, "content") else str(chunk)
-                    if content:
-                        await websocket.send_text(
-                            orjson.dumps({"type": "chunk", "content": content}).decode(
-                                "utf-8"
+                # Agentic loop to resolve tool calls
+                while True:
+                    response = await llm_with_tools.ainvoke(messages)
+                    
+                    if hasattr(response, "tool_calls") and response.tool_calls:
+                        messages.append(response)
+                        
+                        for tool_call in response.tool_calls:
+                            tool_name = tool_call["name"]
+                            tool_args = tool_call["args"]
+                            tool_id = tool_call["id"]
+                            
+                            # Stream back intermediate status message to show progress
+                            status_msg = f"\n[System: Calling tool {tool_name}...]\n"
+                            await websocket.send_text(
+                                orjson.dumps({"type": "chunk", "content": status_msg}).decode("utf-8")
                             )
-                        )
+                            
+                            # Execute tool
+                            tool_obj = tools_map.get(tool_name)
+                            if tool_obj:
+                                try:
+                                    tool_result = await tool_obj.ainvoke(tool_args)
+                                except Exception as e:
+                                    tool_result = f"Error executing tool: {e}"
+                            else:
+                                tool_result = f"Tool '{tool_name}' not found."
+                                
+                            messages.append(ToolMessage(content=str(tool_result), tool_call_id=tool_id))
+                        
+                        # Loop again to feed tool results back to LLM
+                        continue
+                    else:
+                        # Once all tools are resolved, stream final text response to client
+                        async for chunk in llm.astream(messages):
+                            content = chunk.content if hasattr(chunk, "content") else str(chunk)
+                            if content:
+                                await websocket.send_text(
+                                    orjson.dumps({"type": "chunk", "content": content}).decode("utf-8")
+                                )
+                        break
 
                 await websocket.send_text(orjson.dumps({"type": "end"}).decode("utf-8"))
             except Exception as stream_err:
                 await websocket.send_text(
-                    orjson.dumps({"type": "error", "content": str(stream_err)}).decode(
-                        "utf-8"
-                    )
+                    orjson.dumps({"type": "error", "content": str(stream_err)}).decode("utf-8")
                 )
     except WebSocketDisconnect:
         pass
