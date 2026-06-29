@@ -236,13 +236,33 @@ async def websocket_chat(websocket: WebSocket):
 
             # Append new user message to history
             messages.append(HumanMessage(content=data))
+            
+            # Upfront Intent Classification Step using the base LLM (no tools)
+            is_system_intent = False
+            intent_prompt = (
+                "Analyze the user's message and classify its intent. Respond with exactly one word, either 'SYSTEM' or 'CONVERSATION'.\n"
+                "- 'SYSTEM': The user is explicitly asking about system state, operation mode, circuit breakers, metrics, active/passive mode, time, or rate limits.\n"
+                "- 'CONVERSATION': The user is greeting, saying goodbye, chit-chatting, asking about your name/identity, or asking something unrelated to system telemetry.\n\n"
+                f"User Message: \"{data}\"\n"
+                "Classification (SYSTEM or CONVERSATION):"
+            )
+            try:
+                intent_resp = await llm.ainvoke([HumanMessage(content=intent_prompt)])
+                intent = intent_resp.content.strip().upper()
+                is_system_intent = "SYSTEM" in intent
+            except Exception as classification_err:
+                # Fallback to system mode just in case
+                is_system_intent = True
 
             try:
                 # Agentic loop to resolve tool calls
                 while True:
-                    response = await llm_with_tools.ainvoke(messages)
+                    # If it's not a system query, invoke the base LLM (no tools bound)
+                    # to prevent the model from hallucinating/forcing tool calls
+                    active_llm = llm_with_tools if is_system_intent else llm
+                    response = await active_llm.ainvoke(messages)
                     
-                    if hasattr(response, "tool_calls") and response.tool_calls:
+                    if hasattr(response, "tool_calls") and response.tool_calls and is_system_intent:
                         messages.append(response)
                         
                         for tool_call in response.tool_calls:
