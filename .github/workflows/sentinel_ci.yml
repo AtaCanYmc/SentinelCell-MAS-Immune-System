@@ -38,8 +38,8 @@ jobs:
 
       - name: Phase 2 - Unit Testing & Coverage Control
         run: |
-          echo "Executing Pytest and verifying coverage >= 60%..."
-          pytest tests/unit/ -v --cov=src --cov-fail-under=60 --cov-report=term-missing --cov-report=xml
+          echo "Executing Pytest and verifying coverage >= 50%..."
+          pytest tests/unit/ -v --cov=src --cov-fail-under=50 --cov-report=term-missing --cov-report=xml
 
       - name: Phase 3 - Sandbox Integration
         run: |

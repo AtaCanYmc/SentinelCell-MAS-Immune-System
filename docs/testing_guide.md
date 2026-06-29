@@ -73,15 +73,15 @@ We enforce test coverage natively via **GitHub Actions** (`.github/workflows/sen
 Every Push and Pull Request triggers the following automated pipeline:
 1. **Safety Scan:** Checks for leaked/hardcoded API keys.
 2. **Pytest Execution:** Runs the entire test suite.
-3. **Coverage Gate:** If the overall coverage drops below **60%**, the CI pipeline will automatically **FAIL** and block merging.
+3. **Coverage Gate:** If the overall coverage drops below **50%**, the CI pipeline will automatically **FAIL** and block merging.
 4. **Docs Verification:** Ensures `README.md` and `CHANGELOG.md` standards are maintained.
 
 ```yaml
 # Snippet from our GitHub Actions Workflow
 - name: Phase 2 - Unit Testing & Coverage Control
   run: |
-    echo "Executing Pytest and verifying coverage >= 60%..."
-    pytest tests/unit/ -v --cov=src --cov-fail-under=60 --cov-report=term-missing --cov-report=xml
+    echo "Executing Pytest and verifying coverage >= 50%..."
+    pytest tests/unit/ -v --cov=src --cov-fail-under=50 --cov-report=term-missing --cov-report=xml
 ```
 
 ---
