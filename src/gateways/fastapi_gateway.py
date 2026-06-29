@@ -207,7 +207,7 @@ async def websocket_chat(websocket: WebSocket):
     await websocket.accept()
     from src.core.llm_factory import LLMFactory
     from src.core.chat_tools import get_chat_tools
-    from langchain_core.messages import SystemMessage, HumanMessage, ToolMessage
+    from langchain_core.messages import SystemMessage, HumanMessage, ToolMessage, AIMessage
     from src.core.prompt_manager import PromptManager
 
     provider = os.getenv("PROVIDER_ORDER", "OPENAI").split(",")[0].strip()
@@ -220,6 +220,12 @@ async def websocket_chat(websocket: WebSocket):
         tools_map = {t.name: t for t in tools}
         llm_with_tools = llm.bind_tools(tools)
 
+        # Initialize conversation history outside the loop
+        system_prompt = PromptManager.render("assistant.jinja2", {})
+        messages = [
+            SystemMessage(content=system_prompt),
+        ]
+
         while True:
             data = await websocket.receive_text()
 
@@ -228,12 +234,8 @@ async def websocket_chat(websocket: WebSocket):
                 orjson.dumps({"type": "start", "provider": provider}).decode("utf-8")
             )
 
-            system_prompt = PromptManager.render("assistant.jinja2", {})
-
-            messages = [
-                SystemMessage(content=system_prompt),
-                HumanMessage(content=data),
-            ]
+            # Append new user message to history
+            messages.append(HumanMessage(content=data))
 
             try:
                 # Agentic loop to resolve tool calls
@@ -269,13 +271,16 @@ async def websocket_chat(websocket: WebSocket):
                         # Loop again to feed tool results back to LLM
                         continue
                     else:
-                        # Once all tools are resolved, stream final text response to client
+                        # Once all tools are resolved, stream final text response and capture it for history
+                        final_response_content = ""
                         async for chunk in llm.astream(messages):
                             content = chunk.content if hasattr(chunk, "content") else str(chunk)
                             if content:
+                                final_response_content += content
                                 await websocket.send_text(
                                     orjson.dumps({"type": "chunk", "content": content}).decode("utf-8")
                                 )
+                        messages.append(AIMessage(content=final_response_content))
                         break
 
                 await websocket.send_text(orjson.dumps({"type": "end"}).decode("utf-8"))
