@@ -65,4 +65,28 @@ def get_chat_tools(sentinel_cell):
         except Exception as e:
             return f"Error retrieving agent circuit breakers: {e}"
 
-    return [get_operation_mode, get_llm_metrics, get_agent_circuit_breakers]
+    @tool
+    def read_project_readme(reason: str) -> str:
+        """Reads and returns the contents of the project's README.md file.
+        ONLY call this tool if the user explicitly asks about the project documentation,
+        overview, instructions, how it works, installation, run commands, or system architecture.
+        Args:
+            reason: The explicit reason why you need to read the project README.
+        """
+        readme_path = os.path.join(
+            os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "README.md"
+        )
+        if not os.path.exists(readme_path):
+            return "Error: README.md not found in the project root."
+        try:
+            with open(readme_path, "r", encoding="utf-8") as f:
+                return f.read()
+        except Exception as e:
+            return f"Error reading README.md: {e}"
+
+    return [
+        get_operation_mode,
+        get_llm_metrics,
+        get_agent_circuit_breakers,
+        read_project_readme,
+    ]
