@@ -32,6 +32,8 @@ case $llm_choice in
     ;;
   3)
     provider_order="LOCAL_OLLAMA,OPENAI,GROQ"
+    echo "[+] Local Ollama selected. We will configure Docker Compose to spin it up automatically."
+    echo "COMPOSE_PROFILES=ollama" >> .env
     ;;
   *)
     provider_order="OPENAI,GROQ,LOCAL_OLLAMA"

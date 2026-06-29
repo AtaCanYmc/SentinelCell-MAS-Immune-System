@@ -76,9 +76,27 @@ services:
       - redis_data:/data
     command: ["redis-server", "--appendonly", "yes"]
 
+  # 5. Local Ollama LLM (Conditional via Profile)
+  ollama:
+    profiles:
+      - ollama
+    build:
+      context: ./docker/ollama
+      dockerfile: Dockerfile
+    container_name: sentinelcell_ollama
+    ports:
+      - "11434:11434"
+    networks:
+      - sentinel_net
+    volumes:
+      - ollama_data:/root/.ollama
+    cap_drop:
+      - MAC_ADMIN
+
 networks:
   sentinel_net:
     name: sentinel_net
 
 volumes:
   redis_data:
+  ollama_data:
