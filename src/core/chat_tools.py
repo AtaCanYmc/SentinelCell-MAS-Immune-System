@@ -9,10 +9,7 @@ def get_chat_tools(sentinel_cell):
     Captures the sentinel_cell instance to query agent circuit breakers dynamically.
     """
 
-    @tool
-    def get_system_time() -> str:
-        """Returns the current system date and time. ONLY call this tool if the user explicitly asks for the current date, time, or system timestamp. Do NOT call this for greetings."""
-        return time.strftime("%Y-%m-%d %H:%M:%S")
+
 
     @tool
     def get_operation_mode() -> str:
@@ -56,4 +53,4 @@ def get_chat_tools(sentinel_cell):
         except Exception as e:
             return f"Error retrieving agent circuit breakers: {e}"
 
-    return [get_system_time, get_operation_mode, get_llm_metrics, get_agent_circuit_breakers]
+    return [get_operation_mode, get_llm_metrics, get_agent_circuit_breakers]
