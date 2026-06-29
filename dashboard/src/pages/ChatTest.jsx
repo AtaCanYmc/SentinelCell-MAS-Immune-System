@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { Send, Bot, User, Loader2 } from 'lucide-react';
 
 export default function ChatTest() {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
@@ -17,7 +17,8 @@ export default function ChatTest() {
       ? `${window.location.hostname}:8000`
       : window.location.host;
 
-    const wsUrl = `${protocol}//${host}/ws/chat`;
+    const lang = i18n.language || 'en';
+    const wsUrl = `${protocol}//${host}/ws/chat?lang=${lang}`;
 
     const connectWs = () => {
       console.log('Connecting to WebSocket:', wsUrl);

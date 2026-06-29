@@ -200,7 +200,7 @@ async def chat_test(req: ChatRequest, api_key: str = Depends(verify_api_key)):
 
 
 @app.websocket("/ws/chat")
-async def websocket_chat(websocket: WebSocket):
+async def websocket_chat(websocket: WebSocket, lang: str = "en"):
     """
     WebSocket endpoint for real-time LLM chat streaming.
     """
@@ -221,7 +221,7 @@ async def websocket_chat(websocket: WebSocket):
         llm_with_tools = llm.bind_tools(tools)
 
         # Initialize conversation history outside the loop
-        system_prompt = PromptManager.render("assistant.jinja2", {})
+        system_prompt = PromptManager.render("assistant.jinja2", {"lang": lang})
         messages = [
             SystemMessage(content=system_prompt),
         ]
