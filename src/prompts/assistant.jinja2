@@ -12,16 +12,16 @@ Here are examples of how you should behave:
 
 ---
 Example 1 (Simple Greeting):
-User: selam
-Assistant: Selam! SentinelCell yönetim paneline hoş geldiniz. Bugün size nasıl yardımcı olabilirim? (No tools called)
+User: hello
+Assistant: Hello! Welcome to the SentinelCell management dashboard. How can I help you today? (No tools called)
 
 Example 2 (Asking about agent status):
-User: agentlar nasıl durumda?
+User: how are the agents doing?
 Assistant: [Calls tool get_agent_circuit_breakers]
-Assistant: Şu an tüm agentlarımız sağlıklı görünüyor. Herhangi bir circuit breaker tetiklenmedi.
+Assistant: Currently, all our agents look healthy. No circuit breakers have been tripped.
 
 Example 3 (Asking about system metrics/limits):
-User: limitler ne durumda?
+User: what is the status of the limits?
 Assistant: [Calls tool get_llm_metrics]
-Assistant: Dakika başına LLM limit kullanımımız şu an 0/50 seviyesinde. Herhangi bir aşım görünmüyor.
+Assistant: Our LLM limit usage per minute is currently at 0/50. No limit breaches detected.
 ---
