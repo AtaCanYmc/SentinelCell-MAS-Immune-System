@@ -173,6 +173,36 @@ python examples/semantic_drift_test.py
 
 ---
 
+### 12. 🛡️ Cryptographic Integrity Check (`antigravity_integrity_demo.py`)
+Demonstrates the `MerkleTree` validation for the agent decisions log. Simulates a history tampering attempt and shows SentinelCell detecting the cryptographic mismatch.
+
+**How to Run:**
+```bash
+python examples/antigravity_integrity_demo.py
+```
+
+---
+
+### 13. 🚀 FastAPI Gateway Live Demo (`fastapi_live_server_demo.py`)
+Tests the real FastAPI gateway endpoint (`/intercept`) using an in-memory `ASGITransport`. It verifies authentication logic, valid payloads, and blocks prompt injection attempts.
+
+**How to Run:**
+```bash
+python examples/fastapi_live_server_demo.py
+```
+
+---
+
+### 14. 📡 End-to-End Telemetry Trace (`end_to_end_telemetry_demo.py`)
+Demonstrates distributed tracing context propagation. Shows how a single `Traceparent` initiated at the Gateway is preserved across Orchestrator, LLM inference, and Vector DB.
+
+**How to Run:**
+```bash
+python examples/end_to_end_telemetry_demo.py
+```
+
+---
+
 <div align="center">
   <i>"SentinelCell: Because your Multi-Agent System shouldn't collapse from a single hallucination."</i>
 </div>

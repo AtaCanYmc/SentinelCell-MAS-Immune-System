@@ -1,6 +1,9 @@
 import asyncio
 import aiomqtt
 from rich.console import Console
+from util import setup_mock_environment
+
+setup_mock_environment()
 
 console = Console()
 

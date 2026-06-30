@@ -4,6 +4,9 @@ from src.gateways.fastapi_gateway import app
 import time
 import os
 from rich.console import Console
+from util import setup_mock_environment
+
+setup_mock_environment()
 
 console = Console()
 

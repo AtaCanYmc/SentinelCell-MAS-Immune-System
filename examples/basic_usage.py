@@ -2,6 +2,9 @@ import asyncio
 import json
 from rich.console import Console
 from src.agents.validator_agent import SentinelCell
+from util import setup_mock_environment, shutdown_sentinel
+
+setup_mock_environment()
 
 console = Console()
 
@@ -31,7 +34,7 @@ async def main():
         else:
             console.print("[bold red][!] Packet dropped or unrecoverable.[/bold red]")
     finally:
-        await sentinel.stop()
+        await shutdown_sentinel(sentinel)
 
 
 if __name__ == "__main__":

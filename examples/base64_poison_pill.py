@@ -5,6 +5,9 @@ from src.core.orchestrator import SentinelOrchestrator
 from src.skills.validation import SemanticValidator
 from src.skills.repair import SelfHealingEngine
 from rich.console import Console
+from util import setup_mock_environment
+
+setup_mock_environment()
 
 
 class MockMCPClient:

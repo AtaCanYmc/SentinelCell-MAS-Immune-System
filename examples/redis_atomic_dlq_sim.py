@@ -2,6 +2,9 @@ import asyncio
 import os
 import redis.asyncio as redis
 from rich.console import Console
+from util import setup_mock_environment
+
+setup_mock_environment()
 
 console = Console()
 

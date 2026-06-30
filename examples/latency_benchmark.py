@@ -4,6 +4,9 @@ import json
 from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
+from util import setup_mock_environment, shutdown_sentinel
+
+setup_mock_environment()
 
 console = Console()
 
@@ -113,7 +116,7 @@ async def main():
             )
         )
     finally:
-        await sentinel.stop()
+        await shutdown_sentinel(sentinel)
 
 
 if __name__ == "__main__":

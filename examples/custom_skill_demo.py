@@ -2,6 +2,9 @@ import asyncio
 from rich.console import Console
 from langgraph.graph import StateGraph, END
 from src.core.orchestrator import AgentState
+from util import setup_mock_environment
+
+setup_mock_environment()
 
 console = Console()
 
