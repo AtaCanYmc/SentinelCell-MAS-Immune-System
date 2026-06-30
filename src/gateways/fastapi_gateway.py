@@ -635,3 +635,203 @@ async def replay_payload(req: ReplayRequest, api_key: str = Depends(verify_api_k
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/examples")
+async def list_examples():
+    """Lists available interactive simulation examples with description."""
+    return {
+        "examples": [
+            {
+                "id": "basic_usage.py",
+                "name": "Basic SentinelCell Usage",
+                "description": "Simple validation and LLM healing demonstration with missing fields.",
+                "category": "Basic",
+                "difficulty": "Easy",
+            },
+            {
+                "id": "chaos_monkey.py",
+                "name": "Chaos Monkey Simulation",
+                "description": "Random agent hallucinations, schema contract breaks, and garbage data mutation.",
+                "category": "Resilience",
+                "difficulty": "Medium",
+            },
+            {
+                "id": "security_injection_demo.py",
+                "name": "Adversarial Security Injection",
+                "description": "Malicious agent attempting prompt injection attacks to bypass constraints.",
+                "category": "Security",
+                "difficulty": "Hard",
+            },
+            {
+                "id": "latency_benchmark.py",
+                "name": "Latency & Performance Benchmark",
+                "description": "Fires 500 valid packets to measure caching vs 1 malformed packet with LLM healing.",
+                "category": "Performance",
+                "difficulty": "Medium",
+            },
+            {
+                "id": "quarantine_mode_demo.py",
+                "name": "Quarantine Fail-Safe Lockdown",
+                "description": "Triggers circuit breaker/quarantine after rapid succession of critical failures.",
+                "category": "Resilience",
+                "difficulty": "Hard",
+            },
+            {
+                "id": "poison_pill_demo.py",
+                "name": "Poison Pill Jailbreak Guard",
+                "description": "Instantly drops jailbreak/prompt injection attempts hidden within nested structures using Regex Sanitizer.",
+                "category": "Security",
+                "difficulty": "Medium",
+            },
+            {
+                "id": "finance_schema_evolution.py",
+                "name": "Finance Schema Evolution",
+                "description": "Demonstrates real-time schema upgrades/downgrades between V1 and V2 protocols.",
+                "category": "Schema",
+                "difficulty": "Medium",
+            },
+            {
+                "id": "iot_passive_monitoring.py",
+                "name": "IoT Passive Sniffer Mode",
+                "description": "Runs in background sniffer mode (PASSIVE_MONITORING=true) with near-zero latency impact.",
+                "category": "Monitoring",
+                "difficulty": "Easy",
+            },
+            {
+                "id": "iot_telemetry_recovery.py",
+                "name": "IoT Telemetry Recovery",
+                "description": "Intercepts and repairs fragmented/broken JSON streams from edge IoT devices.",
+                "category": "Repair",
+                "difficulty": "Medium",
+            },
+            {
+                "id": "semantic_drift_test.py",
+                "name": "Semantic Drift Guard",
+                "description": "Calculates Jaccard Similarity on LLM-repaired payloads to reject hallucinated keys.",
+                "category": "Security",
+                "difficulty": "Hard",
+            },
+        ]
+    }
+
+
+@app.websocket("/ws/examples/run/{script_name}")
+async def ws_run_example(websocket: WebSocket, script_name: str):
+    """Runs a simulation script and streams stdout/stderr back in real-time."""
+    await websocket.accept()
+
+    safe_scripts = [
+        "adaptive_unlearning_demo.py",
+        "agent_trust_score_degradation.py",
+        "auth_bypass_injection.py",
+        "auto_schema_inference_sim.py",
+        "base64_poison_pill.py",
+        "basic_usage.py",
+        "chaos_monkey.py",
+        "circuit_breaker_recovery.py",
+        "custom_skill_demo.py",
+        "finance_schema_evolution.py",
+        "financial_drift_anomaly_sim.py",
+        "financial_transaction_replay.py",
+        "fintech_transaction_flow.py",
+        "high_concurrency_burst.py",
+        "high_concurrency_stress_test.py",
+        "human_in_the_loop_approval.py",
+        "iot_passive_monitoring.py",
+        "iot_telemetry_recovery.py",
+        "json_dos_attack.py",
+        "kafka_heavy_duty_sim.py",
+        "latency_benchmark.py",
+        "mq_simulation_demo.py",
+        "mqtt_iot_sensor_sim.py",
+        "multi_agent_flow.py",
+        "multi_language_drift.py",
+        "opentelemetry_tracing_sim.py",
+        "outbox_backpressure_test.py",
+        "poison_pill_demo.py",
+        "quarantine_mode_demo.py",
+        "rabbitmq_heavy_duty_sim.py",
+        "redis_atomic_dlq_sim.py",
+        "redis_outage_fallback.py",
+        "repair_prompt_injection_test.py",
+        "schema_cache_hit_demo.py",
+        "schema_evolution_conflict.py",
+        "security_injection_demo.py",
+        "semantic_drift_test.py",
+        "semantic_repair_cache_hit.py",
+        "silent_business_logic_corruption.py",
+        "stealth_financial_drift.py",
+        "wallet_exhaustion_dos_sim.py",
+    ]
+
+    if script_name not in safe_scripts:
+        await websocket.send_text(
+            orjson.dumps({"type": "error", "line": "Invalid script name."}).decode(
+                "utf-8"
+            )
+        )
+        await websocket.close()
+        return
+
+    script_path = os.path.join("examples", script_name)
+    if not os.path.exists(script_path):
+        await websocket.send_text(
+            orjson.dumps({"type": "error", "line": "Script file not found."}).decode(
+                "utf-8"
+            )
+        )
+        await websocket.close()
+        return
+
+    import sys
+
+    # Use current running python executable
+    python_bin = sys.executable
+
+    env = os.environ.copy()
+    env["PYTHONPATH"] = "."
+    env["PYTHONUNBUFFERED"] = "1"
+    env["MOCK_LLM"] = "true"  # Ensure it runs smoothly without raw API keys by default
+
+    process = None
+    try:
+        process = await asyncio.create_subprocess_exec(
+            python_bin,
+            script_path,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.STDOUT,
+            env=env,
+        )
+
+        while True:
+            line = await process.stdout.readline()
+            if not line:
+                break
+            line_str = line.decode("utf-8", errors="replace").rstrip()
+            await websocket.send_text(
+                orjson.dumps({"type": "stdout", "line": line_str}).decode("utf-8")
+            )
+
+        await process.wait()
+        exit_code = process.returncode
+        await websocket.send_text(
+            orjson.dumps({"type": "exit", "code": exit_code}).decode("utf-8")
+        )
+    except Exception as e:
+        await websocket.send_text(
+            orjson.dumps(
+                {"type": "error", "line": f"Execution error: {str(e)}"}
+            ).decode("utf-8")
+        )
+    finally:
+        if process and process.returncode is None:
+            try:
+                process.terminate()
+                await process.wait()
+            except Exception:
+                pass
+        try:
+            await websocket.close()
+        except Exception:
+            pass

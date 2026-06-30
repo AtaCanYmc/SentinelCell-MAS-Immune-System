@@ -4,7 +4,8 @@
     "quarantine": "Quarantaine",
     "audit_logs": "Journaux d'Audit",
     "chat_test": "Chat Test LLM",
-    "settings": "Paramètres"
+    "settings": "Paramètres",
+    "examples": "Exemples Rapides"
   },
   "settings": {
     "title": "Paramètres",

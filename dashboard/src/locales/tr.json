@@ -5,7 +5,8 @@
     "audit_logs": "Denetim Kayıtları",
     "chat_test": "LLM Test Sohbet",
     "schemas": "Şema Kayıtları",
-    "settings": "Ayarlar"
+    "settings": "Ayarlar",
+    "examples": "Hızlı Örnekler"
   },
   "settings": {
     "title": "Ayarlar",

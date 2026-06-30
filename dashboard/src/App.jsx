@@ -10,6 +10,7 @@ const Settings = React.lazy(() => import('./pages/Settings'));
 const AuditLogs = React.lazy(() => import('./pages/AuditLogs'));
 const ChatTest = React.lazy(() => import('./pages/ChatTest'));
 const SchemaRegistry = React.lazy(() => import('./pages/SchemaRegistry'));
+const Examples = React.lazy(() => import('./pages/Examples'));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -68,6 +69,7 @@ function App() {
                 <Route path="/settings" element={<Settings />} />
                 <Route path="/audit" element={<AuditLogs />} />
                 <Route path="/chat" element={<ChatTest />} />
+                <Route path="/examples" element={<Examples />} />
                 <Route path="*" element={<Navigate to="/dashboard" replace />} />
               </Routes>
             </Suspense>

@@ -5,7 +5,8 @@
     "audit_logs": "Audit Logs",
     "chat_test": "LLM Test Chat",
     "schemas": "Schema Registry",
-    "settings": "Settings"
+    "settings": "Settings",
+    "examples": "Quick Examples"
   },
   "settings": {
     "title": "Settings",

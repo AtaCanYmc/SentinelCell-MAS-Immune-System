@@ -124,6 +124,10 @@ const Layout = ({ children }) => {
           <MessageSquare className="w-5 h-5" />
           {t('sidebar.chat_test')}
         </NavLink>
+        <NavLink to="/examples" className={getTabClass('/examples')}>
+          <Zap className="w-5 h-5" />
+          {t('sidebar.examples')}
+        </NavLink>
       </div>
 
       <main>
