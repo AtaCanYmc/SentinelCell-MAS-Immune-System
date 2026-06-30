@@ -1,11 +1,28 @@
 import React from 'react';
 import { Activity, CheckCircle, AlertTriangle, Shield, RefreshCcw, Database, Pause, Play, Trash2, Filter } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
 import { useBroadcaster } from '../hooks/useBroadcaster';
+
+const fetchSchemas = async () => {
+  const res = await fetch('/api/schemas');
+  if (!res.ok) return [];
+  const data = await res.json();
+  return data.schemas || [];
+};
+
+const fetchConfig = async () => {
+  const res = await fetch('/api/config');
+  if (!res.ok) return {};
+  return res.json();
+};
 
 const Dashboard = () => {
   // Use Broadcaster for live tail logs
   const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
   const { logs, isConnected, isPaused, filterType, setFilterType, togglePause, clearLogs } = useBroadcaster(`${protocol}//${window.location.host}/ws/logs`);
+
+  const { data: schemas = [] } = useQuery({ queryKey: ['schemas'], queryFn: fetchSchemas, refetchInterval: 10000 });
+  const { data: config = {} } = useQuery({ queryKey: ['config'], queryFn: fetchConfig, refetchInterval: 10000 });
 
   const metrics = {
     intercepts: logs.length,
@@ -100,15 +117,21 @@ const Dashboard = () => {
           <div className="space-y-4">
             <div className="flex justify-between items-center p-3 bg-white/5 rounded-lg border border-white/10">
               <span className="font-mono text-sm text-gray-300">FastMCP Schema Server</span>
-              <span className="px-3 py-1 bg-green-500/20 text-green-400 text-xs rounded-full border border-green-500/30">CONNECTED</span>
+              <span className="px-3 py-1 bg-green-500/20 text-green-400 text-xs rounded-full border border-green-500/30">
+                CONNECTED ({schemas.length} Schemas)
+              </span>
             </div>
             <div className="flex justify-between items-center p-3 bg-white/5 rounded-lg border border-white/10">
               <span className="font-mono text-sm text-gray-300">Redis State Sync</span>
-              <span className="px-3 py-1 bg-green-500/20 text-green-400 text-xs rounded-full border border-green-500/30">SYNCED</span>
+              <span className="px-3 py-1 bg-green-500/20 text-green-400 text-xs rounded-full border border-green-500/30">
+                {config.SCHEMA_REGISTRY_PROVIDER === 'REDIS' ? 'ACTIVE (SYNCED)' : 'CONNECTED'}
+              </span>
             </div>
             <div className="flex justify-between items-center p-3 bg-white/5 rounded-lg border border-white/10">
-              <span className="font-mono text-sm text-gray-300">PGVector Event Store</span>
-              <span className="px-3 py-1 bg-blue-500/20 text-blue-400 text-xs rounded-full border border-blue-500/30">STANDBY</span>
+              <span className="font-mono text-sm text-gray-300">Vector Event Store</span>
+              <span className="px-3 py-1 bg-blue-500/20 text-blue-400 text-xs rounded-full border border-blue-500/30 uppercase">
+                ACTIVE ({config.VECTOR_DB_PROVIDER || 'CHROMADB'})
+              </span>
             </div>
           </div>
         </div>

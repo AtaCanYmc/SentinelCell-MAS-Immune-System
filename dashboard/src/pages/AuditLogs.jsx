@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Search, ShieldCheck, AlertTriangle } from 'lucide-react';
+import { Search, ShieldCheck, AlertTriangle, ChevronDown, ChevronUp, Info } from 'lucide-react';
 
 const fetchAuditLogs = async () => {
   const res = await fetch('/api/audit-logs');
@@ -12,6 +12,7 @@ const AuditLogs = () => {
   const { data, isLoading } = useQuery({ queryKey: ['auditLogs'], queryFn: fetchAuditLogs, refetchInterval: 10000 });
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
+  const [expandedLogIdx, setExpandedLogIdx] = useState(null);
   const itemsPerPage = 10;
 
   if (isLoading) return <div className="text-gray-400">Loading audit logs...</div>;
@@ -59,6 +60,7 @@ const AuditLogs = () => {
           <table className="w-full text-left text-sm text-gray-300">
             <thead className="bg-gray-900 border-b border-white/10 text-xs uppercase text-gray-500">
               <tr>
+                <th className="px-4 py-3 w-10"></th>
                 <th className="px-4 py-3">Timestamp</th>
                 <th className="px-4 py-3">TraceId / SpanId</th>
                 <th className="px-4 py-3">Decision ID</th>
@@ -74,22 +76,72 @@ const AuditLogs = () => {
 
                 const dId = isLegacy ? log.id : (log.Attributes && log.Attributes["decision.id"]);
                 const isSuccess = isLegacy ? !(log.reason || '').includes('Error') : log.SeverityNumber === 9;
+                const isExpanded = expandedLogIdx === idx;
 
                 return (
-                  <tr key={idx} className="border-b border-white/5 last:border-0 hover:bg-white/5">
-                    <td className="px-4 py-3 font-mono text-xs">{getSafeStr(ts)}</td>
-                    <td className="px-4 py-3 font-mono text-xs text-blue-400">
-                      {isLegacy ? "Legacy Log" : `${getSafeStr(log.TraceId)} / ${getSafeStr(log.SpanId)}`}
-                    </td>
-                    <td className="px-4 py-3 font-mono text-xs text-purple-400">{getSafeStr(dId)}</td>
-                    <td className="px-4 py-3">
-                      {isSuccess ? (
-                        <span className="text-green-400 font-medium">SUCCESS</span>
-                      ) : (
-                        <span className="text-red-400 font-medium">FAIL</span>
-                      )}
-                    </td>
-                  </tr>
+                  <React.Fragment key={idx}>
+                    <tr
+                      onClick={() => setExpandedLogIdx(isExpanded ? null : idx)}
+                      className="border-b border-white/5 last:border-0 hover:bg-white/5 cursor-pointer transition-colors"
+                    >
+                      <td className="px-4 py-3 text-center">
+                        {isExpanded ? <ChevronUp className="w-4 h-4 text-gray-400" /> : <ChevronDown className="w-4 h-4 text-gray-400" />}
+                      </td>
+                      <td className="px-4 py-3 font-mono text-xs">{getSafeStr(ts)}</td>
+                      <td className="px-4 py-3 font-mono text-xs text-blue-400">
+                        {isLegacy ? "Legacy Log" : `${getSafeStr(log.TraceId).slice(0, 8)}... / ${getSafeStr(log.SpanId)}`}
+                      </td>
+                      <td className="px-4 py-3 font-mono text-xs text-purple-400">{getSafeStr(dId)}</td>
+                      <td className="px-4 py-3">
+                        {isSuccess ? (
+                          <span className="text-green-400 font-medium bg-green-500/10 px-2 py-0.5 rounded text-xs">SUCCESS</span>
+                        ) : (
+                          <span className="text-red-400 font-medium bg-red-500/10 px-2 py-0.5 rounded text-xs">FAIL</span>
+                        )}
+                      </td>
+                    </tr>
+                    {isExpanded && (
+                      <tr className="bg-black/20 border-b border-white/5">
+                        <td colSpan={5} className="px-8 py-4">
+                          <div className="text-sm font-semibold mb-2 flex items-center gap-2 text-gray-200">
+                            <Info className="w-4 h-4 text-[#58a6ff]" />
+                            Log Details Explorer
+                          </div>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                            <div className="bg-[#090d13] p-3 rounded-md border border-white/5">
+                              <span className="text-xs text-gray-500 block uppercase font-bold mb-1">Log Overview</span>
+                              <div className="space-y-1 text-xs">
+                                <div><strong className="text-gray-400">Decision ID:</strong> <span className="font-mono text-purple-400">{getSafeStr(dId)}</span></div>
+                                <div><strong className="text-gray-400">Timestamp:</strong> {getSafeStr(ts)}</div>
+                                {!isLegacy && (
+                                  <>
+                                    <div><strong className="text-gray-400">Trace ID:</strong> <span className="font-mono">{getSafeStr(log.TraceId)}</span></div>
+                                    <div><strong className="text-gray-400">Span ID:</strong> <span className="font-mono">{getSafeStr(log.SpanId)}</span></div>
+                                    <div><strong className="text-gray-400">Severity:</strong> {getSafeStr(log.SeverityText)}</div>
+                                  </>
+                                )}
+                              </div>
+                            </div>
+                            <div className="bg-[#090d13] p-3 rounded-md border border-white/5">
+                              <span className="text-xs text-gray-500 block uppercase font-bold mb-1">Immune Context</span>
+                              <div className="space-y-1 text-xs">
+                                <div><strong className="text-gray-400">Source Agent:</strong> {getSafeStr(log.Attributes?.["agent.source"] || log.source)}</div>
+                                <div><strong className="text-gray-400">Target Agent:</strong> {getSafeStr(log.Attributes?.["agent.target"] || log.target)}</div>
+                                <div><strong className="text-gray-400">Result Action:</strong> {getSafeStr(log.Attributes?.["action"] || (isSuccess ? "healed" : "dropped"))}</div>
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="bg-[#090d13] p-3 rounded-md border border-white/5">
+                            <span className="text-xs text-gray-500 block uppercase font-bold mb-2">Raw JSON Attributes</span>
+                            <pre className="text-2xs font-mono text-green-400 bg-black/60 p-3 rounded overflow-x-auto border border-white/5 max-h-60 overflow-y-auto">
+                              {JSON.stringify(log, null, 2)}
+                            </pre>
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                  </React.Fragment>
                 );
               })}
             </tbody>
