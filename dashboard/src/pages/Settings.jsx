@@ -55,11 +55,6 @@ const Settings = () => {
   const [activeTab, setActiveTab] = useState('API Keys');
   const [searchTerm, setSearchTerm] = useState("");
 
-  const handleLanguageChange = (e) => {
-    i18n.changeLanguage(e.target.value);
-    localStorage.setItem('i18nextLng', e.target.value);
-  };
-
   React.useEffect(() => {
     if (initialConfig) setConfig(initialConfig);
   }, [initialConfig]);
@@ -97,23 +92,6 @@ const Settings = () => {
           <SettingsIcon className="w-6 h-6 text-blue-400" />
           {t('settings.title')}
         </h2>
-
-        <div className="flex items-center gap-3 bg-black/40 p-2 rounded-lg border border-white/10">
-          <Globe className="w-5 h-5 text-gray-400" />
-          <div className="flex flex-col">
-            <span className="text-xs text-gray-400 font-semibold">{t('settings.language')}</span>
-            <select
-              value={i18n.language}
-              onChange={handleLanguageChange}
-              className="bg-transparent text-white border-none focus:ring-0 cursor-pointer text-sm font-medium"
-            >
-              <option value="en">English</option>
-              <option value="tr">Türkçe</option>
-              <option value="de">Deutsch</option>
-              <option value="fr">Français</option>
-            </select>
-          </div>
-        </div>
       </div>
 
       {(() => {
