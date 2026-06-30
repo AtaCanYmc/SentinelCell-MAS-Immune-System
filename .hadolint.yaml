@@ -1,0 +1,3 @@
+ignored:
+  - DL3008 # Pin packages in apt-get install (avoids broken builds due to debian mirrors pruning)
+  - DL3015 # Avoid additional packages in apt-get
