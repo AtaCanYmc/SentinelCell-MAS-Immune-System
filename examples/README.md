@@ -176,3 +176,38 @@ python examples/semantic_drift_test.py
 <div align="center">
   <i>"SentinelCell: Because your Multi-Agent System shouldn't collapse from a single hallucination."</i>
 </div>
+
+## 🔧 New Requirements & Mock‑LLM Workflow
+
+### Graceful Shutdown
+All example scripts now ensure the SentinelCell client is cleanly stopped. Each script wraps its main logic in a `try ... finally` block and calls:
+
+```python
+await sentinel.stop()
+```
+
+at the end. This prevents lingering MCP stdio connections and avoids `RuntimeError: Attempted to exit cancel scope …`.
+
+### Mock LLM Mode
+Running the examples no longer requires real LLM API keys.
+
+1. The `LLMFactory` automatically falls back to a lightweight `MockChatModel` when:
+   * the environment variable `MOCK_LLM=true` is set, **or**
+   * the required provider API key is missing or contains a placeholder value (e.g., `your_openai_api_key`).
+
+2. To enable mock mode locally, simply set the variable before execution:
+
+```bash
+export MOCK_LLM=true   # Bash/Zsh
+python examples/basic_usage.py
+```
+
+or let the helper `examples/util.py` detect missing keys and set the flag automatically.
+
+### Helper Utilities (`examples/util.py`)
+A new module provides:
+
+* `setup_mock_environment()` – Detects missing keys and sets `MOCK_LLM=true`.
+* `shutdown_sentinel(sentinel)` – Safely stops the client.
+
+All example scripts import and use these helpers, making them runnable out‑of‑the‑box in any environment.

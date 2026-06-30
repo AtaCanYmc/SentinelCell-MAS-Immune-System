@@ -5,6 +5,9 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to Semantic Versioning.
 
+### [0.1.1] - 2026-06-30
+- [Fixed] {DECISION-019}: Fixed example scripts lifespan (ensured proper shutdown of `SentinelCell` and MCP stdio connections) and added `MockChatModel` fallback to allow offline/credential-less execution of all self-healing example simulations.
+
 ### [0.1.0] - 2026-06-21
 - [Fixed] {DECISION-018}: Corrected outdated `src.healer` import to `src.skills.repair` in `.github/workflows/sentinel_ci.yml` Sandbox verification step following the modular refactoring.
 - [Added] {DECISION-017}: Drafted `SECURITY.md` and `CONTRIBUTING.md` and updated `README.md` to fully comply with `.antigravity/readme_standards.md`.

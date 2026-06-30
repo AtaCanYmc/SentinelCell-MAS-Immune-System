@@ -33,22 +33,24 @@ async def main():
     # 2. SentinelCell Intercepts (Middleware)
     console.print("[yellow][SentinelCell] Intercepting traffic...[/yellow]")
     sentinel = SentinelCell()
-
-    # The Consumer (Agent_Beta) strictly expects a 'message' string alongside 'status'
-    result = await sentinel.intercept(
-        source="Producer", target="Agent_Beta", payload=raw_data
-    )
-
-    # 3. Consumer receives data ONLY if valid/healed
-    if result:
-        console.print(
-            "[bold cyan][SentinelCell] Traffic cleared. Forwarding to Consumer...[/bold cyan]"
+    try:
+        # The Consumer (Agent_Beta) strictly expects a 'message' string alongside 'status'
+        result = await sentinel.intercept(
+            source="Producer", target="Agent_Beta", payload=raw_data
         )
-        consumer.process_data(result)
-    else:
-        console.print(
-            "[bold red][SentinelCell] Traffic blocked. Consumer protected from bad data.[/bold red]"
-        )
+
+        # 3. Consumer receives data ONLY if valid/healed
+        if result:
+            console.print(
+                "[bold cyan][SentinelCell] Traffic cleared. Forwarding to Consumer...[/bold cyan]"
+            )
+            consumer.process_data(result)
+        else:
+            console.print(
+                "[bold red][SentinelCell] Traffic blocked. Consumer protected from bad data.[/bold red]"
+            )
+    finally:
+        await sentinel.stop()
 
 
 if __name__ == "__main__":
