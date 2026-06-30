@@ -31,7 +31,7 @@ jobs:
           ruff format --check .
 
       - name: Lint Dockerfiles (Hadolint)
-        uses: hadolint/hadolint-action@a73ae89037c756209586118d538611186a59600e # v3.1.0
+        uses: hadolint/hadolint-action@v3.1.0
         with:
           dockerfile: Dockerfile
 
