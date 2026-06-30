@@ -31,6 +31,7 @@ services:
       context: .
       dockerfile: Dockerfile
     container_name: sentinelcell_fastapi
+    restart: unless-stopped
     command: ["gunicorn", "src.gateways.fastapi_gateway:app", "-w", "4", "-k", "uvicorn.workers.UvicornWorker", "-b", "0.0.0.0:8000"]
     environment:
       - REDIS_URL=redis://redis:6379/0
@@ -52,6 +53,7 @@ services:
       context: .
       dockerfile: Dockerfile
     container_name: sentinelcell_redis_worker
+    restart: unless-stopped
     command: ["python", "-m", "src.gateways.ingress_mq"]
     environment:
       - REDIS_URL=redis://redis:6379/0
@@ -68,6 +70,7 @@ services:
       context: ./dashboard
       dockerfile: Dockerfile
     container_name: sentinelcell_dashboard
+    restart: unless-stopped
     ports:
       - "3000:8080"
     networks:
@@ -86,6 +89,7 @@ services:
   redis:
     image: redis:7-alpine
     container_name: sentinelcell_redis
+    restart: unless-stopped
     ports:
       - "6379:6379"
     networks:

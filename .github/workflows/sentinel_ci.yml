@@ -50,6 +50,16 @@ jobs:
           echo "Running dependency vulnerability audit..."
           pip-audit -r requirements.txt
 
+      - name: Phase 1.6 - Static Application Security Testing (Bandit)
+        run: |
+          pip install bandit
+          bandit -r src/ -x tests/ -ll
+
+      - name: Phase 1.7 - Lint Dockerfiles (Hadolint)
+        uses: hadolint/hadolint-action@54c9adbab1582c2da04b2016b760714a4bbde3cf # v3.1.0
+        with:
+          dockerfile: Dockerfile
+
       - name: Phase 2 - Unit Testing & Coverage Control
         run: |
           echo "Executing Pytest and verifying coverage >= 50%..."
