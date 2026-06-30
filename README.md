@@ -96,13 +96,13 @@ flowchart TD
     Intercept -.->|6. Websocket Streams| Dashboard
 ```
 
-### 🔄 Lifecycle of a Packet (Veri Akış Yaşam Döngüsü)
-1. **Intercept (Yakalama):** Producer Agent, bir hedefe veri yolladığında FastAPI Gateway (veya Envoy Proxy) paketi yakalar.
-2. **Sanitize (Temizleme):** `SecuritySanitizer` paketteki olası prompt injection ve zararlı regex paternlerini (Hex/Base64 dahil) tarar. Saldırı varsa paket anında düşürülür (Fail-Closed).
-3. **Validate (Şema Kontrolü):** Paket, MCP Schema Registry'den çekilen güncel şemaya göre sorgulanır. Doğruysa hemen alıcıya iletilir (0ms ek gecikme).
-4. **Heal (Otomatik Onarım):** Şema uyumsuzsa, LangGraph orchestrator devreye girerek LLM tabanlı onarım başlatır. Onarılan veri **Jaccard Benzerlik** (Semantic Drift Guard) filtresinden (>%30 koruma) geçer.
-5. **Outbox Log & Forward (Arka Plan Kayıt):** Başarılı onarım sonrası paket alıcıya iletilirken, log kaydı Redis Outbox sırasına atılır ve `outbox_worker.py` tarafından arka planda veritabanına (VectorDB) asenkron yazılır.
-6. **Quarantine / DLQ (Karantina):** Onarılamayan veya güvenlik ihlali yaratan paketler Redis Dead Letter Queue'ya (DLQ) yönlendirilir.
+### 🔄 Lifecycle of a Packet
+1. **Intercept:** The FastAPI Gateway (or Envoy Proxy) intercepts the communication packet sent from a Producer Agent to a Target Agent.
+2. **Sanitize:** The `SecuritySanitizer` scans the payload for potential prompt injections and malicious patterns (including Hex/Base64 obfuscation). If an attack is detected, the packet is instantly dropped (Fail-Closed).
+3. **Validate:** The payload is validated against the schema fetched from the MCP Schema Registry. If valid, the packet is immediately forwarded to the target consumer (0ms overhead).
+4. **Heal:** If a schema mismatch occurs, the LangGraph orchestrator triggers LLM-based healing. Repaired JSON payloads are verified using a deterministic **Jaccard Similarity** (Semantic Drift Guard) filter (requires >30% value retention).
+5. **Outbox Log & Forward:** Once repaired and validated, the payload is forwarded to the consumer while logs are pushed to a Redis outbox. The `outbox_worker.py` service asynchronously writes these logs to the Vector Database in the background.
+6. **Quarantine / DLQ:** Any unrepairable payload or security breach attempts are routed to the Redis Dead Letter Queue (DLQ) for isolation.
 
 ---
 
@@ -326,17 +326,17 @@ We welcome contributions and feedback!
 
 ## 11. Troubleshooting & FAQ
 
-#### S1: `git commit` yaptığımda testler veya hooklar hata veriyor, ne yapmalıyım?
+#### Q1: Tests or git commit hooks fail when I try to commit, what should I do?
 > [!TIP]
-> SentinelCell repolarında otomatik kod biçimlendiriciler (`black`, `trailing-whitespace`) devrededir. Eğer commitleme başarısız olursa, hooklar dosyayı otomatik düzenlemiştir. `git add -A` yapıp tekrar commit etmeniz yeterlidir.
+> SentinelCell uses automated formatters (`black`, `trailing-whitespace`) as git pre-commit hooks. If a commit fails initially, the hooks have formatted your files. Simply run `git add -A` and commit again.
 
-#### S2: Local Ollama (Llama 3) çalıştırırken onarımlar çok yavaş veya zaman aşımına uğruyor?
+#### Q2: LLM repairs are slow or timing out when using local Ollama (Llama 3)?
 > [!IMPORTANT]
-> Yerel makinenizde GPU desteği yoksa CPU üzerinde model çalıştırma gecikmeleri yaşanabilir. `.env` içerisindeki `PROVIDER_ORDER` listesinde hızlı testler için `OPENAI` veya `GROQ` sağlayıcılarını öne alabilirsiniz.
+> If your local machine lacks GPU acceleration, running models on CPU may cause delays. You can adjust the `PROVIDER_ORDER` in `.env` to prioritize cloud APIs like `OPENAI` or `GROQ` for faster developer loops.
 
-#### S3: Redis veya Postgres bağlantı hataları alıyorum?
+#### Q3: I get connection errors for Redis or Postgres?
 > [!WARNING]
-> `./setup.sh` sihirbazını çalıştırdığınızdan emin olun. Bu betik gerekli `.env` parametrelerini ve Docker ağ köprülerini (`sentinel_net`) otomatik yapılandıracaktır.
+> Make sure you ran the `./setup.sh` deployment wizard. This script configures the required `.env` variables and sets up the docker bridge network (`sentinel_net`) automatically.
 
 ---
 
