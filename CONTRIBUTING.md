@@ -8,7 +8,7 @@ To run the project locally on bare-metal (without Docker) for development:
 
 ```bash
 # 1. Clone the repo
-git clone https://github.com/your-org/SentinelCell-MAS-Immune-System.git
+git clone https://github.com/atacanymc/SentinelCell-MAS-Immune-System.git
 cd SentinelCell-MAS-Immune-System
 
 # 2. Setup Virtual Environment

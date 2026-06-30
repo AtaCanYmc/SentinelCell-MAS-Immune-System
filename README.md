@@ -20,12 +20,13 @@
 - [2. Problem Statement](#2-problem-statement)
 - [3. The SentinelCell Solution](#3-the-sentinelcell-solution)
 - [4. Architecture](#4-architecture)
-- [5. Capability Matrix](#5-capability-matrix)
-- [6. Prerequisites & Quick Start](#6-prerequisites--quick-start)
-- [7. Deployment / DX](#7-deployment--dx)
-- [8. Visual Proof & Examples](#8-visual-proof--examples)
-- [9. Documentation & Community](#9-documentation--community)
-- [10. License](#10-license)
+- [5. Project Structure](#5-project-structure)
+- [6. Capability Matrix](#6-capability-matrix)
+- [7. Prerequisites & Quick Start](#7-prerequisites--quick-start)
+- [8. Deployment / DX](#8-deployment--dx)
+- [9. Visual Proof & Examples](#9-visual-proof--examples)
+- [10. Documentation & Community](#10-documentation--community)
+- [11. License](#11-license)
 
 ---
 
@@ -96,7 +97,29 @@ flowchart TD
 
 ---
 
-## 5. Capability Matrix
+## 5. Project Structure
+
+```text
+├── ADR/                    # Architecture Decision Records (ADR)
+├── assets/                 # Brand assets and design logos
+├── dashboard/              # React + Vite live telemetry monitoring dashboard
+├── docs/                   # Deep technical documentation and user guides
+├── examples/               # Chaos simulation scenarios (prompt injection, drift)
+├── src/                    # Main SentinelCell source code
+│   ├── agents/             # LangGraph-based validator and repair nodes
+│   ├── core/               # Centralized schema registry, validation logic, and sanitizers
+│   ├── gateways/           # FastAPI gateway, MQ proxy interceptor, and WebSockets
+│   ├── mcp_integration/    # Model Context Protocol integration layers
+│   ├── utils/              # Cryptographic log verifier, CLI formatters, and telemetry
+│   └── main.py             # Application gateway startup script
+├── tests/                  # Robust pytest unit and integration test suite
+├── simulate.py             # Interactive Command Center for running simulations
+└── skills.yaml             # Codeless dynamic validation rules schema
+```
+
+---
+
+## 6. Capability Matrix
 
 | Feature | Description | Stack / Tech |
 |---------|-------------|--------------|
@@ -132,7 +155,7 @@ flowchart TD
 
 ---
 
-## 6. Prerequisites & Quick Start
+## 7. Prerequisites & Quick Start
 
 ### Prerequisites
 - Python 3.11+
@@ -144,7 +167,7 @@ Get the Immune System up and running in under a minute:
 
 ```bash
 # 1. Clone the repository
-git clone https://github.com/your-org/SentinelCell-MAS-Immune-System.git
+git clone https://github.com/atacanymc/SentinelCell-MAS-Immune-System.git
 cd SentinelCell-MAS-Immune-System
 
 # 2. Run the interactive deployment wizard
@@ -155,7 +178,7 @@ chmod +x setup.sh
 
 ---
 
-## 7. Deployment / DX
+## 8. Deployment / DX
 
 If you prefer manual configuration over the `setup.sh` wizard:
 
@@ -163,13 +186,27 @@ If you prefer manual configuration over the `setup.sh` wizard:
 ```bash
 cp .env.example .env
 ```
-Edit `.env` with at least these core keys:
-```ini
-# .env minimal example
-OPENAI_API_KEY="sk-..."
-REDIS_URL="redis://localhost:6379/0"
-API_KEY_SECRET="super-secret-gateway-key"
-PROVIDER_ORDER="OPENAI,ANTHROPIC,LOCAL_OLLAMA"
+Edit `.env` with your provider keys. Here is a description of the key configuration variables:
+
+| Environment Variable | Default Value | Description |
+| :--- | :--- | :--- |
+| `OPENAI_API_KEY` | `""` | API Key for OpenAI models. |
+| `ANTHROPIC_API_KEY` | `""` | API Key for Anthropic models. |
+| `GROQ_API_KEY` | `""` | API Key for Groq models. |
+| `REDIS_URL` | `redis://localhost:6379/0` | URL for the Redis instance used for caching, rate limiting, and DLQ. |
+| `API_KEY_SECRET` | `""` | Shared secret key to authorize client agent requests at the FastAPI Gateway. |
+| `PROVIDER_ORDER` | `OPENAI,ANTHROPIC,LOCAL_OLLAMA` | Preferred order of model providers for the auto-healing fallback mechanism. |
+| `MONITORING_MODE` | `active` | Set to `passive` for zero-latency sniffer-only mode, or `active` for fail-closed intercept. |
+
+### Codeless Skill Injection (`skills.yaml`)
+You can inject dynamic JSON schema rules on the fly without changing Python code. The schema is defined in [skills.yaml](file:///Users/atacan/ata-codes/SentinelCell-MAS-Immune-System/skills.yaml):
+
+```yaml
+# Example skills.yaml configuration
+skills:
+  - name: "InternalDB"
+    description: "Strict database write validation schema"
+    schema_path: "schemas.json" # Maps to targets in the Schema Registry
 ```
 
 ### Docker Execution (Hybrid Gateways)
@@ -194,7 +231,7 @@ npm run dev
 
 ---
 
-## 8. Visual Proof & Examples
+## 9. Visual Proof & Examples
 
 ### Real-Time Interception Output
 When SentinelCell detects an obfuscated Prompt Injection attack, operators receive immediate, clear terminal observability:
@@ -226,6 +263,17 @@ You can now run all 41 simulations via the interactive Command Center. These exa
 ```bash
 python simulate.py
 ```
+
+### 🧪 Running Unit & Integration Tests
+
+The test suite validates LLM auto-healing fallbacks, prompt injection shields, and cryptographic log verification. Run tests locally using:
+
+```bash
+# Run pytest with coverage metrics
+pytest tests/ -v --cov=src --cov-report=term-missing
+```
+For more detailed info, refer to the [Testing & Coverage Guide](file:///Users/atacan/ata-codes/SentinelCell-MAS-Immune-System/docs/testing_guide.md).
+
 > **Developer Note on Examples**: Because SentinelCell employs robust `asyncio` background workers (e.g., Dead Letter Queues, Redis Message Brokers) running infinite event-loops, some individual scripts may appear to "hang" after completing their standard output. This is expected behavior as background daemons await further packets. Use `Ctrl+C` to exit safely or integrate `.close()` hooks in your custom workflows.
 
 Alternatively, run these chaos simulations individually (ensure your `.env` is configured):
@@ -235,7 +283,7 @@ Alternatively, run these chaos simulations individually (ensure your `.env` is c
 
 ---
 
-## 9. Documentation & Community
+## 10. Documentation & Community
 
 ### 📖 Technical Docs
 Explore our detailed documentation for a deeper dive:
@@ -251,13 +299,13 @@ Explore our detailed documentation for a deeper dive:
 
 ### 🤝 Community & Support
 We welcome contributions and feedback!
-- **Found a bug?** Please open an issue in the [GitHub Issues](https://github.com/your-org/SentinelCell-MAS-Immune-System/issues) tab.
-- **Have an idea or question?** Join the conversation in [GitHub Discussions](https://github.com/your-org/SentinelCell-MAS-Immune-System/discussions).
+- **Found a bug?** Please open an issue in the [GitHub Issues](https://github.com/atacanymc/SentinelCell-MAS-Immune-System/issues) tab.
+- **Have an idea or question?** Join the conversation in [GitHub Discussions](https://github.com/atacanymc/SentinelCell-MAS-Immune-System/discussions).
 - **Contributing:** Please see our [CONTRIBUTING.md](CONTRIBUTING.md) for details on our development environment setup (pytest, linting) and the process for submitting Pull Requests.
 
 ---
 
-## 10. License
+## 11. License
 
 This project is licensed under the **Apache License 2.0**. See the `LICENSE` file for details.
 
