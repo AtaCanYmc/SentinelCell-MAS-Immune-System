@@ -24,5 +24,14 @@ class LogBroadcaster:
             # Log the error but do not raise it to avoid interrupting the main immune system loop
             logger.error("Failed to broadcast log to Redis: %s", e)
 
+    async def shutdown(self):
+        """Gracefully close the Redis client connection.
+        This is a no‑op if the client is already closed.
+        """
+        try:
+            await self.client.close()
+        except Exception:
+            pass
+
 
 broadcaster = LogBroadcaster()
