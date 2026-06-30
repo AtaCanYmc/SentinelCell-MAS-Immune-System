@@ -11,7 +11,7 @@ services:
       - discovery.seed_hosts=elasticsearch-2
       - cluster.initial_master_nodes=elasticsearch-1,elasticsearch-2
       - xpack.security.enabled=true
-      - ELASTIC_PASSWORD=${ELASTICSEARCH_PASSWORD:-supersecret_es_pass}
+      - ELASTIC_PASSWORD=${ELASTICSEARCH_PASSWORD}
       - "ES_JAVA_OPTS=${ES_JAVA_OPTS:--Xms512m -Xmx512m}"
     volumes:
       - elastic_data_1:/usr/share/elasticsearch/data
@@ -34,7 +34,7 @@ services:
       - discovery.seed_hosts=elasticsearch-1
       - cluster.initial_master_nodes=elasticsearch-1,elasticsearch-2
       - xpack.security.enabled=true
-      - ELASTIC_PASSWORD=${ELASTICSEARCH_PASSWORD:-supersecret_es_pass}
+      - ELASTIC_PASSWORD=${ELASTICSEARCH_PASSWORD}
       - "ES_JAVA_OPTS=${ES_JAVA_OPTS:--Xms512m -Xmx512m}"
     volumes:
       - elastic_data_2:/usr/share/elasticsearch/data
@@ -118,7 +118,7 @@ services:
       - /var/lib/docker/containers:/var/lib/docker/containers:ro
       - /var/run/docker.sock:/var/run/docker.sock:ro
     environment:
-      - ELASTICSEARCH_PASSWORD=${ELASTICSEARCH_PASSWORD:-supersecret_es_pass}
+      - ELASTICSEARCH_PASSWORD=${ELASTICSEARCH_PASSWORD}
       - ELASTICSEARCH_USER=${ELASTICSEARCH_USER:-elastic}
     depends_on:
       elasticsearch-1:

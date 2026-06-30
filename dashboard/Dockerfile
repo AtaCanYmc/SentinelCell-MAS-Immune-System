@@ -10,12 +10,18 @@ COPY . .
 RUN npm run build
 
 FROM nginx:alpine
+# Fix permissions so Nginx can run as non-root user
+RUN chown -R nginx:nginx /usr/share/nginx/html /var/cache/nginx /var/log/nginx /etc/nginx/conf.d
+RUN touch /var/run/nginx.pid && chown nginx:nginx /var/run/nginx.pid
+
 # Copy the built assets to the Nginx html folder
-COPY --from=build /app/dist /usr/share/nginx/html
+COPY --from=build --chown=nginx:nginx /app/dist /usr/share/nginx/html
 
 # Replace default Nginx configuration with our custom config
-COPY nginx.conf /etc/nginx/conf.d/default.conf
+COPY --chown=nginx:nginx nginx.conf /etc/nginx/conf.d/default.conf
 
-EXPOSE 80
+EXPOSE 8080
+
+USER nginx
 
 CMD ["nginx", "-g", "daemon off;"]

@@ -69,7 +69,7 @@ services:
       dockerfile: Dockerfile
     container_name: sentinelcell_dashboard
     ports:
-      - "3000:80"
+      - "3000:8080"
     networks:
       - sentinel_net
     depends_on:
