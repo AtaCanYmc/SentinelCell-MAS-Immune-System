@@ -12,6 +12,7 @@ Welcome to the technical documentation library for SentinelCell. This index serv
 
 ### ⚙️ Integration & Storage
 - **[Client Integration Guide](file:///Users/atacan/ata-codes/SentinelCell-MAS-Immune-System/docs/client_integration.md)**: Complete guide on how external multi-agent systems interact with the FastAPI API Gateway.
+- **[Pluggable Message Brokers](file:///Users/atacan/ata-codes/SentinelCell-MAS-Immune-System/docs/message_brokers.md)**: Configuring Redis MQ, Apache Kafka, and RabbitMQ broker backends.
 - **[Database Agnostic Schema Registry](file:///Users/atacan/ata-codes/SentinelCell-MAS-Immune-System/docs/schema_registry.md)**: How to configure different database providers (Redis, Postgres, Supabase, SQLite, Mongo, Firestore) for the central Schema Registry.
 - **[Vector Database Setup](file:///Users/atacan/ata-codes/SentinelCell-MAS-Immune-System/docs/vector_databases.md)**: Setup and configurations for adaptive memory backends (ChromaDB, PGVector, Pinecone).
 
