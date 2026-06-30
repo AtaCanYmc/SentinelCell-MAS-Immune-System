@@ -36,6 +36,17 @@ jobs:
           fi
           echo "Safety Scan Passed."
 
+      - name: Phase 1.5 - Linting & Security Scan
+        run: |
+          echo "Installing quality and audit tools..."
+          pip install ruff pip-audit
+          echo "Running Ruff linter..."
+          ruff check .
+          echo "Running Ruff formatter check..."
+          ruff format --check .
+          echo "Running dependency vulnerability audit..."
+          pip-audit -r requirements.txt
+
       - name: Phase 2 - Unit Testing & Coverage Control
         run: |
           echo "Executing Pytest and verifying coverage >= 50%..."

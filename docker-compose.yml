@@ -26,7 +26,7 @@ services:
       context: .
       dockerfile: Dockerfile
     container_name: sentinelcell_fastapi
-    command: ["uvicorn", "src.gateways.fastapi_gateway:app", "--host", "0.0.0.0", "--port", "8000"]
+    command: ["gunicorn", "src.gateways.fastapi_gateway:app", "-w", "4", "-k", "uvicorn.workers.UvicornWorker", "-b", "0.0.0.0:8000"]
     environment:
       - REDIS_URL=redis://redis:6379/0
     networks:
