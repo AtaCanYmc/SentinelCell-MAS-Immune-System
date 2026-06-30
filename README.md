@@ -26,7 +26,8 @@
 - [8. Deployment / DX](#8-deployment--dx)
 - [9. Visual Proof & Examples](#9-visual-proof--examples)
 - [10. Documentation & Community](#10-documentation--community)
-- [11. License](#11-license)
+- [11. Troubleshooting & FAQ](#11-troubleshooting--faq)
+- [12. License](#12-license)
 
 ---
 
@@ -94,6 +95,14 @@ flowchart TD
     Quarantine -->|5b. Route to DLQ| Redis
     Intercept -.->|6. Websocket Streams| Dashboard
 ```
+
+### 🔄 Lifecycle of a Packet (Veri Akış Yaşam Döngüsü)
+1. **Intercept (Yakalama):** Producer Agent, bir hedefe veri yolladığında FastAPI Gateway (veya Envoy Proxy) paketi yakalar.
+2. **Sanitize (Temizleme):** `SecuritySanitizer` paketteki olası prompt injection ve zararlı regex paternlerini (Hex/Base64 dahil) tarar. Saldırı varsa paket anında düşürülür (Fail-Closed).
+3. **Validate (Şema Kontrolü):** Paket, MCP Schema Registry'den çekilen güncel şemaya göre sorgulanır. Doğruysa hemen alıcıya iletilir (0ms ek gecikme).
+4. **Heal (Otomatik Onarım):** Şema uyumsuzsa, LangGraph orchestrator devreye girerek LLM tabanlı onarım başlatır. Onarılan veri **Jaccard Benzerlik** (Semantic Drift Guard) filtresinden (>%30 koruma) geçer.
+5. **Outbox Log & Forward (Arka Plan Kayıt):** Başarılı onarım sonrası paket alıcıya iletilirken, log kaydı Redis Outbox sırasına atılır ve `outbox_worker.py` tarafından arka planda veritabanına (VectorDB) asenkron yazılır.
+6. **Quarantine / DLQ (Karantina):** Onarılamayan veya güvenlik ihlali yaratan paketler Redis Dead Letter Queue'ya (DLQ) yönlendirilir.
 
 ---
 
@@ -215,6 +224,16 @@ Spins up the FastAPI Gateway, Redis MQ Worker, and Nginx Dashboard securely:
 docker compose up -d --build
 ```
 
+### 🎛️ Docker Compose Multi-Profile Configs
+SentinelCell features modular docker compose files depending on your stack requirements:
+
+| Compose Command | Services Started | Use Case |
+| :--- | :--- | :--- |
+| `docker compose up -d` | FastAPI, Redis MQ, Dashboard, Redis | Standard production deployment. |
+| `docker compose -f docker-compose.yml -f docker-compose.ollama.yml up -d` | + Ollama (Llama3 local LLM) | 100% offline, zero-trust air-gapped setup. |
+| `docker compose -f docker-compose.yml -f docker-compose.infra.yml up -d` | + Envoy Proxy Sidecar | Transparent Proxy Mode setup for legacy agents. |
+| `docker compose -f docker-compose.yml -f docker-compose.observability.yml up -d` | + Prometheus, Grafana, Jaeger, Filebeat | Enterprise monitoring, distributed tracing & metrics. |
+
 **Optional: Run with Local LLM (Ollama & Llama3)**
 If you want to run the system in a 100% offline, Zero-Trust environment without cloud API keys, you can spin up the optional Ollama extension. This will automatically download and serve the `llama3` model locally:
 ```bash
@@ -305,7 +324,23 @@ We welcome contributions and feedback!
 
 ---
 
-## 11. License
+## 11. Troubleshooting & FAQ
+
+#### S1: `git commit` yaptığımda testler veya hooklar hata veriyor, ne yapmalıyım?
+> [!TIP]
+> SentinelCell repolarında otomatik kod biçimlendiriciler (`black`, `trailing-whitespace`) devrededir. Eğer commitleme başarısız olursa, hooklar dosyayı otomatik düzenlemiştir. `git add -A` yapıp tekrar commit etmeniz yeterlidir.
+
+#### S2: Local Ollama (Llama 3) çalıştırırken onarımlar çok yavaş veya zaman aşımına uğruyor?
+> [!IMPORTANT]
+> Yerel makinenizde GPU desteği yoksa CPU üzerinde model çalıştırma gecikmeleri yaşanabilir. `.env` içerisindeki `PROVIDER_ORDER` listesinde hızlı testler için `OPENAI` veya `GROQ` sağlayıcılarını öne alabilirsiniz.
+
+#### S3: Redis veya Postgres bağlantı hataları alıyorum?
+> [!WARNING]
+> `./setup.sh` sihirbazını çalıştırdığınızdan emin olun. Bu betik gerekli `.env` parametrelerini ve Docker ağ köprülerini (`sentinel_net`) otomatik yapılandıracaktır.
+
+---
+
+## 12. License
 
 This project is licensed under the **Apache License 2.0**. See the `LICENSE` file for details.
 
