@@ -148,15 +148,21 @@ async def test_healer_repair_node_semantic_drift(mock_factory):
 
 @pytest.mark.asyncio
 async def test_healer_repair_node_rate_limit():
+    from unittest.mock import AsyncMock
+
     with patch(
         "os.getenv",
         side_effect=lambda k, d=None: (
             "redis://localhost:6379" if k == "REDIS_URL" else d
         ),
     ):
-        with patch("redis.Redis.from_url") as mock_redis_func:
+        with patch("redis.asyncio.from_url") as mock_redis_func:
             mock_redis = MagicMock()
-            mock_redis.incr.return_value = 100  # Exceeds rate limit
+            mock_redis.incr = AsyncMock(return_value=100)  # Exceeds rate limit
+            mock_redis.expire = AsyncMock()
+            mock_redis.get = AsyncMock(return_value=None)
+            mock_redis.__aenter__ = AsyncMock(return_value=mock_redis)
+            mock_redis.__aexit__ = AsyncMock(return_value=None)
             mock_redis_func.return_value = mock_redis
 
             engine = SelfHealingEngine()

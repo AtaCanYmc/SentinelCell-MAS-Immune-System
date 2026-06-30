@@ -1,9 +1,9 @@
 import asyncio
 import aiomqtt
 import orjson
-from rich.console import Console
+from src.core.logger import get_console
 
-console = Console()
+console = get_console()
 
 
 class MQTTGateway:

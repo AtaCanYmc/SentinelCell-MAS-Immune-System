@@ -1,13 +1,87 @@
 import asyncio
 import os
 import jsonschema
-from rich.console import Console
+import ast
 from rich.panel import Panel
 from src.mcp_integration.client import SchemaRegistryClient
 from src.core.tracer import get_tracer
+from src.core.logger import get_console
 
-console = Console()
+console = get_console()
 tracer = get_tracer()
+
+
+def safe_eval(expression: str, context: dict) -> bool:
+    node = ast.parse(expression, mode="eval").body
+
+    def _eval(n):
+        if isinstance(n, ast.Constant):
+            return n.value
+        elif hasattr(ast, "Num") and isinstance(n, ast.Num):
+            return n.n
+        elif hasattr(ast, "Str") and isinstance(n, ast.Str):
+            return n.s
+        elif hasattr(ast, "Bytes") and isinstance(n, ast.Bytes):
+            return n.s
+        elif hasattr(ast, "NameConstant") and isinstance(n, ast.NameConstant):
+            return n.value
+        elif isinstance(n, ast.Name):
+            if n.id in context:
+                return context[n.id]
+            raise NameError(f"Name '{n.id}' is not defined or permitted")
+        elif isinstance(n, ast.BoolOp):
+            values = [_eval(v) for v in n.values]
+            if isinstance(n.op, ast.And):
+                return all(values)
+            elif isinstance(n.op, ast.Or):
+                return any(values)
+        elif isinstance(n, ast.UnaryOp):
+            operand = _eval(n.operand)
+            if isinstance(n.op, ast.Not):
+                return not operand
+            elif isinstance(n.op, ast.USub):
+                return -operand
+        elif isinstance(n, ast.Compare):
+            left = _eval(n.left)
+            for op, comparator in zip(n.ops, n.comparators):
+                right = _eval(comparator)
+                if isinstance(op, ast.Eq):
+                    left = left == right
+                elif isinstance(op, ast.NotEq):
+                    left = left != right
+                elif isinstance(op, ast.Lt):
+                    left = left < right
+                elif isinstance(op, ast.LtE):
+                    left = left <= right
+                elif isinstance(op, ast.Gt):
+                    left = left > right
+                elif isinstance(op, ast.GtE):
+                    left = left >= right
+                elif isinstance(op, ast.In):
+                    left = left in right
+                elif isinstance(op, ast.NotIn):
+                    left = left not in right
+                else:
+                    raise TypeError(f"Unsupported comparison operator: {type(op)}")
+            return left
+        elif isinstance(n, ast.Subscript):
+            val = _eval(n.value)
+            idx = _eval(n.slice)
+            return val[idx]
+        elif isinstance(n, ast.Attribute):
+            val = _eval(n.value)
+            if n.attr.startswith("_"):
+                raise AttributeError("Access to private attributes is blocked")
+            return getattr(val, n.attr)
+        elif isinstance(n, ast.Call):
+            func = _eval(n.func)
+            args = [_eval(arg) for arg in n.args]
+            keywords = {kw.arg: _eval(kw.value) for kw in n.keywords}
+            return func(*args, **keywords)
+        else:
+            raise TypeError(f"Unsupported AST node type: {type(n)}")
+
+    return bool(_eval(node))
 
 
 class SecuritySanitizer:
@@ -320,7 +394,7 @@ class SemanticValidator:
                     try:
                         import json
 
-                        if not eval(condition, {"payload": data, "json": json}):  # nosec B307
+                        if not safe_eval(condition, {"payload": data, "json": json}):
                             return (
                                 False,
                                 schema,

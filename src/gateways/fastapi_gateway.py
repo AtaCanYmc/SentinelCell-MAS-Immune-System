@@ -4,6 +4,7 @@ import asyncio
 import time
 import dotenv
 from pydantic import BaseModel
+from contextlib import asynccontextmanager
 from fastapi import (
     FastAPI,
     Request,
@@ -14,7 +15,7 @@ from fastapi import (
     Header,
 )
 from fastapi.responses import HTMLResponse, JSONResponse
-from rich.console import Console
+from src.core.logger import get_console
 
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from fastapi.staticfiles import StaticFiles
@@ -22,11 +23,99 @@ import redis.asyncio as redis
 from src.agents.validator_agent import SentinelCell
 from prometheus_client import make_asgi_app
 
-console = Console()
+console = get_console()
+
+
+# Startup Environment and Credential Validation (Fail-Fast Policy)
+def _validate_startup_config():
+    import sys
+
+    if "pytest" in sys.modules:
+        return
+
+    # 1. Base requirements
+    redis_url = os.getenv("REDIS_URL")
+    if not redis_url:
+        console.print(
+            "[bold yellow][!] Warning: REDIS_URL not set. Running with local fallback state.[/bold yellow]"
+        )
+
+    # 2. Schema Registry requirements
+    registry_provider = os.getenv("SCHEMA_REGISTRY_PROVIDER", "REDIS").upper()
+    if registry_provider == "SUPABASE":
+        if not os.getenv("SUPABASE_URL") or not os.getenv("SUPABASE_KEY"):
+            raise ValueError(
+                "SCHEMA_REGISTRY_PROVIDER is SUPABASE, but SUPABASE_URL or SUPABASE_KEY is missing."
+            )
+    elif registry_provider == "POSTGRES":
+        if not os.getenv("SCHEMA_POSTGRES_URI") and not os.getenv("POSTGRES_URI"):
+            raise ValueError(
+                "SCHEMA_REGISTRY_PROVIDER is POSTGRES, but SCHEMA_POSTGRES_URI or POSTGRES_URI is missing."
+            )
+
+    # 3. Vector DB requirements
+    vector_provider = os.getenv("VECTOR_DB_PROVIDER", "CHROMADB").upper()
+    if vector_provider == "PINECONE":
+        if not os.getenv("PINECONE_API_KEY"):
+            raise ValueError(
+                "VECTOR_DB_PROVIDER is PINECONE, but PINECONE_API_KEY is missing."
+            )
+    elif vector_provider == "PGVECTOR":
+        if not os.getenv("POSTGRES_URI"):
+            raise ValueError(
+                "VECTOR_DB_PROVIDER is PGVECTOR, but POSTGRES_URI is missing."
+            )
+
+    # 4. LLM Providers API Keys validation
+    providers_str = os.getenv("PROVIDER_ORDER", "OPENAI,LOCAL_OLLAMA,ANTHROPIC,GROQ")
+    providers = [p.strip().upper() for p in providers_str.split(",") if p.strip()]
+    for provider in providers:
+        if provider == "OPENAI" and not os.getenv("OPENAI_API_KEY"):
+            raise ValueError(
+                "LLM provider list contains OPENAI, but OPENAI_API_KEY is missing."
+            )
+        elif provider == "ANTHROPIC" and not os.getenv("ANTHROPIC_API_KEY"):
+            raise ValueError(
+                "LLM provider list contains ANTHROPIC, but ANTHROPIC_API_KEY is missing."
+            )
+        elif provider == "GROQ" and not os.getenv("GROQ_API_KEY"):
+            raise ValueError(
+                "LLM provider list contains GROQ, but GROQ_API_KEY is missing."
+            )
+        elif provider == "GEMINI" and not os.getenv("GEMINI_API_KEY"):
+            raise ValueError(
+                "LLM provider list contains GEMINI, but GEMINI_API_KEY is missing."
+            )
+        elif provider == "DEEPSEEK" and not os.getenv("DEEPSEEK_API_KEY"):
+            raise ValueError(
+                "LLM provider list contains DEEPSEEK, but DEEPSEEK_API_KEY is missing."
+            )
+
+
+_validate_startup_config()
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Startup
+    try:
+        await sentinel.mcp_client.start()
+    except Exception as e:
+        console.print(
+            f"[bold red]Failed to start persistent MCP client: {e}[/bold red]"
+        )
+    yield
+    # Shutdown
+    try:
+        await sentinel.stop()
+    except Exception as e:
+        console.print(f"[bold red]Failed to stop persistent MCP client: {e}[/bold red]")
+
 
 app = FastAPI(
     title="SentinelCell Guardian Gateway",
     description="Transparent API Gateway and Live Dashboard for Multi-Agent Systems",
+    lifespan=lifespan,
 )
 sentinel = SentinelCell()
 
@@ -470,11 +559,14 @@ async def get_agents(api_key: str = Depends(verify_api_key)):
     breakers = sentinel.orchestrator.agent_circuit_breakers
     result = []
     for agent, errors in breakers.items():
+        failures = (
+            errors.get("failures", 0) if isinstance(errors, dict) else (errors or 0)
+        )
         result.append(
             {
                 "id": agent,
                 "errors": errors,
-                "status": "TRIPPED" if errors >= threshold else "HEALTHY",
+                "status": "TRIPPED" if failures >= threshold else "HEALTHY",
                 "threshold": threshold,
             }
         )
@@ -484,7 +576,10 @@ async def get_agents(api_key: str = Depends(verify_api_key)):
 @app.post("/api/agents/{agent_id}/reset")
 async def reset_agent(agent_id: str, api_key: str = Depends(verify_api_key)):
     if agent_id in sentinel.orchestrator.agent_circuit_breakers:
-        sentinel.orchestrator.agent_circuit_breakers[agent_id] = 0
+        sentinel.orchestrator.agent_circuit_breakers[agent_id] = {
+            "failures": 0,
+            "last_failure_time": 0.0,
+        }
     return {"status": "ok", "agent": agent_id, "errors": 0}
 
 

@@ -2,24 +2,13 @@ import orjson
 from datetime import datetime
 from typing_extensions import TypedDict
 from langgraph.graph import StateGraph, END
-from rich.console import Console
 from rich.panel import Panel
 from rich.text import Text
-from rich.theme import Theme
 from src.core.telemetry import metrics
 from src.core.tracer import get_tracer, extract_trace_context, inject_trace_context
+from src.core.logger import get_console
 
-# Hackerman theme for rich
-custom_theme = Theme(
-    {
-        "info": "dim cyan",
-        "warning": "magenta",
-        "danger": "bold red",
-        "success": "bold green",
-        "hack": "bold bright_green",
-    }
-)
-console = Console(theme=custom_theme)
+console = get_console()
 tracer = get_tracer()
 
 

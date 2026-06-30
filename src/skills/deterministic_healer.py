@@ -1,8 +1,8 @@
 import orjson
 import re
-from rich.console import Console
+from src.core.logger import get_console
 
-console = Console()
+console = get_console()
 
 
 class DeterministicHealer:

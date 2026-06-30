@@ -1,15 +1,15 @@
 import os
 import json
 import asyncio
-from rich.console import Console
 from rich.panel import Panel
 
 from src.core.llm_factory import LLMFactory
 from src.mcp_integration.client import SchemaRegistryClient
 from src.core.tracer import get_tracer
 from src.core.prompt_manager import PromptManager
+from src.core.logger import get_console
 
-console = Console()
+console = get_console()
 tracer = get_tracer()
 
 

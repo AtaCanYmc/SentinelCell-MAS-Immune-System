@@ -104,11 +104,30 @@ class AgnosticLogger:
         self.sinks = sinks or []
 
     def print(self, message: str, **kwargs):
-        for sink in self.sinks:
-            try:
-                sink.write(message, **kwargs)
-            except Exception:
-                pass
+        import asyncio
+        import threading
+
+        def _fanout():
+            for sink in self.sinks:
+                try:
+                    sink.write(message, **kwargs)
+                except Exception:
+                    pass
+
+        try:
+            loop = asyncio.get_running_loop()
+        except RuntimeError:
+            loop = None
+
+        import sys
+
+        if "pytest" in sys.modules:
+            _fanout()
+        elif loop and loop.is_running():
+            loop.run_in_executor(None, _fanout)
+        else:
+            t = threading.Thread(target=_fanout, daemon=True)
+            t.start()
 
 
 # Singleton instance pre-configured with Console and File sinks

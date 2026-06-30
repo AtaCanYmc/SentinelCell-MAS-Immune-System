@@ -1,7 +1,6 @@
 import os
 import orjson
 import uuid
-from rich.console import Console
 from rich.panel import Panel
 from dotenv import load_dotenv
 from src.core.llm_factory import LLMFactory
@@ -9,11 +8,12 @@ from src.core.prompt_manager import PromptManager
 from src.core.broadcaster import broadcaster
 from src.core.memory_factory import MemoryFactory
 from src.core.tracer import get_tracer
+from src.core.logger import get_console
 
 tracer = get_tracer()
 
 load_dotenv()
-console = Console()
+console = get_console()
 
 
 class SelfHealingEngine:
@@ -52,7 +52,7 @@ class SelfHealingEngine:
         import time
         import os
         import hashlib
-        from redis import Redis
+        import redis.asyncio as redis
 
         # Semantic Caching
         payload_hash = hashlib.sha256(
@@ -60,21 +60,20 @@ class SelfHealingEngine:
         ).hexdigest()
         cache_key = f"sentinel:semantic_cache:{title}:{payload_hash}"
         redis_url = os.getenv("REDIS_URL")
-        r = None
         if redis_url:
             try:
-                r = Redis.from_url(redis_url)
-                cached_repair = r.get(cache_key)
-                if cached_repair:
-                    console.print(
-                        "[bold green][*] SEMANTIC CACHE HIT! Bypassing LLM. Latency: 1ms[/bold green]"
-                    )
-                    return {
-                        "payload": orjson.loads(cached_repair),
-                        "active_provider": "CACHE",
-                        "repair_attempts": attempts,
-                        "last_memory_id": None,
-                    }
+                async with redis.from_url(redis_url) as r:
+                    cached_repair = await r.get(cache_key)
+                    if cached_repair:
+                        console.print(
+                            "[bold green][*] SEMANTIC CACHE HIT! Bypassing LLM. Latency: 1ms[/bold green]"
+                        )
+                        return {
+                            "payload": orjson.loads(cached_repair),
+                            "active_provider": "CACHE",
+                            "repair_attempts": attempts,
+                            "last_memory_id": None,
+                        }
             except Exception:
                 pass
         else:
@@ -95,20 +94,20 @@ class SelfHealingEngine:
 
         if redis_url:
             try:
-                r = Redis.from_url(redis_url)
-                key = f"sentinel:llm_rate_limit:{current_min}"
-                count = r.incr(key)
-                if count == 1:
-                    r.expire(key, 60)
-                if count > rate_limit:
-                    console.print(
-                        f"[bold red][!] LLM Rate Limit Exceeded ({count} > {rate_limit}/min). Dropping repair.[/bold red]"
-                    )
-                    return {
-                        "is_valid": False,
-                        "error_context": "LLM Rate Limit Exceeded",
-                        "repair_attempts": attempts + 1,
-                    }
+                async with redis.from_url(redis_url) as r:
+                    key = f"sentinel:llm_rate_limit:{current_min}"
+                    count = await r.incr(key)
+                    if count == 1:
+                        await r.expire(key, 60)
+                    if count > rate_limit:
+                        console.print(
+                            f"[bold red][!] LLM Rate Limit Exceeded ({count} > {rate_limit}/min). Dropping repair.[/bold red]"
+                        )
+                        return {
+                            "is_valid": False,
+                            "error_context": "LLM Rate Limit Exceeded",
+                            "repair_attempts": attempts + 1,
+                        }
             except Exception:
                 pass
         else:
@@ -312,9 +311,12 @@ class SelfHealingEngine:
                     )
 
             # Save to Semantic Cache
-            if r:
+            if redis_url:
                 try:
-                    r.setex(cache_key, 3600, orjson.dumps(healed_data).decode("utf-8"))
+                    async with redis.from_url(redis_url) as r:
+                        await r.setex(
+                            cache_key, 3600, orjson.dumps(healed_data).decode("utf-8")
+                        )
                 except Exception:
                     pass
             else:
@@ -351,6 +353,7 @@ class SelfHealingEngine:
     @staticmethod
     def _log_decision(title: str, error_context: str, provider: str):
         import time
+        from opentelemetry import trace
         from src.core.telemetry import OpenTelemetryLog, OTelResource
 
         decision_id = f"DECISION-HEAL-{str(uuid.uuid4())[:8].upper()}"
@@ -363,11 +366,21 @@ class SelfHealingEngine:
         except Exception:
             logs = []
 
+        # Propagate active trace context
+        span = trace.get_current_span()
+        span_context = span.get_span_context() if span else None
+        if span_context and span_context.is_valid:
+            trace_id = format(span_context.trace_id, "032x")
+            span_id = format(span_context.span_id, "016x")
+        else:
+            trace_id = uuid.uuid4().hex
+            span_id = uuid.uuid4().hex[:16]
+
         # Enforce strict OpenTelemetry standard via Pydantic Schema
         otel_log = OpenTelemetryLog(
             Timestamp=int(time.time() * 1e9),
-            TraceId=uuid.uuid4().hex,
-            SpanId=uuid.uuid4().hex[:16],
+            TraceId=trace_id,
+            SpanId=span_id,
             TraceFlags=1,
             SeverityText="INFO",
             SeverityNumber=9,

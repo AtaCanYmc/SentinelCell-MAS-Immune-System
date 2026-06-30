@@ -3,9 +3,9 @@ import asyncio
 from src.core.broker_factory import BrokerFactory
 from src.core.tracer import get_tracer, inject_trace_context, extract_trace_context
 from src.agents.validator_agent import SentinelCell
-from rich.console import Console
+from src.core.logger import get_console
 
-console = Console()
+console = get_console()
 
 
 async def mq_worker():

@@ -45,6 +45,10 @@ class SentinelCell:
         self._local_error_timestamps = []
         self._local_quarantine_timestamp = 0.0
 
+    async def stop(self):
+        if hasattr(self, "mcp_client") and self.mcp_client:
+            await self.mcp_client.stop()
+
     async def _get_quarantine_state(self):
         if self.redis_client:
             try:
