@@ -52,3 +52,19 @@ def inject_trace_context(payload_dict: dict) -> dict:
 def extract_trace_context(payload_dict: dict):
     """Extracts trace context from a dictionary and returns a Context object."""
     return _propagator.extract(payload_dict)
+
+
+def shutdown_tracer():
+    """Shutdown the tracer provider and its processors.
+    This is safe to call multiple times.
+    """
+    global _tracer
+    # The tracer provider is stored in the SDK's internal registry; we can retrieve it via trace.get_tracer_provider()
+    provider = trace.get_tracer_provider()
+    if hasattr(provider, "shutdown"):
+        try:
+            provider.shutdown()
+        except Exception:
+            # Log but ignore errors during shutdown
+            pass
+    _tracer = None
