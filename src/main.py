@@ -17,9 +17,9 @@ def main():
     # Start the FastAPI Guardian Gateway
     uvicorn.run(
         "src.gateways.fastapi_gateway:app",
-        host="0.0.0.0",
+        host="0.0.0.0",  # nosec B104
         port=8000,
-        reload=False,  # nosec B104
+        reload=False,
     )
 
 
