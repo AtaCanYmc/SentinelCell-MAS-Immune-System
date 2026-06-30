@@ -17,11 +17,18 @@
     <header class="glass-header">
       <div class="container nav-container">
         <div class="logo">Sentinel<span>Cell</span></div>
-        <nav>
+        <nav class="nav-links">
           <a href="#features">Features</a>
+          <a href="#agents">Agents</a>
           <a href="#architecture">Architecture</a>
+          <a href="#faq">FAQ</a>
           <a href="https://github.com/AtaCanYmc/SentinelCell-MAS-Immune-System" target="_blank" class="btn btn-outline">GitHub</a>
         </nav>
+        <div class="hamburger">
+          <span></span>
+          <span></span>
+          <span></span>
+        </div>
       </div>
     </header>
 
@@ -54,37 +61,329 @@
         </div>
       </section>
 
+      <!-- Trust Metrics -->
+      <section class="metrics container">
+        <div class="metrics-grid">
+          <div class="metric-item glass-card">
+            <h3 class="metric-value">&lt; 15ms</h3>
+            <p class="metric-label">Avg. Response Time</p>
+          </div>
+          <div class="metric-item glass-card">
+            <h3 class="metric-value">100%</h3>
+            <p class="metric-label">Open Source</p>
+          </div>
+          <div class="metric-item glass-card">
+            <h3 class="metric-value">∞</h3>
+            <p class="metric-label">Scalable Nodes</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- Tech Stack Infinite Scroll -->
+      <section class="tech-stack">
+        <div class="marquee">
+          <div class="marquee-content">
+            <span>LangChain</span><span>•</span>
+            <span>Envoy</span><span>•</span>
+            <span>Kafka</span><span>•</span>
+            <span>Docker</span><span>•</span>
+            <span>Ollama</span><span>•</span>
+            <span>PostgreSQL</span><span>•</span>
+            <span>Redis</span><span>•</span>
+            <span>ChromaDB</span><span>•</span>
+            <span>LangChain</span><span>•</span>
+            <span>Envoy</span><span>•</span>
+            <span>Kafka</span><span>•</span>
+            <span>Docker</span><span>•</span>
+            <span>Ollama</span><span>•</span>
+            <span>PostgreSQL</span><span>•</span>
+            <span>Redis</span><span>•</span>
+            <span>ChromaDB</span>
+          </div>
+        </div>
+      </section>
+
       <section id="features" class="features container">
         <h2 class="section-title">Core Capabilities</h2>
         <div class="grid">
-          <div class="glass-card feature-card" id="feature-1">
+          <div class="glass-card feature-card">
             <div class="icon-wrapper">🛡️</div>
             <h3>Autonomous Defense</h3>
-            <p>Self-learning agents collaborate to identify and mitigate anomalies without human intervention.</p>
+            <p>Self-learning agents collaborate to identify and mitigate anomalies without human intervention, replacing rigid static rules.</p>
           </div>
-          <div class="glass-card feature-card" id="feature-2">
+          <div class="glass-card feature-card">
             <div class="icon-wrapper">⚡</div>
             <h3>Real-Time Response</h3>
-            <p>Millisecond-level threat detection utilizing distributed ledger and vector databases.</p>
+            <p>Millisecond-level threat detection utilizing distributed ledger and vector databases to slash Mean Time To Respond (MTTR).</p>
           </div>
-          <div class="glass-card feature-card" id="feature-3">
+          <div class="glass-card feature-card">
             <div class="icon-wrapper">🧠</div>
             <h3>LLM Powered</h3>
-            <p>Leveraging advanced language models to interpret complex attack vectors and generate mitigation strategies.</p>
+            <p>Leveraging advanced language models to interpret complex attack vectors and generate human-readable mitigation strategies.</p>
           </div>
+        </div>
+      </section>
+
+      <!-- DX Code Showcase -->
+      <section class="dx-showcase container">
+        <div class="dx-grid">
+          <div class="dx-text">
+            <h2>Developer Experience First</h2>
+            <p>Configure complex multi-agent policies with simple, declarative YAML. The B-Cell agent automatically translates these human-readable configurations into distributed Envoy proxy rules across your entire cluster.</p>
+            <a href="https://github.com/AtaCanYmc/SentinelCell-MAS-Immune-System/tree/main/docs" target="_blank" class="btn btn-outline" style="margin-top: 1rem;">View Documentation</a>
+          </div>
+          <div class="terminal-box">
+            <div class="code-header">
+              <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+              <span class="title">policy.yaml</span>
+            </div>
+            <pre><code><span style="color:#ff5f56;">name</span>: <span style="color:#27c93f;">"Zero-Trust Edge"</span>
+<span style="color:#ff5f56;">trigger</span>:
+  <span style="color:#ffbd2e;">threshold</span>: 0.95
+  <span style="color:#ffbd2e;">anomaly_type</span>: <span style="color:#27c93f;">"L7_DDoS"</span>
+<span style="color:#ff5f56;">action</span>:
+  <span style="color:#ffbd2e;">type</span>: <span style="color:#27c93f;">"envoy_ratelimit"</span>
+  <span style="color:#ffbd2e;">rate</span>: <span style="color:#27c93f;">"10r/s"</span>
+  <span style="color:#ffbd2e;">duration</span>: <span style="color:#27c93f;">"5m"</span></code></pre>
+          </div>
+        </div>
+      </section>
+
+      <section id="agents" class="agents container">
+        <h2 class="section-title">Meet the Immune System</h2>
+        <div class="grid">
+          <div class="glass-card agent-card agent-macrophage">
+            <div class="agent-icon">🛡️</div>
+            <h3>Macrophage</h3>
+            <span class="agent-role">Network Traffic Analyzer</span>
+            <p>Ingests and analyzes high-volume network traffic, identifying anomalies and known signatures before they penetrate deeper into the network.</p>
+          </div>
+          <div class="glass-card agent-card agent-tcell">
+            <div class="agent-icon">🧠</div>
+            <h3>T-Cell</h3>
+            <span class="agent-role">Decision & Strategy Engine</span>
+            <p>LangChain powered LLM agent that evaluates complex attack vectors, querying vector databases for historical context to generate precise mitigation plans.</p>
+          </div>
+          <div class="glass-card agent-card agent-bcell">
+            <div class="agent-icon">⚡</div>
+            <h3>B-Cell</h3>
+            <span class="agent-role">Policy Enforcer</span>
+            <p>Translates mitigation strategies into actionable Envoy proxy rules, rapidly deploying "antibodies" across the network perimeter to neutralize threats.</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- Dashboard Teaser -->
+      <section id="dashboard" class="dashboard container">
+        <h2 class="section-title">Real-Time Threat Visibility</h2>
+        <div class="glass-card dashboard-mockup">
+          <div class="code-header">
+            <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+            <span class="title">SentinelCell Management Dashboard</span>
+          </div>
+          <div class="dash-body">
+            <div class="dash-sidebar">
+              <div class="dash-item active"></div>
+              <div class="dash-item"></div>
+              <div class="dash-item"></div>
+            </div>
+            <div class="dash-main">
+              <div class="dash-header-bar">
+                <div class="dash-stat"></div>
+                <div class="dash-stat"></div>
+                <div class="dash-stat"></div>
+              </div>
+              <div class="dash-chart">
+                <div class="chart-line"></div>
+              </div>
+              <div class="dash-grid">
+                <div class="dash-box">
+                  <div class="dash-log line1"></div>
+                  <div class="dash-log line2"></div>
+                </div>
+                <div class="dash-box">
+                  <div class="dash-log line1"></div>
+                  <div class="dash-log line2"></div>
+                  <div class="dash-log line3"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Persona Tabs -->
+      <section class="personas container">
+        <h2 class="section-title">Built for Your Entire Engineering Team</h2>
+        <div class="persona-tabs">
+          <div class="tab-buttons">
+            <button class="tab-btn active" data-tab="devops">DevOps & SRE</button>
+            <button class="tab-btn" data-tab="secops">SecOps Analyst</button>
+            <button class="tab-btn" data-tab="ciso">CISO</button>
+          </div>
+          <div class="tab-content glass-card">
+            <div class="tab-pane active" id="devops">
+              <div class="pane-icon">🛠️</div>
+              <h3>Automated Infrastructure Security</h3>
+              <p>No more manual firewall updates that break production. Deploy CI/CD compatible proxy configurations autonomously via B-Cell integration with your existing Envoy edge nodes.</p>
+            </div>
+            <div class="tab-pane" id="secops">
+              <div class="pane-icon">🛡️</div>
+              <h3>End Alert Fatigue</h3>
+              <p>Stop drowning in false positives. The T-Cell LLM agent triages logs via Vector Databases, escalating only true threats and providing human-readable, actionable remediation plans.</p>
+            </div>
+            <div class="tab-pane" id="ciso">
+              <div class="pane-icon">👔</div>
+              <h3>Proactive Zero-Trust</h3>
+              <p>Achieve compliance effortlessly. Microsecond-level response times and autonomous decision-making protect your critical data against 0-day attacks before they penetrate your network.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Comparison Table -->
+      <section id="comparison" class="comparison container">
+        <h2 class="section-title">SentinelCell vs. Traditional WAF</h2>
+        <div class="table-container glass-card">
+          <table>
+            <thead>
+              <tr>
+                <th>Feature</th>
+                <th>Traditional WAF / IDS</th>
+                <th class="highlight-col">SentinelCell MAS</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td>Rule Generation</td>
+                <td>Manual / Static Regex</td>
+                <td class="highlight-col">Autonomous (LLM-driven)</td>
+              </tr>
+              <tr>
+                <td>0-Day Threat Detection</td>
+                <td>Blind to unknown patterns</td>
+                <td class="highlight-col">Proactive anomaly detection</td>
+              </tr>
+              <tr>
+                <td>Response Mechanism</td>
+                <td>Alerts administrator</td>
+                <td class="highlight-col">Real-time Envoy policy deployment</td>
+              </tr>
+              <tr>
+                <td>System Architecture</td>
+                <td>Monolithic</td>
+                <td class="highlight-col">Microservices & Multi-Agent</td>
+              </tr>
+            </tbody>
+          </table>
         </div>
       </section>
 
       <section id="architecture" class="architecture container">
         <h2 class="section-title">Mission Critical Architecture</h2>
-        <div class="glass-card arch-card">
-          <p>SentinelCell uses a microservices-based approach with Envoy proxies, Kafka event streams, and LangChain orchestrated AI agents to ensure high availability and robust security.</p>
+        <div class="arch-visual">
+          <div class="node node-external">External Traffic</div>
+          <div class="arrow">↓</div>
+          <div class="node node-envoy">Envoy Proxy & WAF</div>
+          <div class="arrow">↓</div>
+          <div class="node node-kafka">Kafka Event Stream</div>
+          <div class="arrow">↓</div>
+          <div class="node-group">
+            <div class="node node-agent">Macrophage</div>
+            <div class="node node-agent">T-Cell (LLM)</div>
+            <div class="node node-agent">B-Cell</div>
+          </div>
+        </div>
+
+        <div class="quick-start">
+          <h3>Quick Start</h3>
+          <p>Get your local defense cluster running in seconds.</p>
+          <div class="terminal-box">
+            <div class="code-header">
+              <span class="dot red"></span><span class="dot yellow"></span><span class="dot green"></span>
+              <span class="title">bash</span>
+            </div>
+            <pre><code><span class="prompt">$</span> git clone https://github.com/AtaCanYmc/SentinelCell-MAS-Immune-System.git
+<span class="prompt">$</span> cd SentinelCell-MAS-Immune-System
+<span class="prompt">$</span> docker-compose up -d</code></pre>
+          </div>
+        </div>
+      </section>
+
+      <!-- FAQ Section -->
+      <section id="faq" class="faq container">
+        <h2 class="section-title">Frequently Asked Questions</h2>
+        <div class="faq-list">
+          <div class="faq-item glass-card">
+            <button class="faq-question">Which LLMs are supported by the T-Cell agent? <span class="faq-icon">+</span></button>
+            <div class="faq-answer">
+              <p>SentinelCell uses LangChain, meaning it supports a wide variety of models. You can use OpenAI's GPT models or run entirely local, privacy-first models via Ollama (e.g., Llama 3).</p>
+            </div>
+          </div>
+          <div class="faq-item glass-card">
+            <button class="faq-question">How does it integrate with existing infrastructure? <span class="faq-icon">+</span></button>
+            <div class="faq-answer">
+              <p>The system leverages Envoy Proxy. You place Envoy at your network edge or ingress, and the B-Cell agent automatically streams dynamic mitigation rules directly to Envoy without disrupting normal traffic.</p>
+            </div>
+          </div>
+          <div class="faq-item glass-card">
+            <button class="faq-question">Is it suitable for high-throughput environments? <span class="faq-icon">+</span></button>
+            <div class="faq-answer">
+              <p>Yes. By utilizing Kafka event streams and distributed vector databases, the agents process network logs asynchronously, ensuring the core proxy performance remains unaffected.</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="bottom-cta container">
+        <div class="glass-card cta-card">
+          <h2>Secure your infrastructure with biological precision.</h2>
+          <p>Join the open-source revolution in autonomous cyber defense.</p>
+
+          <div class="newsletter-form">
+            <input type="email" placeholder="Enter your email for project updates..." class="glass-input">
+            <button class="btn btn-primary">Join Waitlist</button>
+          </div>
+
+          <div class="cta-actions">
+            <a href="https://github.com/AtaCanYmc/SentinelCell-MAS-Immune-System" target="_blank" class="btn btn-outline">Star on GitHub</a>
+          </div>
         </div>
       </section>
     </main>
 
-    <footer class="glass-footer">
-      <div class="container footer-content">
+    <!-- Premium Footer -->
+    <footer class="premium-footer">
+      <div class="container footer-grid">
+        <div class="footer-brand">
+          <div class="logo">Sentinel<span class="pulse-text">Cell</span></div>
+          <p>An autonomous, multi-agent cybersecurity network inspired by the human immune system.</p>
+          <div class="system-status">
+            <span class="status-dot"></span> All Systems Operational
+          </div>
+        </div>
+        <div class="footer-links">
+          <div class="link-col">
+            <h4>Product</h4>
+            <a href="#features">Features</a>
+            <a href="#agents">Agents</a>
+            <a href="#architecture">Architecture</a>
+          </div>
+          <div class="link-col">
+            <h4>Resources</h4>
+            <a href="https://github.com/AtaCanYmc/SentinelCell-MAS-Immune-System/tree/main/docs" target="_blank">Documentation</a>
+            <a href="#faq">FAQ</a>
+            <a href="https://github.com/AtaCanYmc/SentinelCell-MAS-Immune-System/blob/main/LICENSE" target="_blank">License</a>
+          </div>
+          <div class="link-col">
+            <h4>Community</h4>
+            <a href="https://github.com/AtaCanYmc/SentinelCell-MAS-Immune-System" target="_blank">GitHub</a>
+            <a href="#">Discord</a>
+            <a href="#">X / Twitter</a>
+          </div>
+        </div>
+      </div>
+      <div class="container footer-bottom">
         <p>&copy; 2026 SentinelCell-MAS-Immune-System. Open Source.</p>
       </div>
     </footer>
