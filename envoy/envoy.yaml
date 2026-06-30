@@ -22,6 +22,11 @@ static_resources:
                   prefix: "/"
                 route:
                   cluster: fastapi_gateway_cluster
+                  timeout: 15s
+                  retry_policy:
+                    retry_on: "5xx,connect-failure,refused-stream"
+                    num_retries: 3
+                    per_try_timeout: 3s
           http_filters:
           - name: envoy.filters.http.router
             typed_config:

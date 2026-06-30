@@ -1,4 +1,15 @@
-FROM python:3.11-slim
+# Stage 1: Build dependencies
+FROM python:3.11-slim AS builder
+
+WORKDIR /build
+
+RUN apt-get update && apt-get install -y --no-install-recommends gcc python3-dev && rm -rf /var/lib/apt/lists/*
+
+COPY requirements.txt .
+RUN pip install --no-cache-dir --prefix=/install -r requirements.txt
+
+# Stage 2: Final minimal runner image
+FROM python:3.11-slim AS runner
 
 # Create a non-root user for security (Principle of Least Privilege)
 RUN groupadd -r sentinel && useradd -r -m -g sentinel sentinel
@@ -12,18 +23,14 @@ ENV PYTHONPATH=/app
 RUN mkdir -p /app /app/chroma_db /logs /temp && \
     chown -R sentinel:sentinel /app /app/chroma_db /logs /temp
 
+# Copy installed packages from builder to standard system path
+COPY --from=builder /install /usr/local
+
 # Set working directory
 WORKDIR /app
 
 # Switch to non-root user
 USER sentinel
-
-# Copy requirements and install them (user mode)
-COPY --chown=sentinel:sentinel requirements.txt .
-RUN pip install --no-cache-dir --user -r requirements.txt
-
-# Ensure the local user bin is in PATH
-ENV PATH="/home/sentinel/.local/bin:${PATH}"
 
 # Copy the rest of the application code
 COPY --chown=sentinel:sentinel . .

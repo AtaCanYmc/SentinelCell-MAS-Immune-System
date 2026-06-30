@@ -31,6 +31,14 @@ services:
       - REDIS_URL=redis://redis:6379/0
     networks:
       - sentinel_net
+    depends_on:
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
     <<: *sentinel-constraints
 
   # 2. Redis MQ Worker (Async Mode)
@@ -44,6 +52,9 @@ services:
       - REDIS_URL=redis://redis:6379/0
     networks:
       - sentinel_net
+    depends_on:
+      redis:
+        condition: service_healthy
     <<: *sentinel-constraints
 
   # 3. Dashboard Frontend (Nginx Isolated)
@@ -57,7 +68,8 @@ services:
     networks:
       - sentinel_net
     depends_on:
-      - fastapi_gateway
+      fastapi_gateway:
+        condition: service_healthy
     <<: *sentinel-constraints
     cap_drop:
       - MAC_ADMIN
@@ -76,6 +88,11 @@ services:
     volumes:
       - redis_data:/data
     command: ["redis-server", "--appendonly", "yes"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
 
   # 5. Local Ollama LLM (Conditional via Profile)
   ollama:
