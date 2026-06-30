@@ -1,4 +1,4 @@
-FROM node:20-alpine as build
+FROM --platform=$BUILDPLATFORM node:20-alpine as build
 WORKDIR /app
 
 # Install dependencies first for cache layer optimization
