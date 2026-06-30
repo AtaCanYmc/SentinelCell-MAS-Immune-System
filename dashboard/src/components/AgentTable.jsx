@@ -55,10 +55,10 @@ export const AgentTable = () => {
               <td className="px-4 py-3 text-right">
                 <button
                   onClick={() => resetMutation.mutate(agent.id)}
-                  disabled={resetMutation.isLoading || agent.status === 'HEALTHY'}
+                  disabled={resetMutation.isPending || agent.status === 'HEALTHY'}
                   className={`flex items-center gap-1 px-3 py-1 rounded text-xs ml-auto transition-colors ${agent.status === 'TRIPPED' ? 'bg-blue-600 hover:bg-blue-500 text-white' : 'bg-gray-800 text-gray-500 cursor-not-allowed'}`}
                 >
-                  <RefreshCw className={`w-3 h-3 ${resetMutation.isLoading ? 'animate-spin' : ''}`} />
+                  <RefreshCw className={`w-3 h-3 ${resetMutation.isPending ? 'animate-spin' : ''}`} />
                   Reset Breaker
                 </button>
               </td>

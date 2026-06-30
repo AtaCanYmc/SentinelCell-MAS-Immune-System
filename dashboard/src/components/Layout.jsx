@@ -1,6 +1,6 @@
 import React from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
-import { Shield, Activity, ShieldAlert, Settings, Zap, List, MessageSquare, Database } from 'lucide-react';
+import { Shield, Activity, ShieldAlert, Settings, Zap, List, MessageSquare, Database, Globe } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 
@@ -17,7 +17,7 @@ const fetchConfig = async () => {
 };
 
 const Layout = ({ children }) => {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const location = useLocation();
 
   const getTabClass = (path) => {
@@ -58,12 +58,31 @@ const Layout = ({ children }) => {
             <p className="text-sm text-gray-400">MAS Command Center</p>
           </div>
         </div>
-        <div className="flex items-center gap-3">
-          <span className="flex h-3 w-3 relative">
-            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-            <span className="relative inline-flex rounded-full h-3 w-3 bg-green-500"></span>
-          </span>
-          <span className="font-semibold text-green-400">Live Telemetry</span>
+        <div className="flex items-center gap-6">
+          <div className="flex items-center gap-2 bg-black/40 px-3 py-1.5 rounded-lg border border-white/10 text-xs">
+            <Globe className="w-4 h-4 text-gray-400" />
+            <select
+              value={i18n.language}
+              onChange={(e) => {
+                i18n.changeLanguage(e.target.value);
+                localStorage.setItem('i18nextLng', e.target.value);
+              }}
+              className="bg-transparent text-gray-300 border-none focus:ring-0 cursor-pointer font-medium text-xs focus:outline-none"
+            >
+              <option value="en">English</option>
+              <option value="tr">Türkçe</option>
+              <option value="de">Deutsch</option>
+              <option value="fr">Français</option>
+            </select>
+          </div>
+
+          <div className="flex items-center gap-3">
+            <span className="flex h-3 w-3 relative">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-3 w-3 bg-green-500"></span>
+            </span>
+            <span className="font-semibold text-green-400">Live Telemetry</span>
+          </div>
         </div>
       </header>
 
@@ -123,6 +142,10 @@ const Layout = ({ children }) => {
         <NavLink to="/chat" className={getTabClass('/chat')}>
           <MessageSquare className="w-5 h-5" />
           {t('sidebar.chat_test')}
+        </NavLink>
+        <NavLink to="/examples" className={getTabClass('/examples')}>
+          <Zap className="w-5 h-5" />
+          {t('sidebar.examples')}
         </NavLink>
       </div>
 

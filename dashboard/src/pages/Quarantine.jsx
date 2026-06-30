@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { ShieldAlert, Edit3, Play } from 'lucide-react';
+import { ShieldAlert, Edit3, Play, Loader2 } from 'lucide-react';
 import CodeMirror from '@uiw/react-codemirror';
 import { json } from '@codemirror/lang-json';
 import { useHotkeys } from 'react-hotkeys-hook';
@@ -18,6 +18,7 @@ const Quarantine = () => {
   const dlqItems = Array.isArray(rawDlqItems) ? rawDlqItems : [];
 
   const [editingDlq, setEditingDlq] = useState(null);
+  const [activeTab, setActiveTab] = useState('edit'); // 'edit' | 'diff'
   const [replayMessage, setReplayMessage] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 5;
@@ -100,46 +101,66 @@ const Quarantine = () => {
                       <Edit3 className="w-4 h-4" /> Edit
                     </button>
                     <button onClick={() => handleReplay(item)} disabled={replayMutation.isPending} className="px-3 py-1 bg-green-500/20 text-green-400 rounded hover:bg-green-500/30 flex items-center gap-1 text-sm transition-colors disabled:opacity-50">
-                      <Play className="w-4 h-4" /> Replay
+                      {replayMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4" />} Replay
                     </button>
                   </div>
                 </div>
 
                 {editingDlq?.idx === idx ? (
-                  <div className="border border-blue-500/50 rounded-md overflow-hidden bg-black/50">
-                    <div className="p-2 bg-gray-900 border-b border-gray-700 text-xs font-semibold text-gray-300">
-                      Live Diff Viewer
+                  <div className="border border-blue-500/30 rounded-md overflow-hidden bg-black/50">
+                    <div className="flex bg-gray-900 border-b border-white/10 text-xs font-semibold text-gray-300">
+                      <button
+                        onClick={() => setActiveTab('edit')}
+                        className={`px-4 py-2 border-r border-white/5 transition-all ${
+                          activeTab === 'edit'
+                            ? 'bg-[#58a6ff]/10 text-[#58a6ff] font-bold'
+                            : 'text-gray-400 hover:text-gray-200'
+                        }`}
+                      >
+                        Code Editor
+                      </button>
+                      <button
+                        onClick={() => setActiveTab('diff')}
+                        className={`px-4 py-2 border-r border-white/5 transition-all ${
+                          activeTab === 'diff'
+                            ? 'bg-[#58a6ff]/10 text-[#58a6ff] font-bold'
+                            : 'text-gray-400 hover:text-gray-200'
+                        }`}
+                      >
+                        Live Diff
+                      </button>
                     </div>
-                    <ReactDiffViewer
-                      oldValue={typeof item.payload === 'object' ? JSON.stringify(item.payload, null, 2) : item.payload}
-                      newValue={editingDlq.payload}
-                      splitView={true}
-                      useDarkTheme={true}
-                      compareMethod={DiffMethod.WORDS}
-                      styles={{
-                        variables: {
-                          dark: {
-                            diffViewerBackground: '#0d1117',
-                            addedBackground: '#042A16',
-                            addedColor: '#34d399',
-                            removedBackground: '#3F121C',
-                            removedColor: '#f87171',
-                            wordAddedBackground: '#055d20',
-                            wordRemovedBackground: '#7d1424'
+
+                    {activeTab === 'diff' ? (
+                      <ReactDiffViewer
+                        oldValue={typeof item.payload === 'object' ? JSON.stringify(item.payload, null, 2) : item.payload}
+                        newValue={editingDlq.payload}
+                        splitView={true}
+                        useDarkTheme={true}
+                        compareMethod={DiffMethod.WORDS}
+                        styles={{
+                          variables: {
+                            dark: {
+                              diffViewerBackground: '#0d1117',
+                              addedBackground: '#042A16',
+                              addedColor: '#34d399',
+                              removedBackground: '#3F121C',
+                              removedColor: '#f87171',
+                              wordAddedBackground: '#055d20',
+                              wordRemovedBackground: '#7d1424'
+                            }
                           }
-                        }
-                      }}
-                    />
-                    <div className="p-2 bg-gray-900 border-y border-gray-700 text-xs font-semibold text-gray-300">
-                      Editor (CodeMirror)
-                    </div>
-                    <CodeMirror
-                      value={editingDlq.payload}
-                      height="200px"
-                      theme="dark"
-                      extensions={[json()]}
-                      onChange={(value) => setEditingDlq({...editingDlq, payload: value})}
-                    />
+                        }}
+                      />
+                    ) : (
+                      <CodeMirror
+                        value={editingDlq.payload}
+                        height="220px"
+                        theme="dark"
+                        extensions={[json()]}
+                        onChange={(value) => setEditingDlq({...editingDlq, payload: value})}
+                      />
+                    )}
                   </div>
                 ) : (
                   <pre className="bg-[#0d1117] p-3 rounded text-xs text-gray-300 overflow-x-auto border border-white/5 whitespace-pre-wrap">
@@ -150,7 +171,8 @@ const Quarantine = () => {
                 {editingDlq?.idx === idx && (
                   <div className="mt-4 flex justify-between items-center">
                     <span className="text-xs text-gray-500">Tip: Press <kbd className="bg-gray-800 px-1 py-0.5 rounded">Cmd/Ctrl + Enter</kbd> to save & replay</span>
-                    <button onClick={() => handleReplay(editingDlq)} disabled={replayMutation.isPending} className="px-4 py-1.5 bg-[#58a6ff] text-white rounded text-sm font-medium hover:bg-blue-600 transition-colors disabled:opacity-50">
+                    <button onClick={() => handleReplay(editingDlq)} disabled={replayMutation.isPending} className="px-4 py-1.5 bg-[#58a6ff] hover:bg-blue-600 text-white rounded text-sm font-medium transition-colors disabled:opacity-50 flex items-center gap-1.5">
+                      {replayMutation.isPending && <Loader2 className="w-4 h-4 animate-spin" />}
                       Save & Replay
                     </button>
                   </div>

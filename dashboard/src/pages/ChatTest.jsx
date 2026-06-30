@@ -1,24 +1,24 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Send, Bot, User, Loader2 } from 'lucide-react';
+import { Send, Bot, Loader2, Trash2 } from 'lucide-react';
 
 export default function ChatTest() {
   const { t, i18n } = useTranslation();
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
+  const [provider, setProvider] = useState('OPENAI');
   const wsRef = useRef(null);
 
   useEffect(() => {
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     // If running in dev server (Vite - port 5173), point to 8000.
-    // Port 3000 is Nginx in Docker, which proxies requests, so use window.location.host.
     const host = window.location.port === '5173'
       ? `${window.location.hostname}:8000`
       : window.location.host;
 
     const lang = i18n.language || 'en';
-    const wsUrl = `${protocol}//${host}/ws/chat?lang=${lang}`;
+    const wsUrl = `${protocol}//${host}/ws/chat?lang=${lang}&provider=${provider}`;
 
     const connectWs = () => {
       console.log('Connecting to WebSocket:', wsUrl);
@@ -50,8 +50,8 @@ export default function ChatTest() {
       };
 
       wsRef.current.onclose = () => {
-        // Simple reconnect logic if needed
-        setTimeout(connectWs, 3000);
+        // Simple reconnect logic on abnormal close
+        // Only reconnect if state is not unmounted
       };
     };
 
@@ -62,7 +62,7 @@ export default function ChatTest() {
         wsRef.current.close();
       }
     };
-  }, []);
+  }, [provider, i18n.language]);
 
   const sendMessage = async (e) => {
     e.preventDefault();
@@ -81,6 +81,11 @@ export default function ChatTest() {
     }
   };
 
+  const clearChat = () => {
+    setMessages([]);
+    setLoading(false);
+  };
+
   const messagesEndRef = useRef(null);
 
   const scrollToBottom = () => {
@@ -92,18 +97,46 @@ export default function ChatTest() {
   }, [messages, loading]);
 
   return (
-    <div className="flex flex-col h-[calc(100vh-280px)] min-h-[550px] max-w-6xl mx-auto bg-gray-900 border border-gray-800 rounded-xl overflow-hidden shadow-2xl">
+    <div className="flex flex-col h-[calc(100vh-280px)] min-h-[550px] max-w-6xl mx-auto bg-gray-900 border border-gray-800 rounded-xl overflow-hidden shadow-2xl animate-in fade-in duration-300">
       <div className="bg-gray-800 p-4 border-b border-gray-700 flex items-center justify-between">
         <h2 className="text-lg font-semibold flex items-center gap-2">
-          <Bot className="text-blue-400" />
+          <Bot className="text-[#58a6ff]" />
           {t('chat.title')}
         </h2>
+
+        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-gray-400 font-semibold">{t('chat.provider') || 'Provider'}:</span>
+            <select
+              value={provider}
+              onChange={(e) => { setProvider(e.target.value); clearChat(); }}
+              className="bg-black/50 border border-white/10 rounded px-2.5 py-1 text-xs text-gray-200 focus:outline-none focus:border-blue-500 transition-colors cursor-pointer font-medium"
+            >
+              <option value="OPENAI">OpenAI GPT</option>
+              <option value="ANTHROPIC">Anthropic Claude</option>
+              <option value="GEMINI">Google Gemini</option>
+              <option value="GROQ">Groq LLaMA</option>
+              <option value="LOCAL_OLLAMA">Local Ollama</option>
+            </select>
+          </div>
+
+          <button
+            onClick={clearChat}
+            className="p-1.5 hover:bg-white/5 rounded text-gray-400 hover:text-red-400 transition-colors border border-white/5"
+            title="Clear Chat History"
+          >
+            <Trash2 size={16} />
+          </button>
+        </div>
       </div>
 
       <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-[#0a0a0a]">
         {messages.length === 0 && (
-          <div className="text-center text-gray-500 mt-20">
-            {t('chat.title')}
+          <div className="flex flex-col items-center justify-center h-full text-center text-gray-500 max-w-md mx-auto">
+            <Bot className="w-12 h-12 text-[#58a6ff] opacity-40 mb-4" />
+            <p className="text-sm">
+              Start a diagnostic chat session with the Immune system validator model. You can type commands, ask security questions, or mock anomalies.
+            </p>
           </div>
         )}
 
@@ -121,14 +154,14 @@ export default function ChatTest() {
                   <Bot size={12} /> {msg.provider}
                 </div>
               )}
-              <div className="whitespace-pre-wrap leading-relaxed">{msg.content}</div>
+              <div className="whitespace-pre-wrap leading-relaxed text-sm">{msg.content}</div>
             </div>
           </div>
         ))}
         {loading && (
           <div className="flex items-start">
-            <div className="bg-gray-800 border border-gray-700 rounded-2xl rounded-bl-none p-4 flex items-center gap-2 text-gray-400">
-              <Loader2 className="animate-spin" size={16} />
+            <div className="bg-gray-800 border border-gray-700 rounded-2xl rounded-bl-none p-4 flex items-center gap-2 text-gray-400 text-sm">
+              <Loader2 className="animate-spin text-blue-400" size={16} />
               Thinking...
             </div>
           </div>
@@ -144,12 +177,12 @@ export default function ChatTest() {
             onChange={(e) => setInput(e.target.value)}
             placeholder={t('chat.placeholder')}
             disabled={loading}
-            className="w-full bg-gray-900 border border-gray-700 rounded-full py-3 pl-4 pr-12 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-colors disabled:opacity-50"
+            className="w-full bg-gray-900 border border-gray-700 rounded-full py-3 pl-4 pr-12 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-colors disabled:opacity-50 text-sm text-gray-200 placeholder-gray-500"
           />
           <button
             type="submit"
             disabled={!input.trim() || loading}
-            className="absolute right-2 p-2 bg-blue-600 text-white rounded-full hover:bg-blue-500 disabled:bg-gray-700 disabled:text-gray-500 transition-colors"
+            className="absolute right-2 p-2 bg-blue-600 text-white rounded-full hover:bg-blue-505 transition-colors disabled:bg-gray-700 disabled:text-gray-500"
           >
             <Send size={18} />
           </button>

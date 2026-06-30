@@ -289,7 +289,9 @@ async def chat_test(req: ChatRequest, api_key: str = Depends(verify_api_key)):
 
 
 @app.websocket("/ws/chat")
-async def websocket_chat(websocket: WebSocket, lang: str = "en"):
+async def websocket_chat(
+    websocket: WebSocket, lang: str = "en", provider: str | None = None
+):
     """
     WebSocket endpoint for real-time LLM chat streaming.
     """
@@ -304,7 +306,8 @@ async def websocket_chat(websocket: WebSocket, lang: str = "en"):
     )
     from src.core.prompt_manager import PromptManager
 
-    provider = os.getenv("PROVIDER_ORDER", "OPENAI").split(",")[0].strip()
+    if not provider:
+        provider = os.getenv("PROVIDER_ORDER", "OPENAI").split(",")[0].strip()
 
     try:
         llm = LLMFactory.get_llm(provider)
@@ -635,3 +638,139 @@ async def replay_payload(req: ReplayRequest, api_key: str = Depends(verify_api_k
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@app.get("/api/examples")
+async def list_examples():
+    """Lists available interactive simulation examples with description."""
+    json_path = os.path.join("examples", "examples.json")
+    if not os.path.exists(json_path):
+        return {"examples": []}
+    try:
+        with open(json_path, "r", encoding="utf-8") as f:
+            examples = orjson.loads(f.read())
+        return {"examples": examples}
+    except Exception as e:
+        console.print(f"[bold red]Error reading examples.json:[/bold red] {e}")
+        return {"examples": []}
+
+
+@app.websocket("/ws/examples/run/{script_name}")
+async def ws_run_example(websocket: WebSocket, script_name: str):
+    """Runs a simulation script and streams stdout/stderr back in real-time."""
+    await websocket.accept()
+
+    safe_scripts = [
+        "adaptive_unlearning_demo.py",
+        "agent_trust_score_degradation.py",
+        "auth_bypass_injection.py",
+        "auto_schema_inference_sim.py",
+        "base64_poison_pill.py",
+        "basic_usage.py",
+        "chaos_monkey.py",
+        "circuit_breaker_recovery.py",
+        "custom_skill_demo.py",
+        "finance_schema_evolution.py",
+        "financial_drift_anomaly_sim.py",
+        "financial_transaction_replay.py",
+        "fintech_transaction_flow.py",
+        "high_concurrency_burst.py",
+        "high_concurrency_stress_test.py",
+        "human_in_the_loop_approval.py",
+        "iot_passive_monitoring.py",
+        "iot_telemetry_recovery.py",
+        "json_dos_attack.py",
+        "kafka_heavy_duty_sim.py",
+        "latency_benchmark.py",
+        "mq_simulation_demo.py",
+        "mqtt_iot_sensor_sim.py",
+        "multi_agent_flow.py",
+        "multi_language_drift.py",
+        "opentelemetry_tracing_sim.py",
+        "outbox_backpressure_test.py",
+        "poison_pill_demo.py",
+        "quarantine_mode_demo.py",
+        "rabbitmq_heavy_duty_sim.py",
+        "redis_atomic_dlq_sim.py",
+        "redis_outage_fallback.py",
+        "repair_prompt_injection_test.py",
+        "schema_cache_hit_demo.py",
+        "schema_evolution_conflict.py",
+        "security_injection_demo.py",
+        "semantic_drift_test.py",
+        "semantic_repair_cache_hit.py",
+        "silent_business_logic_corruption.py",
+        "stealth_financial_drift.py",
+        "wallet_exhaustion_dos_sim.py",
+    ]
+
+    if script_name not in safe_scripts:
+        await websocket.send_text(
+            orjson.dumps({"type": "error", "line": "Invalid script name."}).decode(
+                "utf-8"
+            )
+        )
+        await websocket.close()
+        return
+
+    script_path = os.path.join("examples", script_name)
+    if not os.path.exists(script_path):
+        await websocket.send_text(
+            orjson.dumps({"type": "error", "line": "Script file not found."}).decode(
+                "utf-8"
+            )
+        )
+        await websocket.close()
+        return
+
+    import sys
+
+    # Use current running python executable
+    python_bin = sys.executable
+
+    env = os.environ.copy()
+    env["PYTHONPATH"] = "."
+    env["PYTHONUNBUFFERED"] = "1"
+    env["MOCK_LLM"] = "true"  # Ensure it runs smoothly without raw API keys by default
+
+    process = None
+    try:
+        process = await asyncio.create_subprocess_exec(
+            python_bin,
+            script_path,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.STDOUT,
+            env=env,
+        )
+
+        while True:
+            line = await process.stdout.readline()
+            if not line:
+                break
+            line_str = line.decode("utf-8", errors="replace").rstrip()
+            await websocket.send_text(
+                orjson.dumps({"type": "stdout", "line": line_str}).decode("utf-8")
+            )
+
+        await process.wait()
+        exit_code = process.returncode
+        await websocket.send_text(
+            orjson.dumps({"type": "exit", "code": exit_code}).decode("utf-8")
+        )
+    except Exception as e:
+        await websocket.send_text(
+            orjson.dumps(
+                {"type": "error", "line": f"Execution error: {str(e)}"}
+            ).decode("utf-8")
+        )
+    finally:
+        if process and process.returncode is None:
+            try:
+                process.terminate()
+                await process.wait()
+            except Exception:
+                pass
+        try:
+            await websocket.close()
+        except Exception:
+            pass

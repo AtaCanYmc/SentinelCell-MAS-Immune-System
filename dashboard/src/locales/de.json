@@ -4,7 +4,8 @@
     "quarantine": "Quarantäne",
     "audit_logs": "Prüfprotokolle",
     "chat_test": "LLM Test Chat",
-    "settings": "Einstellungen"
+    "settings": "Einstellungen",
+    "examples": "Schnellbeispiele"
   },
   "settings": {
     "title": "Einstellungen",
