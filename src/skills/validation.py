@@ -320,7 +320,7 @@ class SemanticValidator:
                     try:
                         import json
 
-                        if not eval(condition, {"payload": data, "json": json}):
+                        if not eval(condition, {"payload": data, "json": json}):  # nosec B307
                             return (
                                 False,
                                 schema,

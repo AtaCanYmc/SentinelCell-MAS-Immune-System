@@ -16,7 +16,7 @@ class PromptManager:
             os.path.dirname(os.path.dirname(__file__)), "prompts"
         )
         # Use FileSystemLoader, which caches by default. We can also enable strict undefined if desired.
-        self.env = jinja2.Environment(
+        self.env = jinja2.Environment(  # nosec B701
             loader=jinja2.FileSystemLoader(prompts_dir),
             autoescape=False,  # Safe because these are LLM prompts, not HTML
             trim_blocks=True,
