@@ -1,6 +1,7 @@
 import pytest
 from testcontainers.redis import RedisContainer
 from src.core.registry_factory import RedisRegistryStore
+from tests.conftest import is_docker_available
 
 
 @pytest.fixture(scope="module")
@@ -13,6 +14,7 @@ def redis_container():
         yield redis
 
 
+@pytest.mark.skipif(not is_docker_available(), reason="Docker daemon is not running")
 @pytest.mark.asyncio
 async def test_redis_registry_integration(redis_container, monkeypatch):
     """

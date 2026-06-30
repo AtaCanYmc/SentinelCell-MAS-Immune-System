@@ -8,3 +8,17 @@ os.environ["GROQ_API_KEY"] = "test-groq-key"
 os.environ["GEMINI_API_KEY"] = "test-gemini-key"
 os.environ["DEEPSEEK_API_KEY"] = "test-deepseek-key"
 os.environ["PINECONE_API_KEY"] = "test-pinecone-key"
+
+
+def is_docker_available():
+    """
+    Checks if Docker daemon is running and reachable.
+    """
+    try:
+        import docker
+
+        client = docker.from_env()
+        client.ping()
+        return True
+    except Exception:
+        return False

@@ -1,6 +1,7 @@
 import pytest
 from testcontainers.postgres import PostgresContainer
 from src.core.registry_factory import PostgresRegistryStore
+from tests.conftest import is_docker_available
 
 
 @pytest.fixture(scope="module")
@@ -12,6 +13,7 @@ def postgres_container():
         yield postgres
 
 
+@pytest.mark.skipif(not is_docker_available(), reason="Docker daemon is not running")
 @pytest.mark.asyncio
 async def test_postgres_registry_integration(postgres_container, monkeypatch):
     """
