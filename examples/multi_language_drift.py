@@ -3,6 +3,9 @@ import httpx
 from src.gateways.fastapi_gateway import app
 import os
 from rich.console import Console
+from util import setup_mock_environment
+
+setup_mock_environment()
 
 console = Console()
 

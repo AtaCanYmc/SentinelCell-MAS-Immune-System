@@ -7,6 +7,9 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")
 from src.core.orchestrator import SentinelOrchestrator
 from src.skills.repair import SelfHealingEngine
 from rich.console import Console
+from util import setup_mock_environment
+
+setup_mock_environment()
 
 console = Console()
 

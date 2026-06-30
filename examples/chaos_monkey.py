@@ -3,6 +3,9 @@ import json
 from rich.console import Console
 from rich.panel import Panel
 from src.agents.validator_agent import SentinelCell
+from util import setup_mock_environment, shutdown_sentinel
+
+setup_mock_environment()
 
 console = Console()
 
@@ -66,7 +69,7 @@ async def chaos_monkey():
                     "[bold red]⛔ SYSTEM SECURED. Threat Dropped (Unrecoverable).[/bold red]"
                 )
 
-            await asyncio.sleep(2)
+            await asyncio.sleep(0.5)
 
         console.print(
             Panel.fit(
@@ -76,7 +79,7 @@ async def chaos_monkey():
             )
         )
     finally:
-        await sentinel.stop()
+        await shutdown_sentinel(sentinel)
 
 
 if __name__ == "__main__":

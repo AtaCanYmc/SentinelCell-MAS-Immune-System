@@ -2,6 +2,9 @@ import asyncio
 import os
 import json
 from rich.console import Console
+from util import setup_mock_environment, shutdown_sentinel
+
+setup_mock_environment()
 
 console = Console()
 
@@ -30,12 +33,12 @@ async def simulate_opentelemetry_tracing():
 
         with tracer.start_as_current_span("Ingress.SimulatedGateway") as ingress_span:
             ingress_span.set_attribute("message.source", "AgentAlpha")
-            ingress_span.set_attribute("message.target", "AgentBeta")
+            ingress_span.set_attribute("message.target", "Agent_Beta")
 
             # Inject context to pass to orchestrator
             envelope = {
                 "source": "AgentAlpha",
-                "target": "AgentBeta",
+                "target": "Agent_Beta",
                 "payload": json.dumps(dummy_payload),
             }
             inject_trace_context(envelope)
@@ -64,7 +67,7 @@ async def simulate_opentelemetry_tracing():
         console.print("\n[dim]Flushing OTel Spans...[/dim]")
         await asyncio.sleep(2)
     finally:
-        await sentinel.stop()
+        await shutdown_sentinel(sentinel)
 
 
 if __name__ == "__main__":

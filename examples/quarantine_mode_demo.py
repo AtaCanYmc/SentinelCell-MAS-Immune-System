@@ -4,6 +4,9 @@ import os
 from rich.console import Console
 from rich.panel import Panel
 from src.agents.validator_agent import SentinelCell
+from util import setup_mock_environment, shutdown_sentinel
+
+setup_mock_environment()
 
 console = Console()
 
@@ -74,7 +77,7 @@ async def main():
             "\n[bold green]✅ SYSTEM RECOVERED:[/bold green] Quarantine was lifted automatically after cooldown."
         )
     finally:
-        await sentinel.stop()
+        await shutdown_sentinel(sentinel)
 
 
 if __name__ == "__main__":

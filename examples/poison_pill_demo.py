@@ -9,6 +9,9 @@ from src.skills.validation import SemanticValidator
 from src.mcp_integration.client import SchemaRegistryClient
 from src.skills.repair import SelfHealingEngine
 from rich.console import Console
+from util import setup_mock_environment
+
+setup_mock_environment()
 
 console = Console()
 

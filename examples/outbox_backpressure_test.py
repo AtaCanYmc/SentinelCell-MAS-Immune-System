@@ -4,6 +4,9 @@ import os
 import time
 from redis.asyncio import Redis
 from rich.console import Console
+from util import setup_mock_environment
+
+setup_mock_environment()
 
 console = Console()
 
@@ -11,6 +14,14 @@ console = Console()
 async def simulate_backpressure():
     redis_url = os.getenv("REDIS_URL", "redis://localhost:6379/0")
     r = Redis.from_url(redis_url)
+
+    try:
+        await r.ping()
+    except Exception:
+        console.print(
+            "[bold yellow][!] Redis is not running. Skipping test.[/bold yellow]"
+        )
+        return
 
     console.print(
         "[bold yellow][*] Starting Outbox Backpressure Chaos Test[/bold yellow]"

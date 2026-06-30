@@ -67,6 +67,26 @@
     "name": "Semantic Drift Guard",
     "description": "Calculates Jaccard Similarity on LLM-repaired payloads to reject hallucinated keys.",
     "category": "Security",
-    "difficulty": "Hard"
+  },
+  {
+    "id": "antigravity_integrity_demo.py",
+    "name": "Cryptographic Integrity Check",
+    "description": "Demonstrates the Merkle Tree validation for agent decisions log to detect tampering.",
+    "category": "Security",
+    "difficulty": "Medium"
+  },
+  {
+    "id": "fastapi_live_server_demo.py",
+    "name": "FastAPI Gateway Live Demo",
+    "description": "Tests the real FastAPI gateway endpoints using an in-memory ASGI transport.",
+    "category": "Basic",
+    "difficulty": "Easy"
+  },
+  {
+    "id": "end_to_end_telemetry_demo.py",
+    "name": "End-to-End Telemetry Trace",
+    "description": "Demonstrates distributed tracing context propagation from Gateway to Healing Engine.",
+    "category": "Monitoring",
+    "difficulty": "Medium"
   }
 ]
