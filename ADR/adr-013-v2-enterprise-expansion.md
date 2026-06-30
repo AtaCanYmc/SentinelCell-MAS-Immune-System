@@ -1,7 +1,12 @@
 # ADR-013: V2 Enterprise Expansion (Admin UI, Automated DLQ, Advanced Security)
 
-## Status
-**Accepted**
+| Metadata | Details |
+| :--- | :--- |
+| **Date** | 2026-06-15 |
+| **Status** | `Accepted` |
+| **Author** | SentinelCell Core Architects |
+| **Deciders** | Technical Committee & Architecture Board |
+| **Relations** | Amends [ADR-007](adr-007-real-time-observability.md), [ADR-009](adr-009-guardian-mode-security-mitigations.md) |
 
 ## Context
 Following a deep architectural review of the SentinelCell multi-agent middleware, it was determined that while the core mechanisms (LangGraph Orchestration, LLM Self-Healing, and Agnostic Registries) were robust, the operational and administrative layers lacked enterprise-grade automation and visibility:

@@ -1,7 +1,12 @@
 # ADR-014: V3 Mission-Critical Architecture (Zero Fault Tolerance)
 
-## Status
-**Accepted**
+| Metadata | Details |
+| :--- | :--- |
+| **Date** | 2026-06-25 |
+| **Status** | `Accepted` |
+| **Author** | SentinelCell Core Architects |
+| **Deciders** | Technical Committee & Architecture Board |
+| **Relations** | Amends [ADR-001](adr-001-langgraph-orchestrator.md), [ADR-002](adr-002-mcp-registry.md), [ADR-012](adr-012-dynamic-configuration-and-fail-closed.md) |
 
 ## Context
 Following an extensive architectural review by the Technical Jury (scoring 8.5/10), the SentinelCell middleware was praised for its robust defense-in-depth and dynamic healing capabilities. However, three critical vulnerabilities were identified that prevented the system from achieving true "Mission-Critical" (Enterprise, Tier-1) status:
