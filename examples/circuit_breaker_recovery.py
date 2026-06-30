@@ -41,7 +41,7 @@ async def simulate_circuit_breaker_recovery():
     # 1. Trip the breaker
     console.print("\n[dim]Tripping the breaker...[/dim]")
     for i in range(4):
-        console.print(f"\n[cyan]Attempt {i+1}:[/cyan]")
+        console.print(f"\n[cyan]Attempt {i + 1}:[/cyan]")
         await orchestrator.intercept("spam_agent", "target", invalid_payload)
 
     # 2. Try while tripped

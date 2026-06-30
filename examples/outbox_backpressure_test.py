@@ -36,7 +36,7 @@ async def simulate_backpressure():
             console.print(f"[cyan]Pushed {i} items...[/cyan]")
 
     console.print(
-        f"[bold green][+] Finished pushing in {time.time()-start:.2f} seconds.[/bold green]"
+        f"[bold green][+] Finished pushing in {time.time() - start:.2f} seconds.[/bold green]"
     )
 
     # Check length

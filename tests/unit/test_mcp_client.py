@@ -10,9 +10,10 @@ def test_mcp_client_init():
 
 @pytest.mark.asyncio
 async def test_mcp_client_fetch():
-    with patch("src.mcp_integration.client.stdio_client") as mock_stdio, patch(
-        "src.mcp_integration.client.ClientSession"
-    ) as mock_session:
+    with (
+        patch("src.mcp_integration.client.stdio_client") as mock_stdio,
+        patch("src.mcp_integration.client.ClientSession") as mock_session,
+    ):
         mock_read = MagicMock()
         mock_write = MagicMock()
 

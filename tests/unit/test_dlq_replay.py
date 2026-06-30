@@ -29,9 +29,11 @@ def test_replay_dlq_success_and_poison():
 
     mock_redis = MagicMock()
 
-    with patch("os.path.exists", return_value=True), patch(
-        "builtins.open", mock_open(read_data=file_content)
-    ) as mock_file, patch("redis.Redis.from_url", return_value=mock_redis):
+    with (
+        patch("os.path.exists", return_value=True),
+        patch("builtins.open", mock_open(read_data=file_content)) as mock_file,
+        patch("redis.Redis.from_url", return_value=mock_redis),
+    ):
         replay_dlq()
 
         # Verify redis LPUSH was called once with the normal message

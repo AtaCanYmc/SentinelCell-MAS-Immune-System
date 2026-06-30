@@ -277,7 +277,7 @@ class SelfHealingEngine:
                     similarity = len(intersection) / len(orig_vals)
                     if similarity < float(os.getenv("SEMANTIC_DRIFT_THRESHOLD", "0.3")):
                         console.print(
-                            f"[bold red][!] SEMANTIC DRIFT DETECTED! Value retention: {similarity*100:.1f}%. Rejecting repair.[/bold red]"
+                            f"[bold red][!] SEMANTIC DRIFT DETECTED! Value retention: {similarity * 100:.1f}%. Rejecting repair.[/bold red]"
                         )
                         raise ValueError(
                             f"Semantic Drift: Payload lost critical original values. Retention: {similarity:.2f}"

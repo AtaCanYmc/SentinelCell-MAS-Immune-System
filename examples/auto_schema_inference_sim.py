@@ -44,7 +44,7 @@ async def run_auto_schema_simulation():
     )
 
     for i in range(5):
-        console.print(f"[dim]Sending Packet {i+1}/5...[/dim]")
+        console.print(f"[dim]Sending Packet {i + 1}/5...[/dim]")
         await sentinel.intercept(
             source="SensorNetwork",
             target=target_agent,

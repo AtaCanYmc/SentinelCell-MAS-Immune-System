@@ -34,7 +34,7 @@ async def simulate_wallet_exhaustion():
     payload = '{"amount": "broken"}'
 
     for i in range(5):
-        console.print(f"\n[cyan]Sending packet {i+1}...[/cyan]")
+        console.print(f"\n[cyan]Sending packet {i + 1}...[/cyan]")
         await orchestrator.intercept("malicious_agent", "target", payload)
 
 

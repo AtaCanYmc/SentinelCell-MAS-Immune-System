@@ -97,7 +97,7 @@ async def main():
     table.add_row(
         "Malformed Payload (LLM Healing)",
         "1",
-        f"{(heal_time_ms/1000):.4f}",
+        f"{(heal_time_ms / 1000):.4f}",
         f"{heal_time_ms:.2f} ms",
     )
 

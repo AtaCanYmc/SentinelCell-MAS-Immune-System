@@ -150,9 +150,9 @@ async def test_healer_repair_node_semantic_drift(mock_factory):
 async def test_healer_repair_node_rate_limit():
     with patch(
         "os.getenv",
-        side_effect=lambda k, d=None: "redis://localhost:6379"
-        if k == "REDIS_URL"
-        else d,
+        side_effect=lambda k, d=None: (
+            "redis://localhost:6379" if k == "REDIS_URL" else d
+        ),
     ):
         with patch("redis.Redis.from_url") as mock_redis_func:
             mock_redis = MagicMock()

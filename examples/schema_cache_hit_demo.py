@@ -24,7 +24,7 @@ async def main():
         )
         first_lat = time.time() - start
         console.print(
-            f"[bold yellow]First Request Latency (LLM): {first_lat*1000:.2f} ms[/bold yellow]"
+            f"[bold yellow]First Request Latency (LLM): {first_lat * 1000:.2f} ms[/bold yellow]"
         )
 
         # 100 fast requests
@@ -38,10 +38,10 @@ async def main():
             )
         total_lat = time.time() - start
         console.print(
-            f"[bold green]100 Cached Requests Total Latency: {total_lat*1000:.2f} ms[/bold green]"
+            f"[bold green]100 Cached Requests Total Latency: {total_lat * 1000:.2f} ms[/bold green]"
         )
         console.print(
-            f"[bold green]Average Cached Latency: {(total_lat/100)*1000:.2f} ms[/bold green]"
+            f"[bold green]Average Cached Latency: {(total_lat / 100) * 1000:.2f} ms[/bold green]"
         )
 
 

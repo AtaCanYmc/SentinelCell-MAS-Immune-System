@@ -48,7 +48,7 @@ async def simulate_semantic_cache_hit():
 
     if t2 < t1:
         console.print(
-            f"[bold cyan][+] Cache bypass successful. Latency improvement: {t1/t2:.1f}x[/bold cyan]"
+            f"[bold cyan][+] Cache bypass successful. Latency improvement: {t1 / t2:.1f}x[/bold cyan]"
         )
 
 

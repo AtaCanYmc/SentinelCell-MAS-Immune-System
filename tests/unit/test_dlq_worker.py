@@ -6,9 +6,10 @@ from src.gateways.dlq_worker import process_dlq
 
 @pytest.fixture
 def mock_dependencies():
-    with patch(
-        "src.gateways.dlq_worker.BrokerFactory.get_broker"
-    ) as mock_get_broker, patch("src.gateways.dlq_worker.asyncio.sleep") as mock_sleep:
+    with (
+        patch("src.gateways.dlq_worker.BrokerFactory.get_broker") as mock_get_broker,
+        patch("src.gateways.dlq_worker.asyncio.sleep") as mock_sleep,
+    ):
         mock_broker_instance = AsyncMock()
         mock_get_broker.return_value = mock_broker_instance
         mock_sleep.side_effect = Exception("stop_loop")

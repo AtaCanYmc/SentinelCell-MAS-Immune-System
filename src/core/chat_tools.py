@@ -3,13 +3,12 @@ import time
 import redis.asyncio as redis
 from langchain_core.tools import tool
 
+
 def get_chat_tools(sentinel_cell):
     """
     Factory function to generate LLM tools for the chat assistant.
     Captures the sentinel_cell instance to query agent circuit breakers dynamically.
     """
-
-
 
     @tool
     def get_operation_mode(reason: str) -> str:

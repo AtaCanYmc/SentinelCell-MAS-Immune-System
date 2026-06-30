@@ -48,9 +48,9 @@ async def test_mqtt_gateway_flow():
     mock_orchestrator = MagicMock()
     # Intercept returns clean data or dict
     mock_orchestrator.intercept = AsyncMock(
-        side_effect=lambda src, target, payload: {"cleaned": True}
-        if src == "agent_x"
-        else "cleaned_string"
+        side_effect=lambda src, target, payload: (
+            {"cleaned": True} if src == "agent_x" else "cleaned_string"
+        )
     )
 
     with patch("aiomqtt.Client", return_value=mock_client_context):
