@@ -18,6 +18,11 @@ services:
     restart: unless-stopped
     networks:
       - sentinel_net
+    healthcheck:
+      test: ["CMD-SHELL", "curl -s http://localhost:9200/_cluster/health | grep -q '\"status\":\"green\"\\|\"status\":\"yellow\"'"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   # 2. Elasticsearch Node 2 (Data/HA)
   elasticsearch-2:
@@ -116,7 +121,8 @@ services:
       - ELASTICSEARCH_PASSWORD=${ELASTICSEARCH_PASSWORD:-supersecret_es_pass}
       - ELASTICSEARCH_USER=${ELASTICSEARCH_USER:-elastic}
     depends_on:
-      - elasticsearch-1
+      elasticsearch-1:
+        condition: service_healthy
     restart: unless-stopped
     networks:
       - sentinel_net

@@ -18,6 +18,11 @@ x-sentinel-constraints: &sentinel-constraints
   tmpfs:
     - /temp
     - /tmp
+  logging:
+    driver: "json-file"
+    options:
+      max-size: "10m"
+      max-file: "3"
 
 services:
   # 1. FastAPI Gateway (Guardian Mode)
