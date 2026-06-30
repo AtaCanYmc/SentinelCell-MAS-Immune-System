@@ -640,80 +640,16 @@ async def replay_payload(req: ReplayRequest, api_key: str = Depends(verify_api_k
 @app.get("/api/examples")
 async def list_examples():
     """Lists available interactive simulation examples with description."""
-    return {
-        "examples": [
-            {
-                "id": "basic_usage.py",
-                "name": "Basic SentinelCell Usage",
-                "description": "Simple validation and LLM healing demonstration with missing fields.",
-                "category": "Basic",
-                "difficulty": "Easy",
-            },
-            {
-                "id": "chaos_monkey.py",
-                "name": "Chaos Monkey Simulation",
-                "description": "Random agent hallucinations, schema contract breaks, and garbage data mutation.",
-                "category": "Resilience",
-                "difficulty": "Medium",
-            },
-            {
-                "id": "security_injection_demo.py",
-                "name": "Adversarial Security Injection",
-                "description": "Malicious agent attempting prompt injection attacks to bypass constraints.",
-                "category": "Security",
-                "difficulty": "Hard",
-            },
-            {
-                "id": "latency_benchmark.py",
-                "name": "Latency & Performance Benchmark",
-                "description": "Fires 500 valid packets to measure caching vs 1 malformed packet with LLM healing.",
-                "category": "Performance",
-                "difficulty": "Medium",
-            },
-            {
-                "id": "quarantine_mode_demo.py",
-                "name": "Quarantine Fail-Safe Lockdown",
-                "description": "Triggers circuit breaker/quarantine after rapid succession of critical failures.",
-                "category": "Resilience",
-                "difficulty": "Hard",
-            },
-            {
-                "id": "poison_pill_demo.py",
-                "name": "Poison Pill Jailbreak Guard",
-                "description": "Instantly drops jailbreak/prompt injection attempts hidden within nested structures using Regex Sanitizer.",
-                "category": "Security",
-                "difficulty": "Medium",
-            },
-            {
-                "id": "finance_schema_evolution.py",
-                "name": "Finance Schema Evolution",
-                "description": "Demonstrates real-time schema upgrades/downgrades between V1 and V2 protocols.",
-                "category": "Schema",
-                "difficulty": "Medium",
-            },
-            {
-                "id": "iot_passive_monitoring.py",
-                "name": "IoT Passive Sniffer Mode",
-                "description": "Runs in background sniffer mode (PASSIVE_MONITORING=true) with near-zero latency impact.",
-                "category": "Monitoring",
-                "difficulty": "Easy",
-            },
-            {
-                "id": "iot_telemetry_recovery.py",
-                "name": "IoT Telemetry Recovery",
-                "description": "Intercepts and repairs fragmented/broken JSON streams from edge IoT devices.",
-                "category": "Repair",
-                "difficulty": "Medium",
-            },
-            {
-                "id": "semantic_drift_test.py",
-                "name": "Semantic Drift Guard",
-                "description": "Calculates Jaccard Similarity on LLM-repaired payloads to reject hallucinated keys.",
-                "category": "Security",
-                "difficulty": "Hard",
-            },
-        ]
-    }
+    json_path = os.path.join("examples", "examples.json")
+    if not os.path.exists(json_path):
+        return {"examples": []}
+    try:
+        with open(json_path, "r", encoding="utf-8") as f:
+            examples = orjson.loads(f.read())
+        return {"examples": examples}
+    except Exception as e:
+        console.print(f"[bold red]Error reading examples.json:[/bold red] {e}")
+        return {"examples": []}
 
 
 @app.websocket("/ws/examples/run/{script_name}")
