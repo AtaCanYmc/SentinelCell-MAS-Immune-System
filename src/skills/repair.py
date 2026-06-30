@@ -7,7 +7,7 @@ from src.core.llm_factory import LLMFactory
 from src.core.prompt_manager import PromptManager
 from src.core.broadcaster import broadcaster
 from src.core.memory_factory import MemoryFactory
-from src.core.tracer import get_tracer
+from src.core.tracer import get_tracer, shutdown_tracer
 from src.core.logger import get_console
 
 tracer = get_tracer()
@@ -22,7 +22,8 @@ class SelfHealingEngine:
     and an Adaptive Learning Feedback Loop via VectorDB (ChromaDB).
     """
 
-    def __init__(self):
+    def __init__(self, sandbox=False):
+        self.sandbox = sandbox
         env_order = os.getenv("PROVIDER_ORDER")
         if env_order:
             self.providers = [
@@ -32,16 +33,28 @@ class SelfHealingEngine:
             self.providers = ["OPENAI", "LOCAL_OLLAMA", "ANTHROPIC", "GROQ"]
 
         self.memory = None
+        if not self.sandbox:
+            try:
+                self.memory = MemoryFactory.get_memory_store()
+                console.print(
+                    f"[dim green][+] Adaptive Learning ({self.memory.__class__.__name__}) Initialized[/dim green]"
+                )
+            except Exception as e:
+                console.print(f"[dim yellow][!] Memory Init Failed: {e}[/dim yellow]")
 
-        try:
-            self.memory = MemoryFactory.get_memory_store()
-            console.print(
-                f"[dim green][+] Adaptive Learning ({self.memory.__class__.__name__}) Initialized[/dim green]"
-            )
-        except Exception as e:
-            console.print(f"[dim yellow][!] Memory Init Failed: {e}[/dim yellow]")
+    async def __aenter__(self):
+        return self
 
-    async def repair_node(self, state: dict) -> dict:
+    async def __aexit__(self, exc_type, exc_val, exc_tb):
+        await self.aclose()
+
+    async def aclose(self):
+        await broadcaster.shutdown()
+        if self.memory and hasattr(self.memory, "close"):
+            await self.memory.close()
+        shutdown_tracer()
+
+    async def repair_node(self, state):
         attempts = state.get("repair_attempts", 0)
         schema_json = state.get("schema_dict", {})
         malformed_data = state.get("payload", {})
@@ -283,10 +296,11 @@ class SelfHealingEngine:
                         )
 
             # Logging & Adaptive Learning (Save to VectorDB)
-            self._log_decision(title, error_context, provider)
+            if not self.sandbox:
+                self._log_decision(title, error_context, provider)
 
             new_memory_id = None
-            if self.memory:
+            if self.memory and not self.sandbox:
                 try:
                     import time
 
