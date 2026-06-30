@@ -289,7 +289,9 @@ async def chat_test(req: ChatRequest, api_key: str = Depends(verify_api_key)):
 
 
 @app.websocket("/ws/chat")
-async def websocket_chat(websocket: WebSocket, lang: str = "en"):
+async def websocket_chat(
+    websocket: WebSocket, lang: str = "en", provider: str | None = None
+):
     """
     WebSocket endpoint for real-time LLM chat streaming.
     """
@@ -304,7 +306,8 @@ async def websocket_chat(websocket: WebSocket, lang: str = "en"):
     )
     from src.core.prompt_manager import PromptManager
 
-    provider = os.getenv("PROVIDER_ORDER", "OPENAI").split(",")[0].strip()
+    if not provider:
+        provider = os.getenv("PROVIDER_ORDER", "OPENAI").split(",")[0].strip()
 
     try:
         llm = LLMFactory.get_llm(provider)

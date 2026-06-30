@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Settings as SettingsIcon, Save, Activity, Eye, EyeOff, Globe } from 'lucide-react';
+import { Settings as SettingsIcon, Save, Activity, Eye, EyeOff, Globe, Search } from 'lucide-react';
 import { useQuery, useMutation } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { AgentTable } from '../components/AgentTable';
@@ -53,6 +53,7 @@ const Settings = () => {
   const [config, setConfig] = useState({});
   const [saveMessage, setSaveMessage] = useState("");
   const [activeTab, setActiveTab] = useState('API Keys');
+  const [searchTerm, setSearchTerm] = useState("");
 
   const handleLanguageChange = (e) => {
     i18n.changeLanguage(e.target.value);
@@ -116,7 +117,11 @@ const Settings = () => {
       </div>
 
       {(() => {
-        const groupedConfig = Object.entries(config).reduce((acc, [key, value]) => {
+        const filteredConfig = Object.entries(config).filter(([key]) =>
+          key.toLowerCase().replace(/_/g, ' ').includes(searchTerm.toLowerCase())
+        );
+
+        const groupedConfig = filteredConfig.reduce((acc, [key, value]) => {
           const category = categorizeKey(key);
           if (!acc[category]) acc[category] = [];
           acc[category].push({ key, value });
@@ -128,16 +133,28 @@ const Settings = () => {
 
         return (
           <>
-            <div className="flex space-x-2 border-b border-white/10 mb-6 pb-2 overflow-x-auto">
-              {tabs.map(tab => (
-                <button
-                  key={tab}
-                  onClick={() => setActiveTab(tab)}
-                  className={`px-4 py-2 rounded-md font-medium text-sm transition-colors whitespace-nowrap ${currentTab === tab ? 'bg-blue-500/20 text-blue-400' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}
-                >
-                  {tab}
-                </button>
-              ))}
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-white/10 mb-6 pb-2">
+              <div className="flex space-x-2 overflow-x-auto pb-2 md:pb-0">
+                {tabs.map(tab => (
+                  <button
+                    key={tab}
+                    onClick={() => setActiveTab(tab)}
+                    className={`px-4 py-2 rounded-md font-medium text-sm transition-colors whitespace-nowrap ${currentTab === tab ? 'bg-blue-500/20 text-blue-400' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}
+                  >
+                    {tab}
+                  </button>
+                ))}
+              </div>
+              <div className="relative w-full md:w-60">
+                <Search className="absolute left-3 top-2.5 h-4 w-4 text-gray-500" />
+                <input
+                  type="text"
+                  placeholder="Search settings..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full bg-black/50 border border-white/10 rounded-md py-2 pl-9 pr-4 text-xs text-gray-200 placeholder-gray-500 focus:outline-none focus:border-blue-500 transition-colors"
+                />
+              </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
