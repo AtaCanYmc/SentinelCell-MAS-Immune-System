@@ -1,5 +1,5 @@
-import React from 'react';
-import { Activity, CheckCircle, AlertTriangle, Shield, RefreshCcw, Database, Pause, Play, Trash2, Filter } from 'lucide-react';
+import React, { useState } from 'react';
+import { Activity, CheckCircle, AlertTriangle, Shield, Database, Pause, Play, Trash2 } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { useBroadcaster } from '../hooks/useBroadcaster';
 
@@ -16,6 +16,12 @@ const fetchConfig = async () => {
   return res.json();
 };
 
+const fetchAuditLogs = async () => {
+  const res = await fetch('/api/audit-logs');
+  if (!res.ok) return { logs: [] };
+  return res.json();
+};
+
 const Dashboard = () => {
   // Use Broadcaster for live tail logs
   const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
@@ -23,41 +29,97 @@ const Dashboard = () => {
 
   const { data: schemas = [] } = useQuery({ queryKey: ['schemas'], queryFn: fetchSchemas, refetchInterval: 10000 });
   const { data: config = {} } = useQuery({ queryKey: ['config'], queryFn: fetchConfig, refetchInterval: 10000 });
+  const { data: auditData } = useQuery({ queryKey: ['auditLogs'], queryFn: fetchAuditLogs, refetchInterval: 10000 });
 
-  const metrics = {
+  const [metricScope, setMetricScope] = useState('session'); // 'session' | 'system'
+
+  // Session-based metrics (WS current array)
+  const sessionMetrics = {
     intercepts: logs.length,
     healed: logs.filter(l => l.action === 'healed').length,
     dropped: logs.filter(l => l.action === 'dropped' || l.action === 'quarantined').length,
     quarantineStatus: logs.some(l => l.action === 'quarantined') ? 1 : 0
   };
 
+  // Database-wide historical totals
+  const systemLogs = Array.isArray(auditData?.logs) ? auditData.logs : [];
+  const systemMetrics = {
+    intercepts: systemLogs.length,
+    healed: systemLogs.filter(log => {
+      const isLegacy = !log.TraceId;
+      return isLegacy ? !(log.reason || '').includes('Error') : log.SeverityNumber === 9;
+    }).length,
+    dropped: systemLogs.filter(log => {
+      const isLegacy = !log.TraceId;
+      return isLegacy ? (log.reason || '').includes('Error') : log.SeverityNumber !== 9;
+    }).length,
+    quarantineStatus: logs.some(l => l.action === 'quarantined') ? 1 : 0
+  };
+
+  const activeMetrics = metricScope === 'session' ? sessionMetrics : systemMetrics;
+
   return (
     <div className="animate-in fade-in duration-300">
+      {/* Metric Scope Selector */}
+      <div className="flex justify-between items-center mb-6">
+        <div className="flex bg-black/40 p-1 rounded-lg border border-white/10 text-xs">
+          <button
+            onClick={() => setMetricScope('session')}
+            className={`px-3 py-1.5 rounded font-bold transition-all ${
+              metricScope === 'session'
+                ? 'bg-[#58a6ff]/10 text-[#58a6ff]'
+                : 'text-gray-400 hover:text-gray-200'
+            }`}
+          >
+            Session View
+          </button>
+          <button
+            onClick={() => setMetricScope('system')}
+            className={`px-3 py-1.5 rounded font-bold transition-all ${
+              metricScope === 'system'
+                ? 'bg-[#58a6ff]/10 text-[#58a6ff]'
+                : 'text-gray-400 hover:text-gray-200'
+            }`}
+          >
+            System Totals
+          </button>
+        </div>
+        <div className="text-xs text-gray-500 font-mono">
+          Scope: {metricScope === 'session' ? 'Live Browser Session' : 'Historical Audit Log'}
+        </div>
+      </div>
+
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-12">
         <div className="glass-panel metric-card">
           <Activity className="w-8 h-8 text-blue-400 mb-4" />
-          <div className="metric-value text-3xl font-bold">{metrics.intercepts}</div>
-          <div className="text-sm font-medium text-gray-400 uppercase tracking-wider">Session Packets</div>
+          <div className="metric-value text-3xl font-bold">{activeMetrics.intercepts}</div>
+          <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mt-1">
+            {metricScope === 'session' ? 'Session Packets' : 'Total Intercepted'}
+          </div>
         </div>
 
         <div className="glass-panel metric-card">
           <CheckCircle className="w-8 h-8 text-green-400 mb-4" />
-          <div className="metric-value text-3xl font-bold bg-gradient-to-r from-green-500 to-green-600 bg-clip-text text-transparent">{metrics.healed}</div>
-          <div className="text-sm font-medium text-gray-400 uppercase tracking-wider">Successfully Healed</div>
+          <div className="metric-value text-3xl font-bold bg-gradient-to-r from-green-500 to-green-600 bg-clip-text text-transparent">
+            {activeMetrics.healed}
+          </div>
+          <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mt-1">Successfully Healed</div>
         </div>
 
         <div className="glass-panel metric-card">
           <AlertTriangle className="w-8 h-8 text-yellow-400 mb-4" />
-          <div className="metric-value text-3xl font-bold bg-gradient-to-r from-yellow-500 to-yellow-600 bg-clip-text text-transparent">{metrics.dropped}</div>
-          <div className="text-sm font-medium text-gray-400 uppercase tracking-wider">Quarantined / Dropped</div>
+          <div className="metric-value text-3xl font-bold bg-gradient-to-r from-yellow-500 to-yellow-600 bg-clip-text text-transparent">
+            {activeMetrics.dropped}
+          </div>
+          <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mt-1">Quarantined / Dropped</div>
         </div>
 
-        <div className={`glass-panel metric-card ${metrics.quarantineStatus ? 'border-red-500/50' : ''}`}>
-          <Shield className={`w-8 h-8 mb-4 ${metrics.quarantineStatus ? 'text-red-500 animate-pulse' : 'text-green-400'}`} />
-          <div className={`text-2xl font-bold mb-2 ${metrics.quarantineStatus ? 'text-red-500' : 'text-green-400'}`}>
-            {metrics.quarantineStatus ? 'QUARANTINE' : 'SAFE'}
+        <div className={`glass-panel metric-card ${activeMetrics.quarantineStatus ? 'border-red-500/50' : ''}`}>
+          <Shield className={`w-8 h-8 mb-4 ${activeMetrics.quarantineStatus ? 'text-red-500 animate-pulse' : 'text-green-400'}`} />
+          <div className={`text-2xl font-bold mb-2 ${activeMetrics.quarantineStatus ? 'text-red-500' : 'text-green-400'}`}>
+            {activeMetrics.quarantineStatus ? 'QUARANTINE' : 'SAFE'}
           </div>
-          <div className="text-sm font-medium text-gray-400 uppercase tracking-wider">Network Status</div>
+          <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Network Status</div>
         </div>
       </div>
 
