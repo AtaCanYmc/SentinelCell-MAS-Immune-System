@@ -109,28 +109,30 @@ async def main():
     in_queue = asyncio.Queue()
     out_queue = asyncio.Queue()
     sentinel = SentinelCell()
+    try:
+        # Start the Guardian (Immune System) as a persistent background worker
+        guardian_task = asyncio.create_task(
+            mq_guardian_worker(in_queue, out_queue, sentinel)
+        )
 
-    # Start the Guardian (Immune System) as a persistent background worker
-    guardian_task = asyncio.create_task(
-        mq_guardian_worker(in_queue, out_queue, sentinel)
-    )
+        # Start the Consumer listening on the out-queue
+        consumer_task = asyncio.create_task(consumer(out_queue))
 
-    # Start the Consumer listening on the out-queue
-    consumer_task = asyncio.create_task(consumer(out_queue))
+        # Start Producer pushing to the in-queue
+        await producer(in_queue)
 
-    # Start Producer pushing to the in-queue
-    await producer(in_queue)
+        # Wait for consumer to safely receive and process the healed payload
+        await consumer_task
 
-    # Wait for consumer to safely receive and process the healed payload
-    await consumer_task
+        # Shut down the Guardian
+        await in_queue.put("STOP")
+        await guardian_task
 
-    # Shut down the Guardian
-    await in_queue.put("STOP")
-    await guardian_task
-
-    console.print(
-        "[bold green]✅ MQ Simulation Complete. Downstream consumers were fully protected![/bold green]"
-    )
+        console.print(
+            "[bold green]✅ MQ Simulation Complete. Downstream consumers were fully protected![/bold green]"
+        )
+    finally:
+        await sentinel.stop()
 
 
 if __name__ == "__main__":
