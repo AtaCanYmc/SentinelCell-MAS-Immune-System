@@ -10,10 +10,63 @@ permissions:
   contents: read
 
 jobs:
-  validation:
-    name: Sentinel-Verified Validation
+  lint:
+    name: Code & Docker Linter
     runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
 
+      - name: Set up Python 3.11
+        uses: actions/setup-python@39cd14951b08e74b54015e9e001cdefcf80e669f # v5.1.1
+        with:
+          python-version: "3.11"
+
+      - name: Run Ruff Checks
+        run: |
+          pip install ruff
+          echo "Running Ruff linter..."
+          ruff check .
+          echo "Running Ruff formatter check..."
+          ruff format --check .
+
+      - name: Lint Dockerfiles (Hadolint)
+        uses: hadolint/hadolint-action@54c9adbab1582c2da04b2016b760714a4bbde3cf # v3.1.0
+        with:
+          dockerfile: Dockerfile
+
+  security:
+    name: Security & Vulnerability Scan
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@39cd14951b08e74b54015e9e001cdefcf80e669f # v5.1.1
+        with:
+          python-version: "3.11"
+
+      - name: Phase 1 - Safety Scan (Secrets Detection)
+        run: |
+          echo "Scanning codebase for hardcoded secrets..."
+          if grep -rE 'GEMINI_API_KEY=["'\''][^"'\''\.]+["'\'']' src/; then
+            echo "::error::Security Breach: Hardcoded API keys found in src/!"
+            exit 1
+          fi
+          echo "Safety Scan Passed."
+
+      - name: Run Dependency Audit & SAST Scan
+        run: |
+          pip install pip-audit bandit
+          echo "Running dependency vulnerability audit..."
+          pip-audit -r requirements.txt
+          echo "Running Bandit SAST..."
+          bandit -r src/ -x tests/ -ll
+
+  test:
+    name: Unit Testing & Sandbox Verification
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
@@ -29,49 +82,24 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
-      - name: Phase 1 - Safety Scan (Antigravity CLI Mock)
-        run: |
-          echo "Scanning codebase for hardcoded secrets..."
-          # Reject if GEMINI_API_KEY or similar secrets are hardcoded outside of tests/mocks
-          if grep -rE 'GEMINI_API_KEY=["'\''][^"'\''\.]+["'\'']' src/; then
-            echo "::error::Security Breach: Hardcoded API keys found in src/!"
-            exit 1
-          fi
-          echo "Safety Scan Passed."
-
-      - name: Phase 1.5 - Linting & Security Scan
-        run: |
-          echo "Installing quality and audit tools..."
-          pip install ruff pip-audit
-          echo "Running Ruff linter..."
-          ruff check .
-          echo "Running Ruff formatter check..."
-          ruff format --check .
-          echo "Running dependency vulnerability audit..."
-          pip-audit -r requirements.txt
-
-      - name: Phase 1.6 - Static Application Security Testing (Bandit)
-        run: |
-          pip install bandit
-          bandit -r src/ -x tests/ -ll
-
-      - name: Phase 1.7 - Lint Dockerfiles (Hadolint)
-        uses: hadolint/hadolint-action@54c9adbab1582c2da04b2016b760714a4bbde3cf # v3.1.0
-        with:
-          dockerfile: Dockerfile
-
-      - name: Phase 2 - Unit Testing & Coverage Control
+      - name: Run Unit Tests (Pytest)
         run: |
           echo "Executing Pytest and verifying coverage >= 50%..."
           pytest tests/unit/ -v --cov=src --cov-fail-under=50 --cov-report=term-missing --cov-report=xml
 
-      - name: Phase 3 - Sandbox Integration
+      - name: Sandbox Integration Verification
         run: |
           echo "Deploying to Antigravity Sandbox (Verification)..."
-          # Verify that core modules can be imported and executed without side-effects
           python -c "from src.skills.repair import SelfHealingEngine; engine = SelfHealingEngine(); print('Sandbox execution successful.')"
 
-      - name: Phase 4 - Docs Verification
+  docs:
+    name: Docs Standards Verification
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+
+      - name: Verify Documentation Files
         run: |
           echo "Verifying README.md and CHANGELOG.md standards..."
           if [ ! -f "CHANGELOG.md" ] || [ ! -f "README.md" ]; then
