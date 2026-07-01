@@ -75,6 +75,25 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+
+# Anti-CSRF Protection Middleware (Double-Submit Cookie Pattern)
+@app.middleware("http")
+async def csrf_middleware(request, call_next):
+    if request.method in ("POST", "PUT", "DELETE", "PATCH"):
+        path = request.url.path
+        # Enforce check on dashboard API endpoints, excluding login
+        if path.startswith("/api/") and not path.startswith("/api/auth/login"):
+            cookie_csrf = request.cookies.get("sentinel_csrf")
+            header_csrf = request.headers.get("X-CSRF-Token")
+
+            if not cookie_csrf or not header_csrf or cookie_csrf != header_csrf:
+                return JSONResponse(
+                    status_code=403,
+                    content={"status": "error", "message": "CSRF verification failed"},
+                )
+    return await call_next(request)
+
+
 # Add Prometheus metrics route
 metrics_app = make_asgi_app()
 app.mount("/metrics", metrics_app)

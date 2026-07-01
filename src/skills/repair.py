@@ -194,12 +194,7 @@ class SelfHealingEngine:
                     f"[dim yellow][!] Memory Retrieval Failed: {e}[/dim yellow]"
                 )
 
-        console.print(
-            f"[dim cyan][*] LLM Inference applied via {provider}...[/dim cyan]"
-        )
-
         try:
-            llm = LLMFactory.get_llm(provider)
             prompt = PromptManager.render(
                 "repair.jinja2",
                 {
@@ -211,15 +206,42 @@ class SelfHealingEngine:
                 },
             )
 
-            with tracer.start_as_current_span("LLM.Inference") as span:
-                span.set_attribute("llm.provider", provider)
+            response = None
+            succeeded_provider = None
+            last_error = None
+
+            # Cycle through providers starting with the designated one
+            for offset in range(len(self.providers)):
+                idx = (attempts + offset) % len(self.providers)
+                active_p = self.providers[idx]
+
+                console.print(
+                    f"[dim cyan][*] LLM Inference applied via {active_p}...[/dim cyan]"
+                )
+
                 try:
-                    response = await llm.ainvoke(prompt)
-                    span.set_attribute("llm.success", True)
+                    llm = LLMFactory.get_llm(active_p)
+                    with tracer.start_as_current_span("LLM.Inference") as span:
+                        span.set_attribute("llm.provider", active_p)
+                        try:
+                            response = await llm.ainvoke(prompt)
+                            span.set_attribute("llm.success", True)
+                            succeeded_provider = active_p
+                            break
+                        except Exception as e:
+                            span.record_exception(e)
+                            span.set_attribute("llm.success", False)
+                            raise
                 except Exception as e:
-                    span.record_exception(e)
-                    span.set_attribute("llm.success", False)
-                    raise
+                    console.print(
+                        f"[bold yellow][!] LLM provider {active_p} failed: {e}. Trying next provider locally...[/bold yellow]"
+                    )
+                    last_error = e
+
+            if not response:
+                raise last_error or Exception("All configured LLM providers failed")
+
+            provider = succeeded_provider
 
             # Clean response text
             cleaned_text = response.content.strip()

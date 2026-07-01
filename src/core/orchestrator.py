@@ -148,6 +148,10 @@ class SentinelOrchestrator:
         graph.add_edge("deterministic_repair", "validate")
         graph.add_edge("repair", "validate")
 
+        self._compiled_graph = graph
+        self._checkpointer_initialized = False
+        self._pg_pool = None
+
         if os.getenv("HITL_ENABLED", "false").lower() == "true":
             self.workflow = graph.compile(
                 checkpointer=self.checkpointer, interrupt_before=["repair"]
@@ -166,6 +170,9 @@ class SentinelOrchestrator:
         Intercepts communication between agents near-instantly and runs the StateGraph.
         """
         import time
+
+        if not self._checkpointer_initialized:
+            await self._init_postgres_checkpointer()
 
         ctx = extract_trace_context(context or {})
         with tracer.start_as_current_span(
@@ -608,3 +615,65 @@ class SentinelOrchestrator:
                 await client.post(url, json=message)
         except Exception as e:
             console.print(f"[dim yellow]Webhook delivery failed: {e}[/dim yellow]")
+
+    async def _init_postgres_checkpointer(self):
+        import os
+
+        postgres_uri = os.getenv("SCHEMA_POSTGRES_URI") or os.getenv("POSTGRES_URI")
+        if postgres_uri:
+            try:
+                from psycopg_pool import AsyncConnectionPool
+                from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
+
+                if not self._pg_pool:
+                    self._pg_pool = AsyncConnectionPool(
+                        conninfo=postgres_uri, max_size=10, open=False
+                    )
+                    await self._pg_pool.open()
+
+                checkpointer = AsyncPostgresSaver(self._pg_pool)
+                await checkpointer.setup()
+                self.checkpointer = checkpointer
+
+                # Recompile workflow with Postgres saver
+                if os.getenv("HITL_ENABLED", "false").lower() == "true":
+                    self.workflow = self._compiled_graph.compile(
+                        checkpointer=self.checkpointer, interrupt_before=["repair"]
+                    )
+                else:
+                    self.workflow = self._compiled_graph.compile(
+                        checkpointer=self.checkpointer
+                    )
+
+                console.print(
+                    "[bold green][+] Resilient Postgres checkpointer initialized and migration tables setup[/bold green]"
+                )
+            except Exception as e:
+                console.print(
+                    f"[bold yellow][!] Failed to initialize Postgres Checkpointer: {e}. Falling back to MemorySaver.[/bold yellow]"
+                )
+                from langgraph.checkpoint.memory import MemorySaver
+
+                self.checkpointer = MemorySaver()
+
+                if os.getenv("HITL_ENABLED", "false").lower() == "true":
+                    self.workflow = self._compiled_graph.compile(
+                        checkpointer=self.checkpointer, interrupt_before=["repair"]
+                    )
+                else:
+                    self.workflow = self._compiled_graph.compile(
+                        checkpointer=self.checkpointer
+                    )
+
+        self._checkpointer_initialized = True
+
+    async def stop(self):
+        if self._pg_pool:
+            try:
+                await self._pg_pool.close()
+                console.print(
+                    "[dim green][-] Postgres Checkpointer connection pool closed[/dim green]"
+                )
+            except Exception:
+                pass
+            self._pg_pool = None

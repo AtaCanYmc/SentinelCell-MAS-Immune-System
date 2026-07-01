@@ -48,6 +48,8 @@ class SentinelCell:
     async def stop(self):
         if hasattr(self, "mcp_client") and self.mcp_client:
             await self.mcp_client.stop()
+        if hasattr(self, "orchestrator") and self.orchestrator:
+            await self.orchestrator.stop()
 
     async def _get_quarantine_state(self):
         if self.redis_client:
