@@ -210,9 +210,6 @@ metrics_app = make_asgi_app()
 app.mount("/metrics", metrics_app)
 
 
-# Dashboard is served by Nginx container. FastAPI handles only API endpoints.
-
-
 @app.websocket("/ws/logs")
 async def websocket_logs(websocket: WebSocket):
     """Streams live SentinelCell logs from Redis PubSub to connected WebSockets"""
@@ -243,6 +240,7 @@ async def websocket_logs(websocket: WebSocket):
             except (asyncio.TimeoutError, Exception):
                 await websocket.close(code=1008)
                 return
+
     redis_url = os.getenv("REDIS_URL", "redis://redis:6379")
     try:
         client = redis.from_url(redis_url)
