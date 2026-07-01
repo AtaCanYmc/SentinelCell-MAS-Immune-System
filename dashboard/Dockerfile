@@ -17,8 +17,8 @@ RUN touch /var/run/nginx.pid && chown nginx:nginx /var/run/nginx.pid
 # Copy the built assets to the Nginx html folder
 COPY --from=build --chown=nginx:nginx /app/dist /usr/share/nginx/html
 
-# Replace default Nginx configuration with our custom config
-COPY --chown=nginx:nginx nginx.conf /etc/nginx/conf.d/default.conf
+# Replace main Nginx configuration with our custom config
+COPY --chown=nginx:nginx nginx.conf /etc/nginx/nginx.conf
 
 EXPOSE 8080
 

@@ -1,7 +1,5 @@
 import os
 from abc import ABC, abstractmethod
-
-
 from typing import Any, Tuple, Optional
 
 
@@ -42,7 +40,15 @@ class RedisBroker(MessageBroker):
         import redis.asyncio as redis
 
         redis_url = os.getenv("REDIS_URL", "redis://localhost:6379/0")
-        self.r = redis.from_url(redis_url)
+        # For blocking operations, we need to avoid socket timeouts,
+        # but we need socket_connect_timeout to catch failed connections quickly
+        self.r = redis.from_url(
+            redis_url,
+            socket_connect_timeout=5,
+            socket_timeout=None,  # Disable socket timeout for blocking ops
+            socket_keepalive=True,
+            decode_responses=False,
+        )
 
     async def push(self, queue_name: str, payload: str):
         await self.r.lpush(queue_name, payload)
@@ -61,10 +67,26 @@ class RedisBroker(MessageBroker):
             await self.r.lrem(processing_queue, 1, ack_token)
 
     async def consume(self, queue_name: str, timeout: int = 0) -> str | None:
-        res = await self.r.blpop(queue_name, timeout=timeout)
-        if res:
-            return res[1].decode("utf-8")
-        return None
+        import asyncio
+
+        # Use a finite timeout to prevent indefinite blocking during connection issues
+        effective_timeout = timeout if timeout > 0 else 30
+
+        try:
+            res = await self.r.blpop(queue_name, timeout=effective_timeout)
+            if res:
+                return res[1].decode("utf-8")
+            return None
+        except asyncio.TimeoutError:
+            # Expected when no messages arrive within timeout
+            return None
+        except Exception as e:
+            # Log and swallow timeout/empty errors, re-raise connection errors
+            error_str = str(e).lower()
+            if "timeout" in error_str or "empty" in error_str or "nil" in error_str:
+                return None
+            # Connection errors and other serious issues should propagate
+            raise
 
 
 class KafkaBroker(MessageBroker):
@@ -142,7 +164,9 @@ class KafkaBroker(MessageBroker):
 
 class RabbitMQBroker(MessageBroker):
     def __init__(self):
-        self.rabbitmq_url = os.getenv("RABBITMQ_URL", "amqp://guest:guest@localhost/")
+        self.rabbitmq_url = os.getenv(
+            "RABBITMQ_URL", "amqp://guest:[REDACTED]@localhost/"
+        )
         self.connection = None
         self.channel = None
         self._unacked_messages = {}

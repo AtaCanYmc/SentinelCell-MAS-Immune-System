@@ -15,13 +15,30 @@ export const useBroadcaster = (url) => {
     const wsUrl = url.replace(/^http/, 'ws');
     const ws = new WebSocket(wsUrl);
 
-    ws.onopen = () => setIsConnected(true);
+    ws.onopen = () => {
+      try {
+        const authMsg = {
+          type: "AUTH",
+          // Is the HttpOnly cookie insufficient? If an API key is used:
+          // token: "..." (optional; the cookie will suffice)
+        };
+        ws.send(JSON.stringify(authMsg));
+      } catch (e) {
+        console.error("Failed to send auth message", e);
+      }
+      setIsConnected(true);
+    };
     ws.onclose = () => setIsConnected(false);
 
     ws.onmessage = (event) => {
       if (!isPausedRef.current) {
         try {
           const data = JSON.parse(event.data);
+          if (data.type === 'AUTH_FAILED') {
+            console.error('WebSocket authentication failed');
+            ws.close();
+            return;
+          }
           setLogs((prev) => [{ ...data, timestamp: new Date() }, ...prev].slice(0, 200));
         } catch (e) {
           console.error("Failed to parse websocket message", e);

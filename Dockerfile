@@ -20,8 +20,8 @@ ENV PYTHONUNBUFFERED=1
 ENV PYTHONPATH=/app
 
 # Create necessary directories and set ownership before switching user
-RUN mkdir -p /app /app/chroma_db /logs /temp && \
-    chown -R sentinel:sentinel /app /app/chroma_db /logs /temp
+RUN mkdir -p /app /app/chroma_db /logs /temp /home/sentinel/.gunicorn && \
+    chown -R sentinel:sentinel /app /app/chroma_db /logs /temp /home/sentinel/.gunicorn
 
 # Copy installed packages from builder to standard system path
 COPY --from=builder /install /usr/local

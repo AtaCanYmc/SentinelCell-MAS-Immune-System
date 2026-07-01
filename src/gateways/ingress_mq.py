@@ -10,14 +10,18 @@ console = get_console()
 
 async def mq_worker():
     broker = BrokerFactory.get_broker()
-    sentinel = SentinelCell()
     tracer = get_tracer()
 
-    console.print("[bold cyan]SentinelCell Ingress MQ Worker started...[/bold cyan]")
+    console.print("[bold cyan]Initializing SentinelCell...[/bold cyan]")
+    sentinel = SentinelCell()
+    console.print("[bold cyan]✓ SentinelCell initialized[/bold cyan]")
+    console.print(
+        "[bold cyan]Ingress MQ Worker started. Waiting for messages...[/bold cyan]"
+    )
 
     while True:
         try:
-            # broker.consume blocks until a message is available
+            # broker.consume blocks until a message is available or timeout expires
             data_str = await broker.consume("sentinel.in", timeout=0)
             if data_str:
                 # We expect the payload to be wrapped with source and target info for routing
