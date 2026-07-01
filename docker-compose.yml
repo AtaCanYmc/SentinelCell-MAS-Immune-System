@@ -84,7 +84,7 @@ services:
     cap_drop:
       - MAC_ADMIN
     tmpfs:
-      - /temp
+      - /tmp
       - /var/cache/nginx
       - /var/run
   # 4. Redis In-Memory Datastore (Message Broker & Cache)
