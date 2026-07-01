@@ -1,16 +1,6 @@
 export const fetchWithAuth = async (url: string, options: RequestInit = {}) => {
-  const token = localStorage.getItem('sentinel_api_key') || '';
-  const headers: Record<string, string> = {
-    ...(options.headers as Record<string, string>),
-  };
-
-  if (token) {
-    headers['Authorization'] = `Bearer ${token}`;
-  }
-
   const response = await fetch(url, {
     ...options,
-    headers,
     credentials: 'same-origin',
   });
 

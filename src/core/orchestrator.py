@@ -7,80 +7,10 @@ from rich.text import Text
 from src.core.telemetry import metrics
 from src.core.tracer import get_tracer, extract_trace_context, inject_trace_context
 from src.core.logger import get_console
+from src.core.redis_dict_proxy import RedisDictProxy
 
 console = get_console()
 tracer = get_tracer()
-
-
-# Lightweight Redis-backed dict proxy that preserves a plain-dict interface for
-# simple get/set/contains semantics used by the orchestrator. Uses the
-# synchronous redis client to keep the dict-like API (calls are fast and
-# infrequent). Values are stored as JSON strings.
-class RedisDictProxy:
-    def __init__(self, namespace: str, redis_url: str | None = None):
-        import os
-        import redis
-        import orjson
-
-        self._ns = namespace
-        self._orjson = orjson
-        self._redis_url = redis_url or os.getenv(
-            "REDIS_URL", "redis://localhost:6379/0"
-        )
-        try:
-            self._client = redis.from_url(self._redis_url)
-        except Exception:
-            self._client = None
-
-    def _key(self, k: str) -> str:
-        return f"{self._ns}:{k}"
-
-    def get(self, k: str, default=None):
-        try:
-            if not self._client:
-                return default
-            val = self._client.get(self._key(k))
-            if not val:
-                return default
-            return self._orjson.loads(val)
-        except Exception:
-            return default
-
-    def __getitem__(self, k: str):
-        v = self.get(k)
-        if v is None:
-            raise KeyError(k)
-        return v
-
-    def __setitem__(self, k: str, v):
-        try:
-            if not self._client:
-                return
-            self._client.set(self._key(k), self._orjson.dumps(v).decode("utf-8"))
-        except Exception:
-            pass
-
-    def __contains__(self, k: str):
-        try:
-            if not self._client:
-                return False
-            return self._client.exists(self._key(k)) == 1
-        except Exception:
-            return False
-
-    def items(self):
-        try:
-            if not self._client:
-                return {}
-            pattern = f"{self._ns}:*"
-            keys = [k.decode("utf-8") for k in self._client.keys(pattern)]
-            result = {}
-            for full in keys:
-                short = full.split(":", 1)[1]
-                result[short] = self.get(short)
-            return result.items()
-        except Exception:
-            return {}.items()
 
 
 class AgentState(TypedDict):
@@ -249,8 +179,34 @@ class SentinelOrchestrator:
             # Log Intercept
             metrics.payload_intercepts.labels(status="received").inc()
 
+            try:
+                import redis.asyncio as redis_async
+                import asyncio
+                import os
+
+                redis_url = os.getenv("REDIS_URL", "redis://localhost:6379/0")
+                r_metrics = redis_async.from_url(redis_url)
+                current_minute = int(time.time() / 60)
+
+                async def _inc():
+                    try:
+                        await r_metrics.incr(
+                            f"sentinel:total_requests:{current_minute}"
+                        )
+                        await r_metrics.expire(
+                            f"sentinel:total_requests:{current_minute}", 180
+                        )
+                    finally:
+                        await r_metrics.aclose()
+
+                asyncio.create_task(_inc())
+            except Exception as e:
+                console.print(
+                    f"[bold yellow]Metrics increment failed: {e}[/bold yellow]"
+                )
+
             # Trust Score Check (Quarantine)
-            trust_score = self.agent_trust_scores.get(agent_source, 100)
+            trust_score = await self.agent_trust_scores.get(agent_source, 100)
             if trust_score < getattr(self, "quarantine_threshold", 30):
                 console.print(
                     f"[bold red][!] AGENT QUARANTINED: {agent_source} has a trust score of {trust_score}. Dropping traffic instantly.[/bold red]"
@@ -258,7 +214,7 @@ class SentinelOrchestrator:
                 return None
 
             # Dynamic Circuit Breaker Check
-            cb_state = self.agent_circuit_breakers.get(
+            cb_state = await self.agent_circuit_breakers.get(
                 agent_source, {"failures": 0, "last_failure_time": 0}
             )
             if isinstance(cb_state, int):  # Migrate old int state if any
@@ -437,7 +393,39 @@ class SentinelOrchestrator:
                 latency_seconds = time.time() - start_time
                 metrics.latency.observe(latency_seconds)
 
-                current_trust = self.agent_trust_scores.get(agent_source, 100)
+                try:
+                    import redis.asyncio as redis_async
+
+                    r_metrics = redis_async.from_url(
+                        os.getenv("REDIS_URL", "redis://localhost:6379/0")
+                    )
+                    current_minute = int(time.time() / 60)
+
+                    async def _track_latency():
+                        try:
+                            await r_metrics.incrbyfloat(
+                                f"sentinel:latency_sum:{current_minute}",
+                                latency_seconds * 1000,
+                            )
+                            await r_metrics.expire(
+                                f"sentinel:latency_sum:{current_minute}", 180
+                            )
+                            await r_metrics.incr(
+                                f"sentinel:latency_count:{current_minute}"
+                            )
+                            await r_metrics.expire(
+                                f"sentinel:latency_count:{current_minute}", 180
+                            )
+                        finally:
+                            await r_metrics.aclose()
+
+                    asyncio.create_task(_track_latency())
+                except Exception as e:
+                    console.print(
+                        f"[bold yellow]Latency tracking failed: {e}[/bold yellow]"
+                    )
+
+                current_trust = await self.agent_trust_scores.get(agent_source, 100)
 
                 if final_state.get("is_valid"):
                     # Trust Score update
@@ -445,19 +433,22 @@ class SentinelOrchestrator:
                         final_state.get("repair_attempts", 0) > 0
                         or final_state.get("deterministic_repair_attempts", 0) > 0
                     ):
-                        self.agent_trust_scores[agent_source] = max(
-                            0, current_trust - 5
+                        await self.agent_trust_scores.set(
+                            agent_source, max(0, current_trust - 5)
                         )
                     else:
-                        self.agent_trust_scores[agent_source] = min(
-                            100, current_trust + 1
+                        await self.agent_trust_scores.set(
+                            agent_source, min(100, current_trust + 1)
                         )
 
-                    if agent_source in self.agent_circuit_breakers:
-                        self.agent_circuit_breakers[agent_source] = {
-                            "failures": 0,
-                            "last_failure_time": 0,
-                        }
+                    if await self.agent_circuit_breakers.exists(agent_source):
+                        await self.agent_circuit_breakers.set(
+                            agent_source,
+                            {
+                                "failures": 0,
+                                "last_failure_time": 0,
+                            },
+                        )
                     if final_state.get("repair_attempts", 0) > 0:
                         metrics.healing_success.inc()
                     if final_state.get("active_provider"):
@@ -472,15 +463,15 @@ class SentinelOrchestrator:
                     # Trust Score update
                     err_ctx = final_state.get("error_context", "")
                     if err_ctx and "SECURITY_BREACH" in err_ctx:
-                        self.agent_trust_scores[agent_source] = max(
-                            0, current_trust - 50
+                        await self.agent_trust_scores.set(
+                            agent_source, max(0, current_trust - 50)
                         )
                     else:
-                        self.agent_trust_scores[agent_source] = max(
-                            0, current_trust - 10
+                        await self.agent_trust_scores.set(
+                            agent_source, max(0, current_trust - 10)
                         )
 
-                    cb_state = self.agent_circuit_breakers.get(
+                    cb_state = await self.agent_circuit_breakers.get(
                         agent_source, {"failures": 0, "last_failure_time": 0}
                     )
                     if isinstance(cb_state, int):
@@ -490,7 +481,7 @@ class SentinelOrchestrator:
                         }
                     cb_state["failures"] += 1
                     cb_state["last_failure_time"] = time.time()
-                    self.agent_circuit_breakers[agent_source] = cb_state
+                    await self.agent_circuit_breakers.set(agent_source, cb_state)
 
                     if cb_state["failures"] >= getattr(self, "breaker_threshold", 5):
                         console.print(
@@ -584,8 +575,12 @@ class SentinelOrchestrator:
                 cur.close()
                 conn.close()
                 return
-            except Exception:
-                # If Postgres persistence fails, swallow and continue to file fallback
+            except Exception as pg_err:
+                import logging
+
+                logging.getLogger(__name__).error(
+                    "Postgres DLQ fallback write failed: %s", pg_err
+                )
                 pass
 
         dlq_dir = os.getenv("LOG_DIR") or os.path.join(os.getcwd(), "logs")
@@ -594,7 +589,12 @@ class SentinelOrchestrator:
         try:
             with open(dlq_path, "a") as f:
                 f.write(entry_str + "\n")
-        except Exception:
+        except Exception as f_err:
+            import logging
+
+            logging.getLogger(__name__).error(
+                "File DLQ fallback write failed: %s", f_err
+            )
             pass
 
     async def _send_webhook_alert(self, url, source, target, reason):

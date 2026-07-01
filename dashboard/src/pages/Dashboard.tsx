@@ -33,50 +33,108 @@ const fetchMetrics = async (): Promise<Metrics | null> => {
   return res.json();
 };
 
+let cachedRpsHistory = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+let cachedLatencyHistory = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+let cachedErrorHistory = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+
 const Dashboard = () => {
   const { t } = useTranslation();
-  // Use Broadcaster for live tail logs
   const { data: config = {} } = useQuery({ queryKey: ['config'], queryFn: fetchConfig, refetchInterval: 10000 });
   const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-  const { logs, isConnected, isPaused, filterType, setFilterType, togglePause, clearLogs } = useBroadcaster(`${protocol}//${window.location.host}/ws/logs`);
+
+  // Use Broadcaster for live tail logs, metrics, and hitlAlerts
+  const {
+    logs,
+    isConnected,
+    isPaused,
+    filterType,
+    setFilterType,
+    togglePause,
+    clearLogs,
+    metrics: wsMetrics,
+    hitlAlerts
+  } = useBroadcaster(`${protocol}//${window.location.host}/ws/logs`);
 
   const { data: schemas = [] } = useQuery({ queryKey: ['schemas'], queryFn: fetchSchemas, refetchInterval: 10000 });
   const { data: auditData } = useQuery({ queryKey: ['auditLogs'], queryFn: fetchAuditLogs, refetchInterval: 10000 });
-  const { data: metrics } = useQuery<Metrics | null>({ queryKey: ['metrics'], queryFn: fetchMetrics, refetchInterval: 3000 });
 
-  const [rpsHistory, setRpsHistory] = useState([0, 0, 0, 0, 0, 0, 0, 0, 0, 0]);
-  const [latencyHistory, setLatencyHistory] = useState([0, 0, 0, 0, 0, 0, 0, 0, 0, 0]);
-  const [errorHistory, setErrorHistory] = useState([0, 0, 0, 0, 0, 0, 0, 0, 0, 0]);
+  // Initial HTTP fetch for metrics, updates handled via WebSocket
+  const { data: initialMetrics } = useQuery<Metrics | null>({ queryKey: ['metrics'], queryFn: fetchMetrics });
+  const [metrics, setMetrics] = useState<Metrics | null>(null);
+
+  const [rpsHistory, setRpsHistory] = useState(cachedRpsHistory);
+  const [latencyHistory, setLatencyHistory] = useState(cachedLatencyHistory);
+  const [errorHistory, setErrorHistory] = useState(cachedErrorHistory);
+  const [selectedLog, setSelectedLog] = useState<any>(null);
+
+  useEffect(() => {
+    if (initialMetrics && !metrics) {
+      setMetrics(initialMetrics);
+    }
+  }, [initialMetrics]);
+
+  useEffect(() => {
+    if (wsMetrics) {
+      setMetrics(wsMetrics);
+    }
+  }, [wsMetrics]);
 
   useEffect(() => {
     if (metrics) {
       const m = metrics as any;
       // RPS
       const currentRps = (m.total_requests_current_min || 0) / 60;
-      setRpsHistory((prev) => [...prev.slice(1), currentRps]);
+      setRpsHistory((prev) => {
+        const next = [...prev.slice(1), currentRps];
+        cachedRpsHistory = next;
+        return next;
+      });
 
       // Latency
       const currentLatency = m.llm_average_latency_ms || 0;
-      setLatencyHistory((prev) => [...prev.slice(1), currentLatency]);
+      setLatencyHistory((prev) => {
+        const next = [...prev.slice(1), currentLatency];
+        cachedLatencyHistory = next;
+        return next;
+      });
 
       // Error Rate
-      const totalReq: number = (m.llm_requests_current_min as number) || 1;
+      const totalReq: number = (m.total_requests_current_min as number) || 1;
       const failures: number = m.agent_circuit_breakers
         ? (Object.values(m.agent_circuit_breakers).reduce((acc: number, b: any) => acc + (b.failures || 0), 0) as number)
         : 0;
       const currentErrorRate = (failures / totalReq) * 100;
-      setErrorHistory((prev) => [...prev.slice(1), currentErrorRate]);
+      setErrorHistory((prev) => {
+        const next = [...prev.slice(1), currentErrorRate];
+        cachedErrorHistory = next;
+        return next;
+      });
     }
   }, [metrics]);
+
+  const handleHitlAction = async (approvalId: string, decision: 'APPROVED' | 'REJECTED') => {
+    try {
+      const res = await fetchWithAuth('/api/hitl/approval', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ approval_id: approvalId, decision }),
+      });
+      if (!res.ok) {
+        throw new Error('Action submission failed');
+      }
+    } catch (err: any) {
+      console.error('Failed to submit HITL action:', err.message);
+    }
+  };
 
   const [metricScope, setMetricScope] = useState('session'); // 'session' | 'system'
 
   // Session-based metrics (WS current array)
   const sessionMetrics = {
     intercepts: logs.length,
-    healed: logs.filter(l => l.action === 'healed').length,
-    dropped: logs.filter(l => l.action === 'dropped' || l.action === 'quarantined').length,
-    quarantineStatus: logs.some(l => l.action === 'quarantined') ? 1 : 0
+    healed: logs.filter(l => l.action === 'healed' || l.type?.includes('HEAL_SUCCESS')).length,
+    dropped: logs.filter(l => l.action === 'dropped' || l.action === 'quarantined' || l.type?.includes('HEAL_FAIL') || l.type?.includes('SECURITY')).length,
+    quarantineStatus: logs.some(l => l.action === 'quarantined' || l.type?.includes('SECURITY')) ? 1 : 0
   };
 
   // Database-wide historical totals
@@ -91,13 +149,55 @@ const Dashboard = () => {
       const isLegacy = !log.TraceId;
       return isLegacy ? (log.reason || '').includes('Error') : log.SeverityNumber !== 9;
     }).length,
-    quarantineStatus: logs.some(l => l.action === 'quarantined') ? 1 : 0
+    quarantineStatus: logs.some(l => l.action === 'quarantined' || l.type?.includes('SECURITY')) ? 1 : 0
   };
 
   const activeMetrics = metricScope === 'session' ? sessionMetrics : systemMetrics;
 
   return (
     <div className="animate-in fade-in duration-300">
+      {/* HITL Pending Approvals Alert Banner */}
+      {hitlAlerts.length > 0 && (
+        <div className="mb-6 space-y-3">
+          {hitlAlerts.map((alert) => (
+            <div
+              key={alert.approval_id}
+              className="p-4 bg-yellow-500/10 border border-yellow-500/20 rounded-xl flex flex-col md:flex-row justify-between items-start md:items-center gap-4 shadow-lg"
+            >
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="w-2.5 h-2.5 rounded-full bg-yellow-500 animate-ping" />
+                  <h4 className="text-sm font-bold text-yellow-400 uppercase tracking-wide">
+                    Human-in-the-Loop Action Required
+                  </h4>
+                </div>
+                <p className="text-xs text-gray-300 mt-1 leading-relaxed">
+                  Agent <span className="font-bold text-white font-mono">{alert.source}</span> transmitted a suspicious payload to <span className="font-bold text-white font-mono">{alert.target}</span>. SentinelCell is waiting for your decision before executing self-healing.
+                </p>
+                <div className="text-[10px] text-gray-500 font-mono mt-2 uppercase">
+                  Approval ID: {alert.approval_id}
+                </div>
+              </div>
+
+              <div className="flex gap-2 w-full md:w-auto shrink-0">
+                <button
+                  onClick={() => handleHitlAction(alert.approval_id, 'APPROVED')}
+                  className="flex-1 md:flex-none px-4 py-2 bg-green-600 hover:bg-green-500 text-white text-xs font-bold rounded-lg transition-colors shadow-md"
+                >
+                  Approve Payload
+                </button>
+                <button
+                  onClick={() => handleHitlAction(alert.approval_id, 'REJECTED')}
+                  className="flex-1 md:flex-none px-4 py-2 bg-red-600 hover:bg-red-500 text-white text-xs font-bold rounded-lg transition-colors shadow-md"
+                >
+                  Drop Packet
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
       {/* Metric Scope Selector */}
       <div className="flex justify-between items-center mb-6">
         <div className="flex bg-black/40 p-1 rounded-lg border border-white/10 text-xs">
@@ -200,30 +300,34 @@ const Dashboard = () => {
             </div>
           </div>
 
-            <div className="flex-1 overflow-y-auto bg-[#0d1117] border border-white/5 rounded-md p-4 font-mono text-xs text-gray-300">
-              {logs.length === 0 ? (
-                <div className="text-gray-500 italic">{t('dashboard.waiting_for_traffic')}</div>
-              ) : (
-                <VirtualList
-                  items={logs}
-                  rowHeight={34}
-                  renderItem={(log: any, i: number) => {
-                    let colorClass = 'text-gray-300';
-                    if (log.type?.includes('HEAL_SUCCESS')) colorClass = 'text-green-400';
-                    if (log.type?.includes('HEAL_FAIL')) colorClass = 'text-yellow-400';
-                    if (log.type?.includes('SECURITY')) colorClass = 'text-red-400 font-bold';
+          <div className="flex-1 overflow-y-auto bg-[#0d1117] border border-white/5 rounded-md p-4 font-mono text-xs text-gray-300">
+            {logs.length === 0 ? (
+              <div className="text-gray-500 italic">{t('dashboard.waiting_for_traffic')}</div>
+            ) : (
+              <VirtualList
+                items={logs}
+                rowHeight={34}
+                renderItem={(log: any) => {
+                  let colorClass = 'text-gray-300';
+                  if (log.type?.includes('HEAL_SUCCESS')) colorClass = 'text-green-400';
+                  if (log.type?.includes('HEAL_FAIL')) colorClass = 'text-yellow-400';
+                  if (log.type?.includes('SECURITY')) colorClass = 'text-red-400 font-bold';
 
-                    return (
-                      <div className="mb-2 pb-2 border-b border-white/5">
-                        <span className="text-blue-400">[{new Date(log.timestamp).toLocaleTimeString()}]</span>{' '}
-                        <span className="text-purple-400 font-bold">[{log.type}]</span>{' '}
-                        <span className={colorClass}>{log.content}</span>
-                      </div>
-                    );
-                  }}
-                />
-              )}
-            </div>
+                  return (
+                    <div
+                      onClick={() => setSelectedLog(log)}
+                      className="mb-2 pb-2 border-b border-white/5 cursor-pointer hover:bg-white/5 transition-colors truncate whitespace-nowrap overflow-hidden text-ellipsis flex items-center gap-2"
+                      style={{ height: '34px', boxSizing: 'border-box' }}
+                    >
+                      <span className="text-blue-400 font-mono shrink-0">[{new Date(log.timestamp).toLocaleTimeString()}]</span>{' '}
+                      <span className="text-purple-400 font-bold font-mono shrink-0">[{log.type}]</span>{' '}
+                      <span className={`${colorClass} truncate text-ellipsis`}>{log.content}</span>
+                    </div>
+                  );
+                }}
+              />
+            )}
+          </div>
         </div>
 
         <div className="glass-panel p-6">
@@ -253,6 +357,84 @@ const Dashboard = () => {
           </div>
         </div>
       </div>
+
+      {/* Detail Modal */}
+      {selectedLog && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 font-sans">
+          <div className="bg-[#0d1117] border border-white/10 rounded-xl p-6 max-w-2xl w-full max-h-[85vh] overflow-y-auto shadow-2xl animate-in zoom-in-95 duration-200">
+            <div className="flex justify-between items-start mb-4">
+              <div>
+                <h3 className="text-lg font-bold text-white flex items-center gap-2">
+                  <span className="px-2.5 py-1 rounded text-xs font-semibold bg-blue-500/10 text-blue-400 border border-blue-500/20 uppercase">
+                    {selectedLog.type}
+                  </span>
+                  <span>Event Details</span>
+                </h3>
+                <p className="text-xs text-gray-400 mt-1 font-mono">
+                  {new Date(selectedLog.timestamp).toLocaleString()}
+                </p>
+              </div>
+              <button
+                onClick={() => setSelectedLog(null)}
+                className="text-gray-400 hover:text-white transition-colors text-sm font-bold bg-white/5 hover:bg-white/10 px-3 py-1.5 rounded-md cursor-pointer"
+              >
+                Close
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              {(selectedLog.source || selectedLog.target) && (
+                <div className="grid grid-cols-2 gap-4 bg-black/45 p-3 rounded-lg border border-white/5 text-xs font-mono">
+                  <div>
+                    <span className="text-gray-500 block mb-1 uppercase tracking-wider text-[10px]">Source Agent</span>
+                    <span className="text-blue-400 font-bold">{selectedLog.source || 'N/A'}</span>
+                  </div>
+                  <div>
+                    <span className="text-gray-500 block mb-1 uppercase tracking-wider text-[10px]">Target Agent</span>
+                    <span className="text-purple-400 font-bold">{selectedLog.target || 'N/A'}</span>
+                  </div>
+                </div>
+              )}
+
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold text-gray-500 uppercase tracking-wider">Log Content</label>
+                <div className="bg-black/60 border border-white/5 rounded-lg p-4 text-xs font-mono text-gray-300 break-words whitespace-pre-wrap leading-relaxed max-h-60 overflow-y-auto">
+                  {selectedLog.content}
+                </div>
+              </div>
+
+              {selectedLog.approval_id && (
+                <div className="bg-yellow-500/10 border border-yellow-500/20 p-4 rounded-lg flex items-center justify-between">
+                  <div>
+                    <span className="text-xs font-bold text-yellow-400 block uppercase">HITL Verification Pending</span>
+                    <span className="text-[11px] text-gray-400">Approval ID: {selectedLog.approval_id}</span>
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => {
+                        handleHitlAction(selectedLog.approval_id, 'APPROVED');
+                        setSelectedLog(null);
+                      }}
+                      className="px-3 py-1.5 bg-green-600 hover:bg-green-500 text-white font-medium text-xs rounded transition-colors cursor-pointer"
+                    >
+                      Approve
+                    </button>
+                    <button
+                      onClick={() => {
+                        handleHitlAction(selectedLog.approval_id, 'REJECTED');
+                        setSelectedLog(null);
+                      }}
+                      className="px-3 py-1.5 bg-red-600 hover:bg-red-500 text-white font-medium text-xs rounded transition-colors cursor-pointer"
+                    >
+                      Reject
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

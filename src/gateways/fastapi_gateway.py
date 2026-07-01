@@ -20,6 +20,7 @@ from fastapi.responses import JSONResponse
 from src.core.logger import get_console
 
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+from fastapi.websockets import WebSocketState
 import redis.asyncio as redis
 from src.agents.validator_agent import SentinelCell
 from prometheus_client import make_asgi_app
@@ -98,6 +99,26 @@ def _validate_startup_config():
 _validate_startup_config()
 
 
+async def metrics_broadcaster_task():
+    import asyncio
+    import orjson
+
+    while True:
+        try:
+            metrics_data = await _fetch_metrics_data()
+            payload = {
+                "type": "METRICS",
+                "content": orjson.dumps(metrics_data).decode("utf-8"),
+            }
+            redis_url = os.getenv("REDIS_URL", "redis://localhost:6379/0")
+            r = redis.from_url(redis_url)
+            await r.publish("sentinel.logs", orjson.dumps(payload).decode("utf-8"))
+            await r.aclose()
+        except Exception as e:
+            console.print(f"[bold red]Metrics broadcaster task error:[/bold red] {e}")
+        await asyncio.sleep(3.0)
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Startup
@@ -107,8 +128,15 @@ async def lifespan(app: FastAPI):
         console.print(
             f"[bold red]Failed to start persistent MCP client: {e}[/bold red]"
         )
+    app.state.metrics_task = asyncio.create_task(metrics_broadcaster_task())
     yield
     # Shutdown
+    if hasattr(app.state, "metrics_task"):
+        app.state.metrics_task.cancel()
+        try:
+            await app.state.metrics_task
+        except asyncio.CancelledError:
+            pass
     try:
         await sentinel.stop()
     except Exception as e:
@@ -279,16 +307,17 @@ async def websocket_logs(websocket: WebSocket):
                 f"[bold red]WebSocket pubsub unsubscribe error:[/bold red] {unsubscribe_err}"
             )
     except Exception as e:
-        try:
-            await websocket.send_text(
-                orjson.dumps({"type": "SYSTEM_ERROR", "content": str(e)}).decode(
-                    "utf-8"
+        if websocket.client_state == WebSocketState.CONNECTED:
+            try:
+                await websocket.send_text(
+                    orjson.dumps({"type": "SYSTEM_ERROR", "content": str(e)}).decode(
+                        "utf-8"
+                    )
                 )
-            )
-        except Exception as send_err:
-            console.print(
-                f"[bold red]WebSocket error sending SYSTEM_ERROR:[/bold red] {send_err}"
-            )
+            except Exception as send_err:
+                console.print(
+                    f"[bold red]WebSocket error sending SYSTEM_ERROR:[/bold red] {send_err}"
+                )
 
 
 @app.post("/intercept")
@@ -316,7 +345,7 @@ async def intercept_traffic(
                 # ATOMIC SET NX: A fully atomic operation—other requests cannot interfere in the meantime
                 # If the Redis SETNX command (SET if Not eXists) returns true,
                 # we proceed; if it returns false, it means another request has already processed it.
-                was_set = await r.set(idem_key, "PROCESSING", ex=86400, nx=True)
+                was_set = await r.set(idem_key, "PROCESSING", ex=120, nx=True)
 
                 if not was_set:
                     # If another request is processing the same idempotency key,
@@ -495,15 +524,16 @@ async def websocket_chat(
         pass
     except Exception as e:
         console.print(f"[bold red]WebSocket chat error:[/bold red] {e}")
-        try:
-            await websocket.send_text(
-                orjson.dumps({"type": "error", "content": str(e)}).decode("utf-8")
-            )
-        except Exception as e:
-            console.print(
-                f"[bold red]WebSocket error sending error message:[/bold red] {e}"
-            )
-            pass
+        if websocket.client_state == WebSocketState.CONNECTED:
+            try:
+                await websocket.send_text(
+                    orjson.dumps({"type": "error", "content": str(e)}).decode("utf-8")
+                )
+            except Exception as send_err:
+                console.print(
+                    f"[bold red]WebSocket error sending error message:[/bold red] {send_err}"
+                )
+                pass
 
 
 @app.delete("/memory/purge")
@@ -689,17 +719,37 @@ async def reset_agent(agent_id: str, api_key: str = Depends(verify_api_key)):
     return {"status": "ok", "agent": agent_id, "errors": 0}
 
 
-@app.get("/api/metrics")
-async def get_metrics(api_key: str = Depends(verify_api_key)):
-    """Returns current rate limit and payload metrics."""
+async def _fetch_metrics_data():
     try:
         r = redis.from_url(os.getenv("REDIS_URL", "redis://localhost:6379/0"))
         current_minute = int(time.time() / 60)
         llm_requests = await r.get(f"sentinel:llm_rate_limit:{current_minute}")
+        total_requests = await r.get(f"sentinel:total_requests:{current_minute}")
+        latency_sum = await r.get(f"sentinel:latency_sum:{current_minute}")
+        latency_count = await r.get(f"sentinel:latency_count:{current_minute}")
+
+        llm_req_val = int(llm_requests) if llm_requests else 0
+        total_req_val = int(total_requests) if total_requests else 0
+        lat_sum_val = float(latency_sum) if latency_sum else 0.0
+        lat_cnt_val = int(latency_count) if latency_count else 0
+        avg_latency = (lat_sum_val / lat_cnt_val) if lat_cnt_val > 0 else 0.0
+
+        breakers = await sentinel.orchestrator.agent_circuit_breakers.items()
+        breakers_dict = {}
+        for k, v in breakers:
+            if isinstance(v, dict):
+                breakers_dict[k] = v
+            else:
+                breakers_dict[k] = {"failures": v or 0, "last_failure_time": 0.0}
+
+        await r.aclose()
         return {
-            "llm_requests_current_min": int(llm_requests) if llm_requests else 0,
+            "llm_requests_current_min": llm_req_val,
             "llm_rate_limit": int(os.getenv("LLM_RATE_LIMIT_PER_MIN", "50")),
             "max_payload_size": int(os.getenv("MAX_PAYLOAD_SIZE", "102400")),
+            "total_requests_current_min": total_req_val,
+            "llm_average_latency_ms": avg_latency,
+            "agent_circuit_breakers": breakers_dict,
         }
     except Exception as e:
         console.print(f"[bold yellow]Metrics Fetch Error:[/bold yellow] {e}")
@@ -707,7 +757,16 @@ async def get_metrics(api_key: str = Depends(verify_api_key)):
             "llm_requests_current_min": 0,
             "llm_rate_limit": int(os.getenv("LLM_RATE_LIMIT_PER_MIN", "50")),
             "max_payload_size": int(os.getenv("MAX_PAYLOAD_SIZE", "102400")),
+            "total_requests_current_min": 0,
+            "llm_average_latency_ms": 0.0,
+            "agent_circuit_breakers": {},
         }
+
+
+@app.get("/api/metrics")
+async def get_metrics(api_key: str = Depends(verify_api_key)):
+    """Returns current rate limit and payload metrics."""
+    return await _fetch_metrics_data()
 
 
 @app.get("/api/audit-logs")
