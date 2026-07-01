@@ -29,10 +29,18 @@ const Quarantine = () => {
 
   const replayMutation = useMutation({
     mutationFn: async (item) => {
+      let parsedPayload = item.payload;
+      if (typeof parsedPayload === 'string') {
+        try {
+          parsedPayload = JSON.parse(parsedPayload);
+        } catch (e) {
+          throw new Error('Invalid JSON format in payload');
+        }
+      }
       const res = await fetchWithAuth('/api/dlq/replay', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ source: item.source, target: item.target, payload: item.payload })
+        body: JSON.stringify({ source: item.source, target: item.target, payload: parsedPayload })
       });
       if (!res.ok) {
         const err = await res.json();
