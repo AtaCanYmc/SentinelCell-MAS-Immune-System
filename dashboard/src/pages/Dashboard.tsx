@@ -6,6 +6,7 @@ import { useBroadcaster } from '../hooks/useBroadcaster';
 import { fetchWithAuth } from '../hooks/api';
 import AreaChart from '../components/AreaChart';
 import { Metrics } from '../types';
+import VirtualList from '../components/VirtualList';
 
 const fetchSchemas = async () => {
   const res = await fetchWithAuth('/api/schemas');
@@ -199,26 +200,30 @@ const Dashboard = () => {
             </div>
           </div>
 
-          <div className="flex-1 overflow-y-auto bg-[#0d1117] border border-white/5 rounded-md p-4 font-mono text-xs text-gray-300">
-            {logs.length === 0 ? (
-              <div className="text-gray-500 italic">{t('dashboard.waiting_for_traffic')}</div>
-            ) : (
-              logs.map((log, i) => {
-                let colorClass = "text-gray-300";
-                if (log.type?.includes('HEAL_SUCCESS')) colorClass = "text-green-400";
-                if (log.type?.includes('HEAL_FAIL')) colorClass = "text-yellow-400";
-                if (log.type?.includes('SECURITY')) colorClass = "text-red-400 font-bold";
+            <div className="flex-1 overflow-y-auto bg-[#0d1117] border border-white/5 rounded-md p-4 font-mono text-xs text-gray-300">
+              {logs.length === 0 ? (
+                <div className="text-gray-500 italic">{t('dashboard.waiting_for_traffic')}</div>
+              ) : (
+                <VirtualList
+                  items={logs}
+                  rowHeight={34}
+                  renderItem={(log: any, i: number) => {
+                    let colorClass = 'text-gray-300';
+                    if (log.type?.includes('HEAL_SUCCESS')) colorClass = 'text-green-400';
+                    if (log.type?.includes('HEAL_FAIL')) colorClass = 'text-yellow-400';
+                    if (log.type?.includes('SECURITY')) colorClass = 'text-red-400 font-bold';
 
-                return (
-                  <div key={i} className="mb-2 pb-2 border-b border-white/5">
-                    <span className="text-blue-400">[{log.timestamp.toLocaleTimeString()}]</span>{' '}
-                    <span className="text-purple-400 font-bold">[{log.type}]</span>{' '}
-                    <span className={colorClass}>{log.content}</span>
-                  </div>
-                );
-              })
-            )}
-          </div>
+                    return (
+                      <div className="mb-2 pb-2 border-b border-white/5">
+                        <span className="text-blue-400">[{new Date(log.timestamp).toLocaleTimeString()}]</span>{' '}
+                        <span className="text-purple-400 font-bold">[{log.type}]</span>{' '}
+                        <span className={colorClass}>{log.content}</span>
+                      </div>
+                    );
+                  }}
+                />
+              )}
+            </div>
         </div>
 
         <div className="glass-panel p-6">

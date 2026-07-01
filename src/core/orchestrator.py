@@ -12,6 +12,77 @@ console = get_console()
 tracer = get_tracer()
 
 
+# Lightweight Redis-backed dict proxy that preserves a plain-dict interface for
+# simple get/set/contains semantics used by the orchestrator. Uses the
+# synchronous redis client to keep the dict-like API (calls are fast and
+# infrequent). Values are stored as JSON strings.
+class RedisDictProxy:
+    def __init__(self, namespace: str, redis_url: str | None = None):
+        import os
+        import redis
+        import orjson
+
+        self._ns = namespace
+        self._orjson = orjson
+        self._redis_url = redis_url or os.getenv(
+            "REDIS_URL", "redis://localhost:6379/0"
+        )
+        try:
+            self._client = redis.from_url(self._redis_url)
+        except Exception:
+            self._client = None
+
+    def _key(self, k: str) -> str:
+        return f"{self._ns}:{k}"
+
+    def get(self, k: str, default=None):
+        try:
+            if not self._client:
+                return default
+            val = self._client.get(self._key(k))
+            if not val:
+                return default
+            return self._orjson.loads(val)
+        except Exception:
+            return default
+
+    def __getitem__(self, k: str):
+        v = self.get(k)
+        if v is None:
+            raise KeyError(k)
+        return v
+
+    def __setitem__(self, k: str, v):
+        try:
+            if not self._client:
+                return
+            self._client.set(self._key(k), self._orjson.dumps(v).decode("utf-8"))
+        except Exception:
+            pass
+
+    def __contains__(self, k: str):
+        try:
+            if not self._client:
+                return False
+            return self._client.exists(self._key(k)) == 1
+        except Exception:
+            return False
+
+    def items(self):
+        try:
+            if not self._client:
+                return {}
+            pattern = f"{self._ns}:*"
+            keys = [k.decode("utf-8") for k in self._client.keys(pattern)]
+            result = {}
+            for full in keys:
+                short = full.split(":", 1)[1]
+                result[short] = self.get(short)
+            return result.items()
+        except Exception:
+            return {}.items()
+
+
 class AgentState(TypedDict):
     agent_target: str
     payload: dict
@@ -34,8 +105,10 @@ class SentinelOrchestrator:
 
         self.validator = validator
         self.healer = healer
-        self.agent_circuit_breakers = {}
-        self.agent_trust_scores = {}
+        # Replace in-memory dicts with Redis-backed proxies so multiple worker
+        # processes/pods share the same state.
+        self.agent_circuit_breakers = RedisDictProxy("sentinel:agent_circuit_breakers")
+        self.agent_trust_scores = RedisDictProxy("sentinel:agent_trust_scores")
         self.breaker_threshold = int(os.getenv("CIRCUIT_BREAKER_THRESHOLD", "5"))
         self.quarantine_threshold = int(os.getenv("QUARANTINE_THRESHOLD", "30"))
 
@@ -312,24 +385,46 @@ class SentinelOrchestrator:
                         ).decode("utf-8"),
                     )
 
-                    # Poll Redis for approval decision (max 300s)
+                    # Wait for decision via Redis Pub/Sub channel. This avoids
+                    # active polling and reduces CPU and connection overhead.
                     hitl_timeout = int(os.getenv("HITL_TIMEOUT_SECONDS", "300"))
-                    poll_interval = 1
-                    elapsed = 0
+                    channel = f"sentinel:hitl:channel:{approval_id}"
+                    pubsub = r_hitl.pubsub()
+                    await pubsub.subscribe(channel)
                     approved = False
-                    while elapsed < hitl_timeout:
-                        decision = await r_hitl.get(f"sentinel:hitl:{approval_id}")
-                        if decision:
-                            data = orjson.loads(decision)
-                            if data.get("status") == "APPROVED":
-                                approved = True
-                                break
-                            elif data.get("status") == "REJECTED":
-                                break
-                        await asyncio.sleep(poll_interval)
-                        elapsed += poll_interval
-
-                    await r_hitl.aclose()
+                    try:
+                        start_wait = time.time()
+                        while time.time() - start_wait < hitl_timeout:
+                            msg = await pubsub.get_message(
+                                ignore_subscribe_messages=True, timeout=1.0
+                            )
+                            if msg and msg.get("data"):
+                                try:
+                                    payload = (
+                                        orjson.loads(msg["data"])
+                                        if isinstance(msg["data"], (bytes, str))
+                                        else msg["data"]
+                                    )
+                                except Exception:
+                                    payload = None
+                                if (
+                                    isinstance(payload, dict)
+                                    and payload.get("status") == "APPROVED"
+                                ):
+                                    approved = True
+                                    break
+                                elif (
+                                    isinstance(payload, dict)
+                                    and payload.get("status") == "REJECTED"
+                                ):
+                                    break
+                            await asyncio.sleep(0.1)
+                    finally:
+                        try:
+                            await pubsub.unsubscribe(channel)
+                        except Exception:
+                            pass
+                        await r_hitl.aclose()
 
                     if approved:
                         final_state = await self.workflow.ainvoke(None, config)
@@ -461,7 +556,39 @@ class SentinelOrchestrator:
     def _write_dlq_file_fallback(self, entry_str: str):
         import os
 
-        dlq_dir = os.getenv("LOG_DIR", os.path.join(os.getcwd(), "logs"))
+        # If a Postgres URI is configured, attempt to persist DLQ entries to
+        # a durable table to prevent data loss on container/pod restarts. If
+        # the DB write fails, fall back to the local file append as before.
+        pg_uri = os.getenv("POSTGRES_URI") or os.getenv("SCHEMA_POSTGRES_URI")
+        if pg_uri:
+            try:
+                import psycopg2
+                from psycopg2.extras import Json
+
+                conn = psycopg2.connect(pg_uri)
+                cur = conn.cursor()
+                cur.execute(
+                    """
+                    CREATE TABLE IF NOT EXISTS sentinel_dlq_fallback (
+                        id SERIAL PRIMARY KEY,
+                        entry JSONB NOT NULL,
+                        created_at TIMESTAMP WITH TIME ZONE DEFAULT now()
+                    )
+                    """
+                )
+                cur.execute(
+                    "INSERT INTO sentinel_dlq_fallback (entry) VALUES (%s)",
+                    (Json(orjson.loads(entry_str)),),
+                )
+                conn.commit()
+                cur.close()
+                conn.close()
+                return
+            except Exception:
+                # If Postgres persistence fails, swallow and continue to file fallback
+                pass
+
+        dlq_dir = os.getenv("LOG_DIR") or os.path.join(os.getcwd(), "logs")
         os.makedirs(dlq_dir, exist_ok=True)
         dlq_path = os.path.join(dlq_dir, "dlq.json")
         try:
