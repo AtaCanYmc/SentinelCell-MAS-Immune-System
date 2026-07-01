@@ -61,4 +61,8 @@ async def list_examples(api_key: str = Depends(verify_api_key)):
 @router.websocket("/ws/examples/run/{script_name}")
 async def ws_run_example(websocket: WebSocket, script_name: str):
     """Runs a simulation script and streams stdout/stderr back in real-time."""
+    await websocket.accept()
+    from src.gateways.dependencies import verify_api_key_in_ws
+
+    await verify_api_key_in_ws(websocket)
     await ExecutionService.run_simulation_script(websocket, script_name)
