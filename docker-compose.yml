@@ -32,7 +32,7 @@ services:
       dockerfile: Dockerfile
     container_name: sentinelcell_fastapi
     restart: unless-stopped
-    command: ["gunicorn", "src.gateways.fastapi_gateway:app", "-w", "4", "-k", "uvicorn.workers.UvicornWorker", "-b", "0.0.0.0:8000"]
+    command: [ "gunicorn", "src.gateways.fastapi_gateway:app", "-w", "4", "-k", "uvicorn.workers.UvicornWorker", "-b", "0.0.0.0:8000" ]
     environment:
       - REDIS_URL=redis://redis:6379/0
       - LOG_DIR=/app/logs
@@ -42,7 +42,7 @@ services:
       redis:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      test: [ "CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')" ]
       interval: 10s
       timeout: 5s
       retries: 3
@@ -55,7 +55,7 @@ services:
       dockerfile: Dockerfile
     container_name: sentinelcell_redis_worker
     restart: unless-stopped
-    command: ["python", "-m", "src.gateways.ingress_mq"]
+    command: [ "python", "-m", "src.gateways.ingress_mq" ]
     environment:
       - REDIS_URL=redis://redis:6379/0
       - LOG_DIR=/app/logs
@@ -98,9 +98,9 @@ services:
       - sentinel_net
     volumes:
       - redis_data:/data
-    command: ["redis-server", "--appendonly", "yes"]
+    command: [ "redis-server", "--appendonly", "yes" ]
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: [ "CMD", "redis-cli", "ping" ]
       interval: 5s
       timeout: 3s
       retries: 5
@@ -125,7 +125,12 @@ services:
 networks:
   sentinel_net:
     name: sentinel_net
-    external: true
+    # Uncomment if you want docker-compose to manage the network automatically:
+    # (Remove external: true below)
+    # driver: bridge
+
+  # For production with existing external network:
+  # Create first with: docker network create sentinel_net
 
 volumes:
   redis_data:

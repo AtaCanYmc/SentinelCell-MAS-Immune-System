@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to Semantic Versioning.
 
+### [0.1.2] - 2026-07-01 🚀 **PRODUCTION-READY HARDENING**
+- [**FIXED - CRITICAL**] {PR-020}: Standardized LOG_DIR environment variable across `orchestrator.py` and `fastapi_gateway.py` - fixes Docker volume mismatch that caused DLQ/Audit logs to be lost on container restart. Now uses `LOG_DIR=/app/logs` (set in docker-compose.yml).
+- [**FIXED - CRITICAL**] {PR-021}: Eliminated localStorage API Key security vulnerability - removed `sentinel_api_key` from LocalStorage (XSS attack vector). Now relies exclusively on HttpOnly `sentinel_session` cookie + First Message Auth pattern for WebSocket connections.
+- [**FIXED - CRITICAL**] {PR-022}: Removed WebSocket API Key from URL parameters - tokens no longer transmitted in query strings (eliminated HTTP access log snooping). Implemented First Message Auth payload pattern in `useBroadcaster.ts` and `useWebsocket.ts`.
+- [**FIXED - HIGH**] {PR-023}: Implemented atomic Redis SET NX for idempotency cache to eliminate race conditions in `/intercept` endpoint. Clients now receive 409 Conflict if duplicate requests arrive simultaneously, preventing duplicate processing.
+- [**FIXED - HIGH**] {PR-024}: Hardened backend exception handling - removed raw exception messages from API responses. Implemented specific error codes (400 for validation, 504 for timeout, 500 for internal) with sanitized messages. Detailed errors logged to console only.
+- [**ADDED**] {PR-025}: Created `/api/hitl/approval` endpoint for Dashboard-based HITL (Human-in-the-Loop) approval workflow. Operatörer artık Dashboard'dan "Approve"/"Reject" butonlarına basarak repair workflow'unu kontrol edebiliyor.
+- [**FIXED - MEDIUM**] {PR-026}: Corrected docker-compose.yml network configuration - changed `sentinel_net` from `external: true` to auto-managed, improving local development experience.
+
 ### [0.1.1] - 2026-06-30
 - [Fixed] {DECISION-019}: Fixed example scripts lifespan (ensured proper shutdown of `SentinelCell` and MCP stdio connections) and added `MockChatModel` fallback to allow offline/credential-less execution of all self-healing example simulations.
 

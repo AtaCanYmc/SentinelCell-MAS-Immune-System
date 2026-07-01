@@ -36,22 +36,15 @@ const Layout = ({ children }: { children: React.ReactNode }) => {
   const [modalKeyInput, setModalKeyInput] = useState('');
 
   useEffect(() => {
-    const hasKey = localStorage.getItem('sentinel_api_key');
-    // If the config tells us there's an API key required but we don't have it in storage/cookie, show modal
-    if (!hasKey && config && (config as Record<string, any>).API_KEY_SECRET) {
-      // If we don't have sentinel_username in storage either
-      if (!localStorage.getItem('sentinel_username')) {
-        setShowAuthModal(true);
-      }
+    const hasSession = document.cookie.includes('sentinel_session');
+    if (!hasSession && config && (config as Record<string, any>).API_KEY_SECRET) {
+      setShowAuthModal(true);
     }
   }, [config]);
 
   const handleSaveKey = () => {
-    if (modalKeyInput.trim()) {
-      localStorage.setItem('sentinel_api_key', modalKeyInput.trim());
-      setShowAuthModal(false);
-      window.location.reload();
-    }
+    // If the modal is displayed, the user should be redirected to the login page.
+    window.location.href = '/login';
   };
 
   const mutation = useMutation<any, Error, Record<string, any>>({
