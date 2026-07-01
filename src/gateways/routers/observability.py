@@ -92,10 +92,26 @@ async def get_audit_logs(
         return {"logs": [], "total": 0}
 
     try:
-        logs = []
+        raw = ""
         with open(log_path, "r", encoding="utf-8") as f:
-            for line in f:
-                if line.strip():
+            raw = f.read().strip()
+
+        logs = []
+        if not raw:
+            pass
+        elif raw.startswith("["):
+            # JSON array format: [{...}, {...}]
+            try:
+                logs = orjson.loads(raw)
+                if not isinstance(logs, list):
+                    logs = []
+            except orjson.JSONDecodeError:
+                logs = []
+        else:
+            # JSONL format: one JSON object per line
+            for line in raw.splitlines():
+                line = line.strip()
+                if line:
                     try:
                         logs.append(orjson.loads(line))
                     except orjson.JSONDecodeError:
