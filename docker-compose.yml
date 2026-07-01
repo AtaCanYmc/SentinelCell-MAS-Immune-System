@@ -55,6 +55,8 @@ services:
     depends_on:
       redis:
         condition: service_healthy
+      sentinel-postgres:
+        condition: service_healthy
     healthcheck:
       test: [ "CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')" ]
       interval: 15s
@@ -166,7 +168,9 @@ services:
     image: pgvector/pgvector:pg16
     container_name: sentinel_pgvector
     environment:
-      POSTGRES_HOST_AUTH_METHOD: trust
+      - POSTGRES_USER=sentinel
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_DB=sentinel_db
     ports:
       - "5432:5432"
     volumes:
@@ -174,6 +178,12 @@ services:
     restart: unless-stopped
     networks:
       - sentinel_net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U sentinel -d sentinel_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
 
 networks:
   sentinel_net:
