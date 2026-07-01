@@ -23,12 +23,23 @@ async def login(req: LoginRequest):
             content={"status": "error", "message": "Invalid credentials"},
         )
 
+    import uuid
+
     session_token = create_session_token(req.username)
+    csrf_token = uuid.uuid4().hex
     response = JSONResponse(content={"status": "success", "username": req.username})
     response.set_cookie(
         key="sentinel_session",
         value=session_token,
         httponly=True,
+        samesite="lax",
+        secure=False,
+        max_age=86400,
+    )
+    response.set_cookie(
+        key="sentinel_csrf",
+        value=csrf_token,
+        httponly=False,
         samesite="lax",
         secure=False,
         max_age=86400,
