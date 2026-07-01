@@ -14,7 +14,9 @@ export const fetchWithAuth = async (url, options = {}) => {
   });
 
   if (response.status === 401) {
-    window.dispatchEvent(new CustomEvent('sentinel-unauthorized'));
+    if (!window.location.pathname.includes('/login')) {
+      window.location.href = '/login';
+    }
   }
 
   return response;

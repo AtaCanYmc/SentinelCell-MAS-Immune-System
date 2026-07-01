@@ -13,6 +13,7 @@ from fastapi import (
     WebSocketDisconnect,
     Depends,
     Header,
+    Cookie,
 )
 from fastapi.responses import HTMLResponse, JSONResponse
 from src.core.logger import get_console
@@ -22,6 +23,7 @@ from fastapi.staticfiles import StaticFiles
 import redis.asyncio as redis
 from src.agents.validator_agent import SentinelCell
 from prometheus_client import make_asgi_app
+from src.core.session_manager import create_session_token, verify_session_token
 
 console = get_console()
 
@@ -122,13 +124,59 @@ sentinel = SentinelCell()
 security = HTTPBearer(auto_error=False)
 
 
-def verify_api_key(credentials: HTTPAuthorizationCredentials = Depends(security)):
+def verify_api_key(
+    credentials: HTTPAuthorizationCredentials = Depends(security),
+    sentinel_session: str | None = Cookie(None),
+):
     expected_api_key = os.getenv("API_KEY_SECRET")
     if not expected_api_key:
         return True
-    if not credentials or credentials.credentials != expected_api_key:
-        raise HTTPException(status_code=401, detail="Invalid or missing API Key")
-    return credentials.credentials
+
+    # 1. Check for cookie-based session token
+    if sentinel_session:
+        username = verify_session_token(sentinel_session)
+        if username:
+            return username
+
+    # 2. Check for Bearer token (API_KEY_SECRET)
+    if credentials and credentials.credentials == expected_api_key:
+        return credentials.credentials
+
+    # If neither matches
+    raise HTTPException(status_code=401, detail="Invalid or missing API Key or Session")
+
+
+class LoginRequest(BaseModel):
+    username: str
+    password: str
+
+
+@app.post("/api/auth/login")
+async def login(req: LoginRequest):
+    expected_user = os.getenv("DASHBOARD_USERNAME", "admin")
+    expected_pass = os.getenv("DASHBOARD_PASSWORD", "sentinel")
+
+    if req.username != expected_user or req.password != expected_pass:
+        raise HTTPException(status_code=401, detail="Invalid credentials")
+
+    token = create_session_token(req.username)
+    response = JSONResponse(content={"status": "success", "username": req.username})
+    response.set_cookie(
+        key="sentinel_session",
+        value=token,
+        httponly=True,
+        max_age=3600,
+        samesite="lax",
+        secure=False,
+    )
+    return response
+
+
+@app.post("/api/auth/logout")
+async def logout():
+    response = JSONResponse(content={"status": "success"})
+    response.delete_cookie(key="sentinel_session")
+    return response
 
 
 # Add Prometheus metrics route
@@ -172,10 +220,16 @@ async def get_dashboard():
 async def websocket_logs(websocket: WebSocket, token: str | None = None):
     """Streams live SentinelCell logs from Redis PubSub to connected WebSockets"""
     expected_api_key = os.getenv("API_KEY_SECRET")
-    if expected_api_key and token != expected_api_key:
-        await websocket.accept()
-        await websocket.close(code=4001)
-        return
+    if expected_api_key:
+        session_cookie = websocket.cookies.get("sentinel_session")
+        has_valid_cookie = (
+            session_cookie and verify_session_token(session_cookie) is not None
+        )
+        has_valid_token = token == expected_api_key
+        if not has_valid_cookie and not has_valid_token:
+            await websocket.accept()
+            await websocket.close(code=4001)
+            return
 
     await websocket.accept()
     redis_url = os.getenv("REDIS_URL", "redis://redis:6379")
@@ -305,10 +359,16 @@ async def websocket_chat(
     WebSocket endpoint for real-time LLM chat streaming.
     """
     expected_api_key = os.getenv("API_KEY_SECRET")
-    if expected_api_key and token != expected_api_key:
-        await websocket.accept()
-        await websocket.close(code=4001)
-        return
+    if expected_api_key:
+        session_cookie = websocket.cookies.get("sentinel_session")
+        has_valid_cookie = (
+            session_cookie and verify_session_token(session_cookie) is not None
+        )
+        has_valid_token = token == expected_api_key
+        if not has_valid_cookie and not has_valid_token:
+            await websocket.accept()
+            await websocket.close(code=4001)
+            return
 
     await websocket.accept()
     from src.core.llm_factory import LLMFactory
@@ -676,10 +736,16 @@ async def ws_run_example(
 ):
     """Runs a simulation script and streams stdout/stderr back in real-time."""
     expected_api_key = os.getenv("API_KEY_SECRET")
-    if expected_api_key and token != expected_api_key:
-        await websocket.accept()
-        await websocket.close(code=4001)
-        return
+    if expected_api_key:
+        session_cookie = websocket.cookies.get("sentinel_session")
+        has_valid_cookie = (
+            session_cookie and verify_session_token(session_cookie) is not None
+        )
+        has_valid_token = token == expected_api_key
+        if not has_valid_cookie and not has_valid_token:
+            await websocket.accept()
+            await websocket.close(code=4001)
+            return
 
     await websocket.accept()
 

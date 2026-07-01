@@ -33,23 +33,7 @@ const Layout = ({ children }) => {
   const { data: metrics } = useQuery({ queryKey: ['metrics'], queryFn: fetchMetrics, refetchInterval: 3000 });
   const { data: config } = useQuery({ queryKey: ['config'], queryFn: fetchConfig, refetchInterval: 10000 });
 
-  const [showAuthModal, setShowAuthModal] = useState(false);
-  const [modalKeyInput, setModalKeyInput] = useState('');
 
-  useEffect(() => {
-    const handleUnauthorized = () => {
-      setShowAuthModal(true);
-    };
-    window.addEventListener('sentinel-unauthorized', handleUnauthorized);
-    return () => window.removeEventListener('sentinel-unauthorized', handleUnauthorized);
-  }, []);
-
-  const handleSaveKey = () => {
-    localStorage.setItem('sentinel_api_key', modalKeyInput);
-    setShowAuthModal(false);
-    // Reload page to re-trigger queries with new token
-    window.location.reload();
-  };
 
   const mutation = useMutation({
     mutationFn: async (newConfig) => {
@@ -94,6 +78,17 @@ const Layout = ({ children }) => {
               <option value="fr">Français</option>
             </select>
           </div>
+
+          <button
+            onClick={async () => {
+              await fetch('/api/auth/logout', { method: 'POST' });
+              localStorage.removeItem('sentinel_username');
+              window.location.href = '/login';
+            }}
+            className="px-3 py-1.5 bg-red-950/40 hover:bg-red-900/40 text-red-400 border border-red-500/20 rounded-lg text-xs font-semibold transition-colors cursor-pointer"
+          >
+            Log Out
+          </button>
 
           <div className="flex items-center gap-3">
             <span className="flex h-3 w-3 relative">

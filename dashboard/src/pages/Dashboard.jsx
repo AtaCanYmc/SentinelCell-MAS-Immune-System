@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Activity, CheckCircle, AlertTriangle, Shield, Database, Pause, Play, Trash2 } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { useBroadcaster } from '../hooks/useBroadcaster';
 import { fetchWithAuth } from '../hooks/api';
+import AreaChart from '../components/AreaChart';
 
 const fetchSchemas = async () => {
   const res = await fetchWithAuth('/api/schemas');
@@ -23,6 +24,12 @@ const fetchAuditLogs = async () => {
   return res.json();
 };
 
+const fetchMetrics = async () => {
+  const res = await fetchWithAuth('/api/metrics');
+  if (!res.ok) return null;
+  return res.json();
+};
+
 const Dashboard = () => {
   // Use Broadcaster for live tail logs
   const { data: config = {} } = useQuery({ queryKey: ['config'], queryFn: fetchConfig, refetchInterval: 10000 });
@@ -33,6 +40,31 @@ const Dashboard = () => {
 
   const { data: schemas = [] } = useQuery({ queryKey: ['schemas'], queryFn: fetchSchemas, refetchInterval: 10000 });
   const { data: auditData } = useQuery({ queryKey: ['auditLogs'], queryFn: fetchAuditLogs, refetchInterval: 10000 });
+  const { data: metrics } = useQuery({ queryKey: ['metrics'], queryFn: fetchMetrics, refetchInterval: 3000 });
+
+  const [rpsHistory, setRpsHistory] = useState([0, 0, 0, 0, 0, 0, 0, 0, 0, 0]);
+  const [latencyHistory, setLatencyHistory] = useState([0, 0, 0, 0, 0, 0, 0, 0, 0, 0]);
+  const [errorHistory, setErrorHistory] = useState([0, 0, 0, 0, 0, 0, 0, 0, 0, 0]);
+
+  useEffect(() => {
+    if (metrics) {
+      // RPS
+      const currentRps = (metrics.total_requests_current_min || 0) / 60;
+      setRpsHistory((prev) => [...prev.slice(1), currentRps]);
+
+      // Latency
+      const currentLatency = metrics.llm_average_latency_ms || 0;
+      setLatencyHistory((prev) => [...prev.slice(1), currentLatency]);
+
+      // Error Rate
+      const totalReq = metrics.llm_requests_current_min || 1;
+      const failures = metrics.agent_circuit_breakers
+        ? Object.values(metrics.agent_circuit_breakers).reduce((acc, b) => acc + (b.failures || 0), 0)
+        : 0;
+      const currentErrorRate = (failures / totalReq) * 100;
+      setErrorHistory((prev) => [...prev.slice(1), currentErrorRate]);
+    }
+  }, [metrics]);
 
   const [metricScope, setMetricScope] = useState('session'); // 'session' | 'system'
 
@@ -123,6 +155,19 @@ const Dashboard = () => {
             {activeMetrics.quarantineStatus ? 'QUARANTINE' : 'SAFE'}
           </div>
           <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Network Status</div>
+        </div>
+      </div>
+
+      {/* Live Metrics SVG Charts */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
+        <div className="glass-panel p-4">
+          <AreaChart data={rpsHistory} label="Requests Per Second (RPS)" color="#3b82f6" height={100} />
+        </div>
+        <div className="glass-panel p-4">
+          <AreaChart data={latencyHistory} label="LLM Average Latency (ms)" color="#a855f7" height={100} />
+        </div>
+        <div className="glass-panel p-4">
+          <AreaChart data={errorHistory} label="Active Error Rate (%)" color="#ef4444" height={100} />
         </div>
       </div>
 
