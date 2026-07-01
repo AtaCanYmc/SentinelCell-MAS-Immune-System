@@ -2,9 +2,10 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Send, Bot, Loader2, Trash2 } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
+import { fetchWithAuth } from '../hooks/api';
 
 const fetchConfig = async () => {
-  const res = await fetch('/api/config');
+  const res = await fetchWithAuth('/api/config');
   if (!res.ok) return {};
   return res.json();
 };
@@ -26,7 +27,8 @@ export default function ChatTest() {
       : window.location.host;
 
     const lang = i18n.language || 'en';
-    const tokenParam = config.API_KEY_SECRET ? `&token=${config.API_KEY_SECRET}` : '';
+    const token = localStorage.getItem('sentinel_api_key') || config.API_KEY_SECRET || '';
+    const tokenParam = token ? `&token=${token}` : '';
     const wsUrl = `${protocol}//${host}/ws/chat?lang=${lang}&provider=${provider}${tokenParam}`;
 
     const connectWs = () => {

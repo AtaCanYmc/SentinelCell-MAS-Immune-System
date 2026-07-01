@@ -1,9 +1,10 @@
 import React from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { ShieldAlert, RefreshCw, CheckCircle2 } from 'lucide-react';
+import { fetchWithAuth } from '../hooks/api';
 
 const fetchAgents = async () => {
-  const res = await fetch('/api/agents');
+  const res = await fetchWithAuth('/api/agents');
   if (!res.ok) throw new Error('Failed to fetch agents');
   return res.json();
 };
@@ -14,7 +15,7 @@ export const AgentTable = () => {
 
   const resetMutation = useMutation({
     mutationFn: async (agentId) => {
-      const res = await fetch(`/api/agents/${agentId}/reset`, { method: 'POST' });
+      const res = await fetchWithAuth(`/api/agents/${agentId}/reset`, { method: 'POST' });
       if (!res.ok) throw new Error('Failed to reset');
       return res.json();
     },
@@ -44,7 +45,7 @@ export const AgentTable = () => {
           {agents.map((agent) => (
             <tr key={agent.id} className="border-b border-white/5 last:border-0 hover:bg-white/5">
               <td className="px-4 py-3 font-mono text-blue-400">{agent.id}</td>
-              <td className="px-4 py-3 font-mono">{agent.errors} / {agent.threshold}</td>
+              <td className="px-4 py-3 font-mono">{typeof agent.errors === 'object' && agent.errors !== null ? agent.errors.failures : agent.errors} / {agent.threshold}</td>
               <td className="px-4 py-3">
                 {agent.status === 'HEALTHY' ? (
                   <span className="flex items-center gap-1 text-green-400"><CheckCircle2 className="w-4 h-4"/> Healthy</span>

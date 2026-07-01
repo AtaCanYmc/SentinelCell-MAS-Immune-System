@@ -1,22 +1,52 @@
 import React, { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation } from '@tanstack/react-query';
 import { Database, FileJson, X, Search, Copy, Check } from 'lucide-react';
+import { fetchWithAuth } from '../hooks/api';
 
 export default function SchemaRegistry() {
   const { t } = useTranslation();
   const [selectedSchema, setSelectedSchema] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [copied, setCopied] = useState(false);
+  const [refreshMessage, setRefreshMessage] = useState("");
 
-  const { data: schemas, isLoading, isError } = useQuery({
+  const { data: config = {} } = useQuery({
+    queryKey: ['config'],
+    queryFn: async () => {
+      const res = await fetchWithAuth('/api/config');
+      if (!res.ok) return {};
+      return res.json();
+    }
+  });
+
+  const { data: schemas, isLoading, isError, refetch } = useQuery({
     queryKey: ['schemas'],
     queryFn: async () => {
-      const res = await fetch('/api/schemas');
+      const res = await fetchWithAuth('/api/schemas');
       if (!res.ok) throw new Error('Failed to fetch schemas');
       return res.json();
     },
     refetchInterval: 10000, // Refresh every 10 seconds
+  });
+
+  const refreshMutation = useMutation({
+    mutationFn: async () => {
+      const res = await fetchWithAuth('/schema/refresh', {
+        method: 'POST'
+      });
+      if (!res.ok) throw new Error('Refresh failed');
+      return res.json();
+    },
+    onSuccess: () => {
+      setRefreshMessage("Schema cache refreshed successfully!");
+      refetch();
+      setTimeout(() => setRefreshMessage(""), 4000);
+    },
+    onError: (err) => {
+      setRefreshMessage(`Error: ${err.message || 'Refresh failed'}`);
+      setTimeout(() => setRefreshMessage(""), 4000);
+    }
   });
 
   const handleCopy = () => {
@@ -45,19 +75,34 @@ export default function SchemaRegistry() {
           </div>
         </div>
 
-        {!isLoading && !isError && schemas && Object.keys(schemas).length > 0 && (
-          <div className="relative w-full md:w-72">
-            <Search className="absolute left-3 top-2.5 h-4 w-4 text-gray-500" />
-            <input
-              type="text"
-              placeholder="Search schemas..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full bg-black/50 border border-white/10 rounded-md py-2 pl-9 pr-4 text-sm text-gray-200 placeholder-gray-500 focus:outline-none focus:border-blue-500 transition-colors"
-            />
-          </div>
-        )}
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full md:w-auto">
+          <button
+            onClick={() => refreshMutation.mutate()}
+            disabled={refreshMutation.isPending}
+            className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-md text-sm font-medium transition-colors disabled:opacity-50 flex items-center justify-center gap-2 whitespace-nowrap"
+          >
+            {refreshMutation.isPending ? 'Refreshing...' : t('schemas.refresh_cache')}
+          </button>
+          {!isLoading && !isError && schemas && Object.keys(schemas).length > 0 && (
+            <div className="relative w-full sm:w-72">
+              <Search className="absolute left-3 top-2.5 h-4 w-4 text-gray-500" />
+              <input
+                type="text"
+                placeholder="Search schemas..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full bg-black/50 border border-white/10 rounded-md py-2 pl-9 pr-4 text-sm text-gray-200 placeholder-gray-500 focus:outline-none focus:border-blue-500 transition-colors"
+              />
+            </div>
+          )}
+        </div>
       </div>
+
+      {refreshMessage && (
+        <div className={`mb-6 p-3 rounded text-sm border ${refreshMessage.includes('Error') ? 'bg-red-500/20 text-red-400 border-red-500/30' : 'bg-green-500/20 text-green-400 border-green-500/30'}`}>
+          {refreshMessage}
+        </div>
+      )}
 
       {isLoading ? (
         <div className="flex justify-center p-20 glass-panel">

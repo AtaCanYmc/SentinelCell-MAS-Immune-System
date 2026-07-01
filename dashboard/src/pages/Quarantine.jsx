@@ -5,9 +5,10 @@ import CodeMirror from '@uiw/react-codemirror';
 import { json } from '@codemirror/lang-json';
 import { useHotkeys } from 'react-hotkeys-hook';
 import ReactDiffViewer, { DiffMethod } from 'react-diff-viewer-continued';
+import { fetchWithAuth } from '../hooks/api';
 
 const fetchDlq = async () => {
-  const res = await fetch('/api/dlq');
+  const res = await fetchWithAuth('/api/dlq');
   if (!res.ok) throw new Error('Network response was not ok');
   return res.json();
 };
@@ -28,7 +29,7 @@ const Quarantine = () => {
 
   const replayMutation = useMutation({
     mutationFn: async (item) => {
-      const res = await fetch('/api/dlq/replay', {
+      const res = await fetchWithAuth('/api/dlq/replay', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ source: item.source, target: item.target, payload: item.payload })

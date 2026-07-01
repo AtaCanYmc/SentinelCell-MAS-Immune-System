@@ -4,6 +4,7 @@
     "quarantine": "Quarantäne",
     "audit_logs": "Prüfprotokolle",
     "chat_test": "LLM Test Chat",
+    "schemas": "Schema-Register",
     "settings": "Einstellungen",
     "examples": "Schnellbeispiele"
   },
@@ -11,7 +12,12 @@
     "title": "Einstellungen",
     "language": "Sprache",
     "language_desc": "Wählen Sie die Anwendungssprache.",
-    "theme": "Thema"
+    "theme": "Thema",
+    "system_maintenance": "Systemwartung",
+    "garbage_collection": "Speicherbereinigung",
+    "garbage_desc": "Bereinigen Sie alte LLM-Korrekturdatensätze und semantische Abweichungsspeicher aus der Vektordatenbank. Dies hilft, die RAG-Suchgeschwindigkeit hoch zu halten.",
+    "purge_threshold": "Bereinigungsschwelle (Tage)",
+    "purge_button": "Alte Speicher Bereinigen"
   },
   "chat": {
     "title": "LLM Test Chat",
@@ -27,6 +33,7 @@
     "actions": "Aktionen",
     "view_details": "Details anzeigen",
     "close": "Schließen",
-    "empty": "Noch keine Schemas registriert."
+    "empty": "Noch keine Schemas registriert.",
+    "refresh_cache": "Registrierungs-Cache Aktualisieren"
   }
 }

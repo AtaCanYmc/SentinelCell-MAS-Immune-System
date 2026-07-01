@@ -1,17 +1,18 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
-import { Shield, Activity, ShieldAlert, Settings, Zap, List, MessageSquare, Database, Globe } from 'lucide-react';
+import { Shield, Activity, ShieldAlert, Settings, Zap, List, MessageSquare, Database, Globe, Key } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
+import { fetchWithAuth } from '../hooks/api';
 
 const fetchMetrics = async () => {
-  const res = await fetch('/api/metrics');
+  const res = await fetchWithAuth('/api/metrics');
   if (!res.ok) return null;
   return res.json();
 };
 
 const fetchConfig = async () => {
-  const res = await fetch('/api/config');
+  const res = await fetchWithAuth('/api/config');
   if (!res.ok) return null;
   return res.json();
 };
@@ -32,9 +33,27 @@ const Layout = ({ children }) => {
   const { data: metrics } = useQuery({ queryKey: ['metrics'], queryFn: fetchMetrics, refetchInterval: 3000 });
   const { data: config } = useQuery({ queryKey: ['config'], queryFn: fetchConfig, refetchInterval: 10000 });
 
+  const [showAuthModal, setShowAuthModal] = useState(false);
+  const [modalKeyInput, setModalKeyInput] = useState('');
+
+  useEffect(() => {
+    const handleUnauthorized = () => {
+      setShowAuthModal(true);
+    };
+    window.addEventListener('sentinel-unauthorized', handleUnauthorized);
+    return () => window.removeEventListener('sentinel-unauthorized', handleUnauthorized);
+  }, []);
+
+  const handleSaveKey = () => {
+    localStorage.setItem('sentinel_api_key', modalKeyInput);
+    setShowAuthModal(false);
+    // Reload page to re-trigger queries with new token
+    window.location.reload();
+  };
+
   const mutation = useMutation({
     mutationFn: async (newConfig) => {
-      const res = await fetch('/api/config', {
+      const res = await fetchWithAuth('/api/config', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({...config, ...newConfig})
@@ -152,6 +171,38 @@ const Layout = ({ children }) => {
       <main>
         {children}
       </main>
+
+      {showAuthModal && (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/80 backdrop-blur-md">
+          <div className="bg-[#0d1117] border border-white/10 rounded-xl p-8 max-w-md w-full shadow-2xl animate-in zoom-in duration-200">
+            <div className="flex items-center gap-3 mb-6">
+              <Key className="w-8 h-8 text-blue-400" />
+              <div>
+                <h3 className="text-xl font-bold text-white">API Authorization Key</h3>
+                <p className="text-xs text-gray-400">SentinelCell gateway is secured.</p>
+              </div>
+            </div>
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <label className="text-xs font-bold text-gray-400 uppercase tracking-wider">Enter API Secret Key</label>
+                <input
+                  type="password"
+                  placeholder="Enter API_KEY_SECRET"
+                  value={modalKeyInput}
+                  onChange={(e) => setModalKeyInput(e.target.value)}
+                  className="w-full bg-black/50 border border-white/10 rounded-md p-3 text-white focus:outline-none focus:border-blue-500 transition-colors"
+                />
+              </div>
+              <button
+                onClick={handleSaveKey}
+                className="w-full py-3 bg-blue-600 hover:bg-blue-500 text-white font-medium rounded-md transition-colors"
+              >
+                Authenticate Dashboard
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
