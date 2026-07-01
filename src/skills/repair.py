@@ -56,7 +56,7 @@ class SelfHealingEngine:
 
     async def repair_node(self, state):
         attempts = state.get("repair_attempts", 0)
-        schema_json = state.get("schema_dict", {})
+        schema_json = state.get("schema_dict") or {}
         malformed_data = state.get("payload", {})
         attempts = state.get("repair_attempts", 0)
         provider = self.providers[attempts % len(self.providers)]

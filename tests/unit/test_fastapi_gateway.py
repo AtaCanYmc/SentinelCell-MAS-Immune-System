@@ -8,7 +8,7 @@ client = TestClient(app)
 
 @pytest.fixture
 def mock_sentinel():
-    with patch("src.gateways.fastapi_gateway.sentinel") as mock_s:
+    with patch("src.gateways.routers.intercept.sentinel") as mock_s:
         mock_s.intercept = AsyncMock()
         yield mock_s
 
