@@ -15,11 +15,10 @@ from fastapi import (
     Header,
     Cookie,
 )
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi.responses import JSONResponse
 from src.core.logger import get_console
 
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from fastapi.staticfiles import StaticFiles
 import redis.asyncio as redis
 from src.agents.validator_agent import SentinelCell
 from prometheus_client import make_asgi_app
@@ -122,6 +121,22 @@ app = FastAPI(
 )
 sentinel = SentinelCell()
 
+
+@app.get("/health")
+async def health_check():
+    """Health check endpoint for Docker/K8s liveness probes."""
+    health = {"status": "healthy", "service": "sentinelcell-gateway"}
+    try:
+        r = redis.from_url(os.getenv("REDIS_URL", "redis://localhost:6379/0"))
+        await r.ping()
+        health["redis"] = "connected"
+        await r.aclose()
+    except Exception:
+        health["redis"] = "disconnected"
+        health["status"] = "degraded"
+    return health
+
+
 security = HTTPBearer(auto_error=False)
 
 
@@ -185,54 +200,39 @@ metrics_app = make_asgi_app()
 app.mount("/metrics", metrics_app)
 
 
-dashboard_dist_path = os.path.join(
-    os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "dashboard", "dist"
-)
-
-assets_path = os.path.join(dashboard_dist_path, "assets")
-if os.path.exists(assets_path):
-    app.mount(
-        "/assets",
-        StaticFiles(directory=assets_path),
-        name="assets",
-    )
-
-
-@app.get("/dashboard", response_class=HTMLResponse)
-async def get_dashboard():
-    """Serves the Vite React Live Hackerman Dashboard"""
-    index_path = os.path.join(dashboard_dist_path, "index.html")
-    if os.path.exists(index_path):
-        with open(index_path, "r") as f:
-            return f.read()
-
-    # Fallback to legacy
-    legacy_path = os.path.join(
-        os.path.dirname(os.path.dirname(__file__)), "frontend", "dashboard.html"
-    )
-    try:
-        with open(legacy_path, "r") as f:
-            return f.read()
-    except FileNotFoundError:
-        return "<h1>Dashboard UI not found. Please run 'npm run build' in the dashboard/ folder.</h1>"
+# Dashboard is served by Nginx container. FastAPI handles only API endpoints.
 
 
 @app.websocket("/ws/logs")
-async def websocket_logs(websocket: WebSocket, token: str | None = None):
+async def websocket_logs(websocket: WebSocket):
     """Streams live SentinelCell logs from Redis PubSub to connected WebSockets"""
+    await websocket.accept()
+
+    # First Message Auth: client sends {"type": "AUTH", "token": "..."} as first message
     expected_api_key = os.getenv("API_KEY_SECRET")
     if expected_api_key:
         session_cookie = websocket.cookies.get("sentinel_session")
         has_valid_cookie = (
             session_cookie and verify_session_token(session_cookie) is not None
         )
-        has_valid_token = token == expected_api_key
-        if not has_valid_cookie and not has_valid_token:
-            raise HTTPException(
-                status_code=401, detail="Unauthorized WebSocket connection"
-            )
-
-    await websocket.accept()
+        if not has_valid_cookie:
+            try:
+                auth_msg = await asyncio.wait_for(
+                    websocket.receive_text(), timeout=10.0
+                )
+                auth_data = orjson.loads(auth_msg)
+                if (
+                    auth_data.get("type") != "AUTH"
+                    or auth_data.get("token") != expected_api_key
+                ):
+                    await websocket.send_text(
+                        orjson.dumps({"type": "AUTH_FAILED"}).decode("utf-8")
+                    )
+                    await websocket.close(code=1008)
+                    return
+            except (asyncio.TimeoutError, Exception):
+                await websocket.close(code=1008)
+                return
     redis_url = os.getenv("REDIS_URL", "redis://redis:6379")
     try:
         client = redis.from_url(redis_url)
@@ -286,11 +286,23 @@ async def intercept_traffic(
         if x_idempotency_key and redis_url:
             try:
                 r = redis.from_url(redis_url)
-                cached_response = await r.get(f"idempotency:{x_idempotency_key}")
-                if cached_response:
-                    return JSONResponse(
-                        status_code=208, content=orjson.loads(cached_response)
-                    )
+                idem_key = f"idempotency:{x_idempotency_key}"
+                # Atomic SET NX: Claim the key or return cached result
+                was_set = await r.set(idem_key, "PROCESSING", ex=86400, nx=True)
+                if not was_set:
+                    # Key already exists — another request is processing or completed
+                    cached_response = await r.get(idem_key)
+                    if cached_response and cached_response != b"PROCESSING":
+                        return JSONResponse(
+                            status_code=208, content=orjson.loads(cached_response)
+                        )
+                    # If still PROCESSING, wait briefly and retry
+                    await asyncio.sleep(0.5)
+                    cached_response = await r.get(idem_key)
+                    if cached_response and cached_response != b"PROCESSING":
+                        return JSONResponse(
+                            status_code=208, content=orjson.loads(cached_response)
+                        )
             except Exception as redis_err:
                 console.print(
                     f"[bold yellow]Redis idempotency read error:[/bold yellow] {redis_err}"
@@ -309,7 +321,7 @@ async def intercept_traffic(
         if x_idempotency_key and r:
             try:
                 await r.setex(
-                    f"idempotency:{x_idempotency_key}",
+                    idem_key,
                     86400,
                     orjson.dumps(result).decode("utf-8"),
                 )
@@ -322,7 +334,11 @@ async def intercept_traffic(
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        console.print(f"[bold red]Intercept Error:[/bold red] {e}")
+        raise HTTPException(
+            status_code=500,
+            detail="An internal error occurred. Check server logs for details.",
+        )
 
 
 class ChatRequest(BaseModel):
@@ -346,7 +362,11 @@ async def chat_test(req: ChatRequest, api_key: str = Depends(verify_api_key)):
             "provider": provider,
         }
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        console.print(f"[bold red]Chat Test Error:[/bold red] {e}")
+        raise HTTPException(
+            status_code=500,
+            detail="An internal error occurred. Check server logs for details.",
+        )
 
 
 @app.websocket("/ws/chat")
@@ -354,24 +374,37 @@ async def websocket_chat(
     websocket: WebSocket,
     lang: str = "en",
     provider: str | None = None,
-    token: str | None = None,
 ):
     """
     WebSocket endpoint for real-time LLM chat streaming.
     """
+    await websocket.accept()
+
+    # First Message Auth
     expected_api_key = os.getenv("API_KEY_SECRET")
     if expected_api_key:
         session_cookie = websocket.cookies.get("sentinel_session")
         has_valid_cookie = (
             session_cookie and verify_session_token(session_cookie) is not None
         )
-        has_valid_token = token == expected_api_key
-        if not has_valid_cookie and not has_valid_token:
-            raise HTTPException(
-                status_code=401, detail="Unauthorized WebSocket connection"
-            )
-
-    await websocket.accept()
+        if not has_valid_cookie:
+            try:
+                auth_msg = await asyncio.wait_for(
+                    websocket.receive_text(), timeout=10.0
+                )
+                auth_data = orjson.loads(auth_msg)
+                if (
+                    auth_data.get("type") != "AUTH"
+                    or auth_data.get("token") != expected_api_key
+                ):
+                    await websocket.send_text(
+                        orjson.dumps({"type": "AUTH_FAILED"}).decode("utf-8")
+                    )
+                    await websocket.close(code=1008)
+                    return
+            except (asyncio.TimeoutError, Exception):
+                await websocket.close(code=1008)
+                return
     from src.core.llm_factory import LLMFactory
     from src.core.chat_tools import get_chat_tools
     from langchain_core.messages import (
@@ -524,7 +557,11 @@ async def purge_memory(days: int = 30, api_key: str = Depends(verify_api_key)):
             "deleted_count": deleted_count,
         }
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        console.print(f"[bold red]Memory Purge Error:[/bold red] {e}")
+        raise HTTPException(
+            status_code=500,
+            detail="An internal error occurred. Check server logs for details.",
+        )
 
 
 @app.post("/schema/refresh")
@@ -546,7 +583,11 @@ async def refresh_schema(
             sentinel.validator.clear_cache()
             return {"status": "success", "message": "All schema caches cleared"}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        console.print(f"[bold red]Schema Refresh Error:[/bold red] {e}")
+        raise HTTPException(
+            status_code=500,
+            detail="An internal error occurred. Check server logs for details.",
+        )
 
 
 @app.get("/api/schemas")
@@ -566,7 +607,11 @@ async def get_all_schemas(api_key: str = Depends(verify_api_key)):
             for agent_id, schema_str in schemas.items()
         }
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        console.print(f"[bold red]Schema Fetch Error:[/bold red] {e}")
+        raise HTTPException(
+            status_code=500,
+            detail="An internal error occurred. Check server logs for details.",
+        )
 
 
 @app.get("/api/config")
@@ -602,12 +647,15 @@ async def update_config(config: dict[str, str], api_key: str = Depends(verify_ap
 @app.get("/api/dlq")
 async def get_dlq(api_key: str = Depends(verify_api_key)):
     """Returns the Dead Letter Queue logs for the Quarantine UI."""
-    dlq_path = os.path.join(
-        os.path.dirname(os.path.dirname(os.path.dirname(__file__))),
-        ".antigravity",
-        "logs",
-        "dlq.json",
+    log_dir = os.getenv(
+        "LOG_DIR",
+        os.path.join(
+            os.path.dirname(os.path.dirname(os.path.dirname(__file__))),
+            ".antigravity",
+            "logs",
+        ),
     )
+    dlq_path = os.path.join(log_dir, "dlq.json")
     if not os.path.exists(dlq_path):
         return []
 
@@ -706,7 +754,8 @@ async def get_audit_logs(
     api_key: str = Depends(verify_api_key),
 ):
     """Returns OTel formatted decisions from the repair logs with pagination and search."""
-    log_path = os.path.join(os.getcwd(), ".antigravity", "logs", "agent_decisions.json")
+    log_dir = os.getenv("LOG_DIR", os.path.join(os.getcwd(), ".antigravity", "logs"))
+    log_path = os.path.join(log_dir, "agent_decisions.json")
     if not os.path.exists(log_path):
         return {"logs": [], "total": 0}
 
@@ -768,7 +817,11 @@ async def replay_payload(req: ReplayRequest, api_key: str = Depends(verify_api_k
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        console.print(f"[bold red]DLQ Replay Error:[/bold red] {e}")
+        raise HTTPException(
+            status_code=500,
+            detail="An internal error occurred. Check server logs for details.",
+        )
 
 
 @app.get("/api/examples")
@@ -787,23 +840,35 @@ async def list_examples(api_key: str = Depends(verify_api_key)):
 
 
 @app.websocket("/ws/examples/run/{script_name}")
-async def ws_run_example(
-    websocket: WebSocket, script_name: str, token: str | None = None
-):
+async def ws_run_example(websocket: WebSocket, script_name: str):
     """Runs a simulation script and streams stdout/stderr back in real-time."""
+    await websocket.accept()
+
+    # First Message Auth
     expected_api_key = os.getenv("API_KEY_SECRET")
     if expected_api_key:
         session_cookie = websocket.cookies.get("sentinel_session")
         has_valid_cookie = (
             session_cookie and verify_session_token(session_cookie) is not None
         )
-        has_valid_token = token == expected_api_key
-        if not has_valid_cookie and not has_valid_token:
-            raise HTTPException(
-                status_code=401, detail="Unauthorized WebSocket connection"
-            )
-
-    await websocket.accept()
+        if not has_valid_cookie:
+            try:
+                auth_msg = await asyncio.wait_for(
+                    websocket.receive_text(), timeout=10.0
+                )
+                auth_data = orjson.loads(auth_msg)
+                if (
+                    auth_data.get("type") != "AUTH"
+                    or auth_data.get("token") != expected_api_key
+                ):
+                    await websocket.send_text(
+                        orjson.dumps({"type": "AUTH_FAILED"}).decode("utf-8")
+                    )
+                    await websocket.close(code=1008)
+                    return
+            except (asyncio.TimeoutError, Exception):
+                await websocket.close(code=1008)
+                return
 
     if script_name not in SAFE_SCRIPTS:
         await websocket.send_text(

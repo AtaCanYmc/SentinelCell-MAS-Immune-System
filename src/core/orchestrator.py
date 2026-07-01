@@ -276,20 +276,66 @@ class SentinelOrchestrator:
                     console.print(
                         f"[bold yellow][!] HITL Approval Required before LLM Repair for {agent_source}.[/bold yellow]"
                     )
-                    import builtins
-                    import asyncio
+                    import redis.asyncio as redis_async
+                    import uuid as uuid_mod
 
-                    try:
-                        ans = await asyncio.to_thread(
-                            builtins.input, "Approve LLM Repair? (y/n): "
-                        )
-                    except EOFError:
-                        ans = "y"
-                    if ans.lower().strip() == "y":
+                    approval_id = str(uuid_mod.uuid4())
+                    r_hitl = redis_async.from_url(
+                        os.getenv("REDIS_URL", "redis://localhost:6379/0")
+                    )
+
+                    # Store pending approval in Redis with 5-min TTL
+                    await r_hitl.setex(
+                        f"sentinel:hitl:{approval_id}",
+                        300,  # 5 minute TTL
+                        orjson.dumps(
+                            {
+                                "thread_id": thread_id,
+                                "source": agent_source,
+                                "target": agent_target,
+                                "status": "PENDING",
+                                "created_at": time.time(),
+                            }
+                        ).decode("utf-8"),
+                    )
+
+                    # Publish notification to dashboard via Redis PubSub
+                    await r_hitl.publish(
+                        "sentinel.logs",
+                        orjson.dumps(
+                            {
+                                "type": "HITL_APPROVAL_REQUIRED",
+                                "approval_id": approval_id,
+                                "source": agent_source,
+                                "target": agent_target,
+                            }
+                        ).decode("utf-8"),
+                    )
+
+                    # Poll Redis for approval decision (max 300s)
+                    hitl_timeout = int(os.getenv("HITL_TIMEOUT_SECONDS", "300"))
+                    poll_interval = 1
+                    elapsed = 0
+                    approved = False
+                    while elapsed < hitl_timeout:
+                        decision = await r_hitl.get(f"sentinel:hitl:{approval_id}")
+                        if decision:
+                            data = orjson.loads(decision)
+                            if data.get("status") == "APPROVED":
+                                approved = True
+                                break
+                            elif data.get("status") == "REJECTED":
+                                break
+                        await asyncio.sleep(poll_interval)
+                        elapsed += poll_interval
+
+                    await r_hitl.aclose()
+
+                    if approved:
                         final_state = await self.workflow.ainvoke(None, config)
                     else:
                         console.print(
-                            "[bold red][!] HITL Rejected by Operator. Dropping packet.[/bold red]"
+                            "[bold red][!] HITL Rejected or Timed Out. Dropping packet.[/bold red]"
                         )
                         return None
 
@@ -415,7 +461,7 @@ class SentinelOrchestrator:
     def _write_dlq_file_fallback(self, entry_str: str):
         import os
 
-        dlq_dir = os.path.join(os.getcwd(), ".antigravity", "logs")
+        dlq_dir = os.getenv("LOG_DIR", os.path.join(os.getcwd(), "logs"))
         os.makedirs(dlq_dir, exist_ok=True)
         dlq_path = os.path.join(dlq_dir, "dlq.json")
         try:
