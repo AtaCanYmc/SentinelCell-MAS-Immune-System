@@ -871,7 +871,10 @@ async def replay_payload(req: ReplayRequest, api_key: str = Depends(verify_api_k
 @app.get("/api/examples")
 async def list_examples(api_key: str = Depends(verify_api_key)):
     """Lists available interactive simulation examples with description."""
-    json_path = os.path.join("examples", "examples.json")
+    base_dir = os.path.dirname(
+        os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    )
+    json_path = os.path.join(base_dir, "examples", "examples.json")
     if not os.path.exists(json_path):
         return {"examples": []}
     try:
@@ -923,7 +926,10 @@ async def ws_run_example(websocket: WebSocket, script_name: str):
         await websocket.close()
         return
 
-    script_path = os.path.join("examples", script_name)
+    base_dir = os.path.dirname(
+        os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    )
+    script_path = os.path.join(base_dir, "examples", f"{script_name}.py")
     if not os.path.exists(script_path):
         await websocket.send_text(
             orjson.dumps({"type": "error", "line": "Script file not found."}).decode(
