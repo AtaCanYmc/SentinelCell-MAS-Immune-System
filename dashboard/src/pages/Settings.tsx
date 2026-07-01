@@ -4,6 +4,7 @@ import { useQuery, useMutation } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { AgentTable } from '../components/AgentTable';
 import { fetchWithAuth } from '../hooks/api';
+import { Config } from '../types';
 
 const ConfigInput = ({ configKey, value, onChange }) => {
   const [show, setShow] = useState(false);
@@ -50,8 +51,8 @@ const categorizeKey = (key) => {
 
 const Settings = () => {
   const { t, i18n } = useTranslation();
-  const { data: initialConfig, isLoading } = useQuery({ queryKey: ['config'], queryFn: fetchConfig });
-  const [config, setConfig] = useState({});
+  const { data: initialConfig, isLoading } = useQuery<Config>({ queryKey: ['config'], queryFn: fetchConfig });
+  const [config, setConfig] = useState<Config>({});
   const [saveMessage, setSaveMessage] = useState("");
   const [activeTab, setActiveTab] = useState('API Keys');
   const [searchTerm, setSearchTerm] = useState("");
@@ -63,7 +64,7 @@ const Settings = () => {
     if (initialConfig) setConfig(initialConfig);
   }, [initialConfig]);
 
-  const mutation = useMutation({
+  const mutation = useMutation<any, Error, Record<string, any>>({
     mutationFn: async (newConfig) => {
       const res = await fetchWithAuth('/api/config', {
         method: 'POST',
@@ -83,7 +84,7 @@ const Settings = () => {
     }
   });
 
-  const purgeMutation = useMutation({
+  const purgeMutation = useMutation<any, Error, number>({
     mutationFn: async (days) => {
       const res = await fetchWithAuth(`/memory/purge?days=${days}`, {
         method: 'DELETE'
@@ -117,11 +118,11 @@ const Settings = () => {
       </div>
 
       {(() => {
-        const filteredConfig = Object.entries(config).filter(([key]) =>
+        const filteredConfig = Object.entries(config || {}).filter(([key]) =>
           key.toLowerCase().replace(/_/g, ' ').includes(searchTerm.toLowerCase())
         );
 
-        const groupedConfig = filteredConfig.reduce((acc, [key, value]) => {
+        const groupedConfig = filteredConfig.reduce<Record<string, {key: string, value: any}[]>>((acc, [key, value]) => {
           const category = categorizeKey(key);
           if (!acc[category]) acc[category] = [];
           acc[category].push({ key, value });

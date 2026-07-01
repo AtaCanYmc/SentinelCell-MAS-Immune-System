@@ -21,17 +21,27 @@ const queryClient = new QueryClient({
   },
 });
 
-class ErrorBoundary extends React.Component {
-  constructor(props) {
+interface ErrorBoundaryProps {
+  children: React.ReactNode;
+}
+
+interface ErrorBoundaryState {
+  hasError: boolean;
+  error: Error | null;
+  errorInfo: React.ErrorInfo | null;
+}
+
+class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundaryState> {
+  constructor(props: ErrorBoundaryProps) {
     super(props);
     this.state = { hasError: false, error: null, errorInfo: null };
   }
 
-  static getDerivedStateFromError(error) {
+  static getDerivedStateFromError(error: any) {
     return { hasError: true };
   }
 
-  componentDidCatch(error, errorInfo) {
+  componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
     this.setState({ error, errorInfo });
     console.error("ErrorBoundary caught an error", error, errorInfo);
   }
@@ -55,25 +65,37 @@ class ErrorBoundary extends React.Component {
   }
 }
 
+const Login = React.lazy(() => import('./pages/Login'));
+
 function App() {
   return (
     <ErrorBoundary>
       <QueryClientProvider client={queryClient}>
         <BrowserRouter>
-          <Layout>
-            <Suspense fallback={<div className="p-8 text-blue-400 font-mono">Loading module...</div>}>
-              <Routes>
-                <Route path="/dashboard" element={<Dashboard />} />
-                <Route path="/quarantine" element={<Quarantine />} />
-                <Route path="/schemas" element={<SchemaRegistry />} />
-                <Route path="/settings" element={<Settings />} />
-                <Route path="/audit" element={<AuditLogs />} />
-                <Route path="/chat" element={<ChatTest />} />
-                <Route path="/examples" element={<Examples />} />
-                <Route path="*" element={<Navigate to="/dashboard" replace />} />
-              </Routes>
-            </Suspense>
-          </Layout>
+          <Suspense fallback={<div className="p-8 text-blue-400 font-mono">Loading module...</div>}>
+            <Routes>
+              <Route path="/login" element={<Login />} />
+              <Route
+                path="*"
+                element={
+                  <Layout>
+                    <Suspense fallback={<div className="p-8 text-blue-400 font-mono">Loading view...</div>}>
+                      <Routes>
+                        <Route path="dashboard" element={<Dashboard />} />
+                        <Route path="quarantine" element={<Quarantine />} />
+                        <Route path="schemas" element={<SchemaRegistry />} />
+                        <Route path="settings" element={<Settings />} />
+                        <Route path="audit" element={<AuditLogs />} />
+                        <Route path="chat" element={<ChatTest />} />
+                        <Route path="examples" element={<Examples />} />
+                        <Route path="*" element={<Navigate to="/dashboard" replace />} />
+                      </Routes>
+                    </Suspense>
+                  </Layout>
+                }
+              />
+            </Routes>
+          </Suspense>
         </BrowserRouter>
       </QueryClientProvider>
     </ErrorBoundary>

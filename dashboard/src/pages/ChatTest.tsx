@@ -17,7 +17,21 @@ export default function ChatTest() {
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [provider, setProvider] = useState('OPENAI');
+  const [isConnected, setIsConnected] = useState(false);
+
   const wsRef = useRef(null);
+  const isMountedRef = useRef(true);
+  const reconnectTimeoutRef = useRef(null);
+
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+      if (reconnectTimeoutRef.current) {
+        clearTimeout(reconnectTimeoutRef.current);
+      }
+    };
+  }, []);
 
   useEffect(() => {
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
@@ -32,10 +46,18 @@ export default function ChatTest() {
     const wsUrl = `${protocol}//${host}/ws/chat?lang=${lang}&provider=${provider}${tokenParam}`;
 
     const connectWs = () => {
+      if (!isMountedRef.current) return;
       console.log('Connecting to WebSocket:', wsUrl);
-      wsRef.current = new WebSocket(wsUrl);
+      const ws = new WebSocket(wsUrl);
+      wsRef.current = ws;
 
-      wsRef.current.onmessage = (event) => {
+      ws.onopen = () => {
+        if (isMountedRef.current) {
+          setIsConnected(true);
+        }
+      };
+
+      ws.onmessage = (event) => {
         const data = JSON.parse(event.data);
 
         if (data.type === 'start') {
@@ -56,13 +78,18 @@ export default function ChatTest() {
         }
       };
 
-      wsRef.current.onerror = (error) => {
+      ws.onerror = (error) => {
         console.error('WebSocket Error:', error);
       };
 
-      wsRef.current.onclose = () => {
-        // Simple reconnect logic on abnormal close
-        // Only reconnect if state is not unmounted
+      ws.onclose = (event) => {
+        if (isMountedRef.current) {
+          setIsConnected(false);
+          if (event.code !== 1000) {
+            console.log('WebSocket closed abnormally. Reconnecting in 3s...');
+            reconnectTimeoutRef.current = setTimeout(connectWs, 3000);
+          }
+        }
       };
     };
 
@@ -71,6 +98,9 @@ export default function ChatTest() {
     return () => {
       if (wsRef.current) {
         wsRef.current.close();
+      }
+      if (reconnectTimeoutRef.current) {
+        clearTimeout(reconnectTimeoutRef.current);
       }
     };
   }, [provider, i18n.language, config]);
@@ -113,6 +143,11 @@ export default function ChatTest() {
         <h2 className="text-lg font-semibold flex items-center gap-2">
           <Bot className="text-[#58a6ff]" />
           {t('chat.title')}
+          {!isConnected && (
+            <span className="px-2 py-0.5 text-2xs rounded bg-yellow-500/20 text-yellow-500 border border-yellow-500/30 animate-pulse font-bold">
+              DISCONNECTED (RECONNECTING...)
+            </span>
+          )}
         </h2>
 
         <div className="flex items-center gap-4">

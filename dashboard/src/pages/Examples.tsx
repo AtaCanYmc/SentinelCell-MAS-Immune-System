@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Play, Square, Terminal, CheckCircle, AlertCircle, Loader2, RefreshCw, Search, Code, Cpu } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import { fetchWithAuth } from '../hooks/api';
+import { Example } from '../types';
 
 const fetchExamples = async () => {
   const res = await fetchWithAuth('/api/examples');
@@ -24,14 +25,14 @@ const Examples = () => {
   });
   const { data: config = {} } = useQuery({ queryKey: ['config'], queryFn: fetchConfig, refetchInterval: 30000 });
 
-  const [selectedExample, setSelectedExample] = useState(null);
-  const [consoleLogs, setConsoleLogs] = useState([]);
-  const [executionState, setExecutionState] = useState('IDLE'); // IDLE, RUNNING, SUCCESS, FAILED
-  const [exitCode, setExitCode] = useState(null);
+  const [selectedExample, setSelectedExample] = useState<Example | null>(null);
+  const [consoleLogs, setConsoleLogs] = useState<string[]>([]);
+  const [executionState, setExecutionState] = useState<string>('IDLE'); // IDLE, RUNNING, SUCCESS, FAILED
+  const [exitCode, setExitCode] = useState<number | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
 
-  const wsRef = useRef(null);
-  const consoleEndRef = useRef(null);
+  const wsRef = useRef<WebSocket | null>(null);
+  const consoleEndRef = useRef<HTMLDivElement | null>(null);
 
   // Auto-scroll console to bottom
   useEffect(() => {
@@ -49,7 +50,7 @@ const Examples = () => {
     };
   }, []);
 
-  const runExample = (example) => {
+  const runExample = (example: Example) => {
     if (executionState === 'RUNNING') return;
 
     setSelectedExample(example);
@@ -58,7 +59,7 @@ const Examples = () => {
     setExitCode(null);
 
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const token = localStorage.getItem('sentinel_api_key') || config.API_KEY_SECRET || '';
+    const token = localStorage.getItem('sentinel_api_key') || (config as Record<string, any>).API_KEY_SECRET || '';
     const tokenParam = token ? `?token=${token}` : '';
     const wsUrl = `${protocol}//${window.location.host}/ws/examples/run/${example.id}${tokenParam}`;
 
@@ -89,6 +90,7 @@ const Examples = () => {
 
     ws.onclose = () => {
       wsRef.current = null;
+      setExecutionState((prev) => prev === 'RUNNING' ? 'FAILED' : prev);
     };
   };
 
@@ -100,7 +102,7 @@ const Examples = () => {
     }
   };
 
-  const getDifficultyColor = (difficulty) => {
+  const getDifficultyColor = (difficulty: string) => {
     switch (difficulty?.toLowerCase()) {
       case 'easy':
         return 'bg-green-500/10 text-green-400 border-green-500/20';

@@ -6,6 +6,7 @@ import { json } from '@codemirror/lang-json';
 import { useHotkeys } from 'react-hotkeys-hook';
 import ReactDiffViewer, { DiffMethod } from 'react-diff-viewer-continued';
 import { fetchWithAuth } from '../hooks/api';
+import { DlqItem } from '../types';
 
 const fetchDlq = async () => {
   const res = await fetchWithAuth('/api/dlq');
@@ -18,7 +19,7 @@ const Quarantine = () => {
   const { data: rawDlqItems, isLoading } = useQuery({ queryKey: ['dlq'], queryFn: fetchDlq });
   const dlqItems = Array.isArray(rawDlqItems) ? rawDlqItems : [];
 
-  const [editingDlq, setEditingDlq] = useState(null);
+  const [editingDlq, setEditingDlq] = useState<DlqItem | null>(null);
   const [activeTab, setActiveTab] = useState('edit'); // 'edit' | 'diff'
   const [replayMessage, setReplayMessage] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
@@ -27,12 +28,20 @@ const Quarantine = () => {
   const totalPages = Math.max(1, Math.ceil(dlqItems.length / itemsPerPage));
   const currentItems = dlqItems.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
-  const replayMutation = useMutation({
+  const replayMutation = useMutation<any, Error, DlqItem>({
     mutationFn: async (item) => {
+      let rawPayload = item.payload;
+      if (typeof rawPayload !== 'string') {
+        try {
+          rawPayload = JSON.stringify(rawPayload);
+        } catch (e) {
+          rawPayload = String(rawPayload);
+        }
+      }
       const res = await fetchWithAuth('/api/dlq/replay', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ source: item.source, target: item.target, payload: item.payload })
+        body: JSON.stringify({ source: item.source, target: item.target, payload: rawPayload })
       });
       if (!res.ok) {
         const err = await res.json();
@@ -50,16 +59,16 @@ const Quarantine = () => {
       setReplayMessage("Success: Payload accepted!");
       setEditingDlq(null);
     },
-    onError: (err, item, context) => {
+    onError: (err, item, context: any) => {
       setReplayMessage(`Error: ${err.message}`);
-      queryClient.setQueryData(['dlq'], context.previousDlq);
+      queryClient.setQueryData(['dlq'], context?.previousDlq);
     },
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ['dlq'] });
     }
   });
 
-  const handleReplay = (item) => {
+  const handleReplay = (item: DlqItem) => {
     setReplayMessage("Replaying payload...");
     replayMutation.mutate(item);
   };

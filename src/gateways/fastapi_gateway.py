@@ -13,6 +13,7 @@ from fastapi import (
     WebSocketDisconnect,
     Depends,
     Header,
+    Cookie,
 )
 from fastapi.responses import HTMLResponse, JSONResponse
 from src.core.logger import get_console
@@ -22,6 +23,8 @@ from fastapi.staticfiles import StaticFiles
 import redis.asyncio as redis
 from src.agents.validator_agent import SentinelCell
 from prometheus_client import make_asgi_app
+from src.core.session_manager import create_session_token, verify_session_token
+from src.gateways.constants import SAFE_SCRIPTS
 
 console = get_console()
 
@@ -122,13 +125,59 @@ sentinel = SentinelCell()
 security = HTTPBearer(auto_error=False)
 
 
-def verify_api_key(credentials: HTTPAuthorizationCredentials = Depends(security)):
+def verify_api_key(
+    credentials: HTTPAuthorizationCredentials = Depends(security),
+    sentinel_session: str | None = Cookie(None),
+):
     expected_api_key = os.getenv("API_KEY_SECRET")
     if not expected_api_key:
         return True
-    if not credentials or credentials.credentials != expected_api_key:
-        raise HTTPException(status_code=401, detail="Invalid or missing API Key")
-    return credentials.credentials
+
+    # 1. Check for cookie-based session token
+    if sentinel_session:
+        username = verify_session_token(sentinel_session)
+        if username:
+            return username
+
+    # 2. Check for Bearer token (API_KEY_SECRET)
+    if credentials and credentials.credentials == expected_api_key:
+        return credentials.credentials
+
+    # If neither matches
+    raise HTTPException(status_code=401, detail="Invalid or missing API Key or Session")
+
+
+class LoginRequest(BaseModel):
+    username: str
+    password: str
+
+
+@app.post("/api/auth/login")
+async def login(req: LoginRequest):
+    expected_user = os.getenv("DASHBOARD_USERNAME", "admin")
+    expected_pass = os.getenv("DASHBOARD_PASSWORD", "sentinel")
+
+    if req.username != expected_user or req.password != expected_pass:
+        raise HTTPException(status_code=401, detail="Invalid credentials")
+
+    token = create_session_token(req.username)
+    response = JSONResponse(content={"status": "success", "username": req.username})
+    response.set_cookie(
+        key="sentinel_session",
+        value=token,
+        httponly=True,
+        max_age=3600,
+        samesite="lax",
+        secure=False,
+    )
+    return response
+
+
+@app.post("/api/auth/logout")
+async def logout():
+    response = JSONResponse(content={"status": "success"})
+    response.delete_cookie(key="sentinel_session")
+    return response
 
 
 # Add Prometheus metrics route
@@ -172,10 +221,16 @@ async def get_dashboard():
 async def websocket_logs(websocket: WebSocket, token: str | None = None):
     """Streams live SentinelCell logs from Redis PubSub to connected WebSockets"""
     expected_api_key = os.getenv("API_KEY_SECRET")
-    if expected_api_key and token != expected_api_key:
-        await websocket.accept()
-        await websocket.close(code=4001)
-        return
+    if expected_api_key:
+        session_cookie = websocket.cookies.get("sentinel_session")
+        has_valid_cookie = (
+            session_cookie and verify_session_token(session_cookie) is not None
+        )
+        has_valid_token = token == expected_api_key
+        if not has_valid_cookie and not has_valid_token:
+            raise HTTPException(
+                status_code=401, detail="Unauthorized WebSocket connection"
+            )
 
     await websocket.accept()
     redis_url = os.getenv("REDIS_URL", "redis://redis:6379")
@@ -305,10 +360,16 @@ async def websocket_chat(
     WebSocket endpoint for real-time LLM chat streaming.
     """
     expected_api_key = os.getenv("API_KEY_SECRET")
-    if expected_api_key and token != expected_api_key:
-        await websocket.accept()
-        await websocket.close(code=4001)
-        return
+    if expected_api_key:
+        session_cookie = websocket.cookies.get("sentinel_session")
+        has_valid_cookie = (
+            session_cookie and verify_session_token(session_cookie) is not None
+        )
+        has_valid_token = token == expected_api_key
+        if not has_valid_cookie and not has_valid_token:
+            raise HTTPException(
+                status_code=401, detail="Unauthorized WebSocket connection"
+            )
 
     await websocket.accept()
     from src.core.llm_factory import LLMFactory
@@ -573,19 +634,35 @@ class ReplayRequest(BaseModel):
 @app.get("/api/agents")
 async def get_agents(api_key: str = Depends(verify_api_key)):
     """Returns the current state of agent circuit breakers."""
+    import time
+
     threshold = int(os.getenv("CIRCUIT_BREAKER_THRESHOLD", "5"))
+    cooldown = int(os.getenv("CIRCUIT_BREAKER_COOLDOWN", "60"))
     breakers = sentinel.orchestrator.agent_circuit_breakers
     result = []
     for agent, errors in breakers.items():
         failures = (
             errors.get("failures", 0) if isinstance(errors, dict) else (errors or 0)
         )
+        last_failure = (
+            errors.get("last_failure_time", 0.0) if isinstance(errors, dict) else 0.0
+        )
+
+        status = "HEALTHY"
+        if failures >= threshold:
+            if time.time() - last_failure > cooldown:
+                status = "RECOVERING"
+            else:
+                status = "TRIPPED"
+
         result.append(
             {
                 "id": agent,
                 "errors": errors,
-                "status": "TRIPPED" if failures >= threshold else "HEALTHY",
+                "status": status,
                 "threshold": threshold,
+                "last_failure_time": last_failure,
+                "cooldown": cooldown,
             }
         )
     return {"agents": result}
@@ -622,18 +699,57 @@ async def get_metrics(api_key: str = Depends(verify_api_key)):
 
 
 @app.get("/api/audit-logs")
-async def get_audit_logs(api_key: str = Depends(verify_api_key)):
-    """Returns OTel formatted decisions from the repair logs."""
+async def get_audit_logs(
+    limit: int = 50,
+    offset: int = 0,
+    search: str | None = None,
+    api_key: str = Depends(verify_api_key),
+):
+    """Returns OTel formatted decisions from the repair logs with pagination and search."""
     log_path = os.path.join(os.getcwd(), ".antigravity", "logs", "agent_decisions.json")
     if not os.path.exists(log_path):
-        return {"logs": []}
+        return {"logs": [], "total": 0}
 
     try:
         with open(log_path, "r") as f:
             logs = orjson.loads(f.read())
-        return {"logs": logs[::-1]}  # newest first
+
+        if search:
+            term = search.lower()
+            filtered = []
+            for log in logs:
+                trace_id = str(log.get("TraceId", "")).lower()
+                span_id = str(log.get("SpanId", "")).lower()
+                reason = str(log.get("reason", "")).lower()
+                attributes = log.get("Attributes") or {}
+                source = str(
+                    attributes.get("agent.source", log.get("source", ""))
+                ).lower()
+                target = str(
+                    attributes.get("agent.target", log.get("target", ""))
+                ).lower()
+                decision_id = str(
+                    log.get("id", attributes.get("decision.id", ""))
+                ).lower()
+
+                if (
+                    term in trace_id
+                    or term in span_id
+                    or term in reason
+                    or term in source
+                    or term in target
+                    or term in decision_id
+                ):
+                    filtered.append(log)
+            logs = filtered
+
+        reversed_logs = logs[::-1]
+        return {
+            "logs": reversed_logs[offset : offset + limit],
+            "total": len(reversed_logs),
+        }
     except Exception:
-        return {"logs": []}
+        return {"logs": [], "total": 0}
 
 
 @app.post("/api/dlq/replay")
@@ -676,58 +792,20 @@ async def ws_run_example(
 ):
     """Runs a simulation script and streams stdout/stderr back in real-time."""
     expected_api_key = os.getenv("API_KEY_SECRET")
-    if expected_api_key and token != expected_api_key:
-        await websocket.accept()
-        await websocket.close(code=4001)
-        return
+    if expected_api_key:
+        session_cookie = websocket.cookies.get("sentinel_session")
+        has_valid_cookie = (
+            session_cookie and verify_session_token(session_cookie) is not None
+        )
+        has_valid_token = token == expected_api_key
+        if not has_valid_cookie and not has_valid_token:
+            raise HTTPException(
+                status_code=401, detail="Unauthorized WebSocket connection"
+            )
 
     await websocket.accept()
 
-    safe_scripts = [
-        "adaptive_unlearning_demo.py",
-        "agent_trust_score_degradation.py",
-        "auth_bypass_injection.py",
-        "auto_schema_inference_sim.py",
-        "base64_poison_pill.py",
-        "basic_usage.py",
-        "chaos_monkey.py",
-        "circuit_breaker_recovery.py",
-        "custom_skill_demo.py",
-        "finance_schema_evolution.py",
-        "financial_drift_anomaly_sim.py",
-        "financial_transaction_replay.py",
-        "fintech_transaction_flow.py",
-        "high_concurrency_burst.py",
-        "high_concurrency_stress_test.py",
-        "human_in_the_loop_approval.py",
-        "iot_passive_monitoring.py",
-        "iot_telemetry_recovery.py",
-        "json_dos_attack.py",
-        "kafka_heavy_duty_sim.py",
-        "latency_benchmark.py",
-        "mq_simulation_demo.py",
-        "mqtt_iot_sensor_sim.py",
-        "multi_agent_flow.py",
-        "multi_language_drift.py",
-        "opentelemetry_tracing_sim.py",
-        "outbox_backpressure_test.py",
-        "poison_pill_demo.py",
-        "quarantine_mode_demo.py",
-        "rabbitmq_heavy_duty_sim.py",
-        "redis_atomic_dlq_sim.py",
-        "redis_outage_fallback.py",
-        "repair_prompt_injection_test.py",
-        "schema_cache_hit_demo.py",
-        "schema_evolution_conflict.py",
-        "security_injection_demo.py",
-        "semantic_drift_test.py",
-        "semantic_repair_cache_hit.py",
-        "silent_business_logic_corruption.py",
-        "stealth_financial_drift.py",
-        "wallet_exhaustion_dos_sim.py",
-    ]
-
-    if script_name not in safe_scripts:
+    if script_name not in SAFE_SCRIPTS:
         await websocket.send_text(
             orjson.dumps({"type": "error", "line": "Invalid script name."}).decode(
                 "utf-8"

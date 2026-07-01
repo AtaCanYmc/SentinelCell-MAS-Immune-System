@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { ShieldAlert, RefreshCw, CheckCircle2 } from 'lucide-react';
 import { fetchWithAuth } from '../hooks/api';
@@ -7,6 +7,43 @@ const fetchAgents = async () => {
   const res = await fetchWithAuth('/api/agents');
   if (!res.ok) throw new Error('Failed to fetch agents');
   return res.json();
+};
+
+const StatusCell = ({ agent }: { agent: any }) => {
+  const [secondsLeft, setSecondsLeft] = useState(0);
+
+  useEffect(() => {
+    if (agent.status === 'TRIPPED' && agent.last_failure_time && agent.cooldown) {
+      const calculateTimeLeft = () => {
+        const elapsed = Date.now() / 1000 - agent.last_failure_time;
+        const remaining = Math.max(0, Math.ceil(agent.cooldown - elapsed));
+        setSecondsLeft(remaining);
+      };
+
+      calculateTimeLeft();
+      const timer = setInterval(calculateTimeLeft, 1000);
+      return () => clearInterval(timer);
+    } else {
+      setSecondsLeft(0);
+    }
+  }, [agent]);
+
+  if (agent.status === 'HEALTHY') {
+    return <span className="flex items-center gap-1 text-green-400"><CheckCircle2 className="w-4 h-4"/> Healthy</span>;
+  }
+
+  if (agent.status === 'RECOVERING') {
+    return <span className="flex items-center gap-1 text-yellow-500 font-bold animate-pulse"><RefreshCw className="w-4 h-4"/> Half-Open (Recovering)</span>;
+  }
+
+  return (
+    <div className="flex flex-col gap-0.5">
+      <span className="flex items-center gap-1 text-red-500 font-bold"><ShieldAlert className="w-4 h-4"/> Tripped</span>
+      {secondsLeft > 0 && (
+        <span className="text-[10px] text-gray-500 font-mono">Reset in: {secondsLeft}s</span>
+      )}
+    </div>
+  );
 };
 
 export const AgentTable = () => {
@@ -47,11 +84,7 @@ export const AgentTable = () => {
               <td className="px-4 py-3 font-mono text-blue-400">{agent.id}</td>
               <td className="px-4 py-3 font-mono">{typeof agent.errors === 'object' && agent.errors !== null ? agent.errors.failures : agent.errors} / {agent.threshold}</td>
               <td className="px-4 py-3">
-                {agent.status === 'HEALTHY' ? (
-                  <span className="flex items-center gap-1 text-green-400"><CheckCircle2 className="w-4 h-4"/> Healthy</span>
-                ) : (
-                  <span className="flex items-center gap-1 text-red-500 font-bold"><ShieldAlert className="w-4 h-4"/> Tripped</span>
-                )}
+                <StatusCell agent={agent} />
               </td>
               <td className="px-4 py-3 text-right">
                 <button

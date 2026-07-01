@@ -17,11 +17,11 @@ const fetchConfig = async () => {
   return res.json();
 };
 
-const Layout = ({ children }) => {
+const Layout = ({ children }: { children: React.ReactNode }) => {
   const { t, i18n } = useTranslation();
   const location = useLocation();
 
-  const getTabClass = (path) => {
+  const getTabClass = (path: string) => {
     const isActive = location.pathname.startsWith(path);
     if (path === '/quarantine') {
       return `flex items-center gap-2 px-4 py-2 rounded-md font-medium transition-colors ${isActive ? 'bg-red-500/10 text-red-400' : 'text-gray-400 hover:text-gray-200'}`;
@@ -32,31 +32,34 @@ const Layout = ({ children }) => {
   const queryClient = useQueryClient();
   const { data: metrics } = useQuery({ queryKey: ['metrics'], queryFn: fetchMetrics, refetchInterval: 3000 });
   const { data: config } = useQuery({ queryKey: ['config'], queryFn: fetchConfig, refetchInterval: 10000 });
-
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [modalKeyInput, setModalKeyInput] = useState('');
 
   useEffect(() => {
-    const handleUnauthorized = () => {
-      setShowAuthModal(true);
-    };
-    window.addEventListener('sentinel-unauthorized', handleUnauthorized);
-    return () => window.removeEventListener('sentinel-unauthorized', handleUnauthorized);
-  }, []);
+    const hasKey = localStorage.getItem('sentinel_api_key');
+    // If the config tells us there's an API key required but we don't have it in storage/cookie, show modal
+    if (!hasKey && config && (config as Record<string, any>).API_KEY_SECRET) {
+      // If we don't have sentinel_username in storage either
+      if (!localStorage.getItem('sentinel_username')) {
+        setShowAuthModal(true);
+      }
+    }
+  }, [config]);
 
   const handleSaveKey = () => {
-    localStorage.setItem('sentinel_api_key', modalKeyInput);
-    setShowAuthModal(false);
-    // Reload page to re-trigger queries with new token
-    window.location.reload();
+    if (modalKeyInput.trim()) {
+      localStorage.setItem('sentinel_api_key', modalKeyInput.trim());
+      setShowAuthModal(false);
+      window.location.reload();
+    }
   };
 
-  const mutation = useMutation({
+  const mutation = useMutation<any, Error, Record<string, any>>({
     mutationFn: async (newConfig) => {
       const res = await fetchWithAuth('/api/config', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({...config, ...newConfig})
+        body: JSON.stringify({...(config as Record<string, any> || {}), ...newConfig})
       });
       return res.json();
     },
@@ -94,6 +97,17 @@ const Layout = ({ children }) => {
               <option value="fr">Français</option>
             </select>
           </div>
+
+          <button
+            onClick={async () => {
+              await fetch('/api/auth/logout', { method: 'POST' });
+              localStorage.removeItem('sentinel_username');
+              window.location.href = '/login';
+            }}
+            className="px-3 py-1.5 bg-red-950/40 hover:bg-red-900/40 text-red-400 border border-red-500/20 rounded-lg text-xs font-semibold transition-colors cursor-pointer"
+          >
+            Log Out
+          </button>
 
           <div className="flex items-center gap-3">
             <span className="flex h-3 w-3 relative">
