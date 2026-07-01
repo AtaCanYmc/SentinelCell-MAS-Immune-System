@@ -15,7 +15,7 @@ def test_verify_chain_success(tmp_path):
     from unittest.mock import patch
 
     mock_base = str(tmp_path)
-    target_dir = os.path.join(mock_base, ".antigravity", "logs")
+    target_dir = os.path.join(mock_base, "logs")
     os.makedirs(target_dir, exist_ok=True)
     target_file = os.path.join(target_dir, "agent_decisions.json")
     with open(target_file, "w") as f:

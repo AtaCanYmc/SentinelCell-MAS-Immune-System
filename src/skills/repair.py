@@ -371,9 +371,7 @@ class SelfHealingEngine:
         from src.core.telemetry import OpenTelemetryLog, OTelResource
 
         decision_id = f"DECISION-HEAL-{str(uuid.uuid4())[:8].upper()}"
-        log_path = os.path.join(
-            os.getcwd(), ".antigravity", "logs", "agent_decisions.json"
-        )
+        log_path = os.path.join(os.getcwd(), "logs", "agent_decisions.json")
         try:
             with open(log_path, "r") as f:
                 logs = orjson.loads(f.read())
