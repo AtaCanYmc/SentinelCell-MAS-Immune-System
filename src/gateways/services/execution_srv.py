@@ -24,7 +24,7 @@ class ExecutionService:
         base_dir = os.path.dirname(
             os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
         )
-        script_path = os.path.join(base_dir, "examples", f"{script_name}.py")
+        script_path = os.path.join(base_dir, "examples", script_name)
         if not os.path.exists(script_path):
             await websocket.send_text(
                 orjson.dumps(
