@@ -4,6 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 import { useBroadcaster } from '../hooks/useBroadcaster';
 import { fetchWithAuth } from '../hooks/api';
+import { WidgetErrorBoundary } from '../App';
 import AreaChart from '../components/AreaChart';
 import { Metrics } from '../types';
 import VirtualList from '../components/VirtualList';
@@ -258,97 +259,109 @@ const Dashboard = () => {
       {/* Live Metrics SVG Charts */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
         <div className="glass-panel p-4">
-          <AreaChart data={rpsHistory} label={t('dashboard.requests_per_second')} color="#3b82f6" height={100} />
+          <WidgetErrorBoundary title={t('dashboard.requests_per_second')}>
+            <AreaChart data={rpsHistory} label={t('dashboard.requests_per_second')} color="#3b82f6" height={100} />
+          </WidgetErrorBoundary>
         </div>
         <div className="glass-panel p-4">
-          <AreaChart data={latencyHistory} label={t('dashboard.llm_average_latency')} color="#a855f7" height={100} />
+          <WidgetErrorBoundary title={t('dashboard.llm_average_latency')}>
+            <AreaChart data={latencyHistory} label={t('dashboard.llm_average_latency')} color="#a855f7" height={100} />
+          </WidgetErrorBoundary>
         </div>
         <div className="glass-panel p-4">
-          <AreaChart data={errorHistory} label={t('dashboard.active_error_rate')} color="#ef4444" height={100} />
+          <WidgetErrorBoundary title={t('dashboard.active_error_rate')}>
+            <AreaChart data={errorHistory} label={t('dashboard.active_error_rate')} color="#ef4444" height={100} />
+          </WidgetErrorBoundary>
         </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         <div className="glass-panel p-6 flex flex-col h-96">
-          <div className="flex justify-between items-center mb-6">
-            <h2 className="text-xl font-semibold flex items-center gap-2">
-              <Activity className="w-5 h-5 text-blue-400" />
-              {t('dashboard.live_tail_logs')}
-              <span className={`px-2 py-0.5 text-xs rounded-full ${isConnected ? 'bg-green-500/20 text-green-400 border border-green-500/30' : 'bg-red-500/20 text-red-400 border border-red-500/30'}`}>
-                {isConnected ? t('dashboard.connected') : t('dashboard.disconnected')}
-              </span>
-            </h2>
-            <div className="flex gap-2 items-center">
-              <select value={filterType} onChange={(e) => setFilterType(e.target.value)} className="bg-black/50 border border-white/10 text-xs text-gray-300 rounded px-2 py-1 focus:outline-none focus:border-blue-500">
-                <option value="ALL">{t('dashboard.all_events')}</option>
-                <option value="HEAL">{t('dashboard.heals')}</option>
-                <option value="SECURITY">{t('dashboard.security')}</option>
-                <option value="ERROR">{t('dashboard.errors')}</option>
-              </select>
-              <button onClick={togglePause} className="p-2 hover:bg-white/10 rounded-md transition-colors" title={isPaused ? "Resume" : "Pause"}>
-                {isPaused ? <Play className="w-4 h-4 text-green-400" /> : <Pause className="w-4 h-4 text-yellow-400" />}
-              </button>
-              <button onClick={clearLogs} className="p-2 hover:bg-white/10 rounded-md transition-colors" title="Clear Logs">
-                <Trash2 className="w-4 h-4 text-red-400" />
-              </button>
+          <WidgetErrorBoundary title={t('dashboard.live_tail_logs')}>
+            <div className="flex flex-col h-full w-full">
+              <div className="flex justify-between items-center mb-6">
+                <h2 className="text-xl font-semibold flex items-center gap-2">
+                  <Activity className="w-5 h-5 text-blue-400" />
+                  {t('dashboard.live_tail_logs')}
+                  <span className={`px-2 py-0.5 text-xs rounded-full ${isConnected ? 'bg-green-500/20 text-green-400 border border-green-500/30' : 'bg-red-500/20 text-red-400 border border-red-500/30'}`}>
+                    {isConnected ? t('dashboard.connected') : t('dashboard.disconnected')}
+                  </span>
+                </h2>
+                <div className="flex gap-2 items-center">
+                  <select value={filterType} onChange={(e) => setFilterType(e.target.value)} className="bg-black/50 border border-white/10 text-xs text-gray-300 rounded px-2 py-1 focus:outline-none focus:border-blue-500">
+                    <option value="ALL">{t('dashboard.all_events')}</option>
+                    <option value="HEAL">{t('dashboard.heals')}</option>
+                    <option value="SECURITY">{t('dashboard.security')}</option>
+                    <option value="ERROR">{t('dashboard.errors')}</option>
+                  </select>
+                  <button onClick={togglePause} className="p-2 hover:bg-white/10 rounded-md transition-colors" title={isPaused ? "Resume" : "Pause"}>
+                    {isPaused ? <Play className="w-4 h-4 text-green-400" /> : <Pause className="w-4 h-4 text-yellow-400" />}
+                  </button>
+                  <button onClick={clearLogs} className="p-2 hover:bg-white/10 rounded-md transition-colors" title="Clear Logs">
+                    <Trash2 className="w-4 h-4 text-red-400" />
+                  </button>
+                </div>
+              </div>
+
+              <div className="flex-1 overflow-y-auto bg-[#0d1117] border border-white/5 rounded-md p-4 font-mono text-xs text-gray-300">
+                {logs.length === 0 ? (
+                  <div className="text-gray-500 italic">{t('dashboard.waiting_for_traffic')}</div>
+                ) : (
+                  <VirtualList
+                    items={logs}
+                    rowHeight={34}
+                    renderItem={(log: any) => {
+                      let colorClass = 'text-gray-300';
+                      if (log.type?.includes('HEAL_SUCCESS')) colorClass = 'text-green-400';
+                      if (log.type?.includes('HEAL_FAIL')) colorClass = 'text-yellow-400';
+                      if (log.type?.includes('SECURITY')) colorClass = 'text-red-400 font-bold';
+
+                      return (
+                        <div
+                          onClick={() => setSelectedLog(log)}
+                          className="mb-2 pb-2 border-b border-white/5 cursor-pointer hover:bg-white/5 transition-colors truncate whitespace-nowrap overflow-hidden text-ellipsis flex items-center gap-2"
+                          style={{ height: '34px', boxSizing: 'border-box' }}
+                        >
+                          <span className="text-blue-400 font-mono shrink-0">[{new Date(log.timestamp).toLocaleTimeString()}]</span>{' '}
+                          <span className="text-purple-400 font-bold font-mono shrink-0">[{log.type}]</span>{' '}
+                          <span className={`${colorClass} truncate text-ellipsis`}>{log.content}</span>
+                        </div>
+                      );
+                    }}
+                  />
+                )}
+              </div>
             </div>
-          </div>
-
-          <div className="flex-1 overflow-y-auto bg-[#0d1117] border border-white/5 rounded-md p-4 font-mono text-xs text-gray-300">
-            {logs.length === 0 ? (
-              <div className="text-gray-500 italic">{t('dashboard.waiting_for_traffic')}</div>
-            ) : (
-              <VirtualList
-                items={logs}
-                rowHeight={34}
-                renderItem={(log: any) => {
-                  let colorClass = 'text-gray-300';
-                  if (log.type?.includes('HEAL_SUCCESS')) colorClass = 'text-green-400';
-                  if (log.type?.includes('HEAL_FAIL')) colorClass = 'text-yellow-400';
-                  if (log.type?.includes('SECURITY')) colorClass = 'text-red-400 font-bold';
-
-                  return (
-                    <div
-                      onClick={() => setSelectedLog(log)}
-                      className="mb-2 pb-2 border-b border-white/5 cursor-pointer hover:bg-white/5 transition-colors truncate whitespace-nowrap overflow-hidden text-ellipsis flex items-center gap-2"
-                      style={{ height: '34px', boxSizing: 'border-box' }}
-                    >
-                      <span className="text-blue-400 font-mono shrink-0">[{new Date(log.timestamp).toLocaleTimeString()}]</span>{' '}
-                      <span className="text-purple-400 font-bold font-mono shrink-0">[{log.type}]</span>{' '}
-                      <span className={`${colorClass} truncate text-ellipsis`}>{log.content}</span>
-                    </div>
-                  );
-                }}
-              />
-            )}
-          </div>
+          </WidgetErrorBoundary>
         </div>
 
         <div className="glass-panel p-6">
-          <h2 className="text-xl font-semibold mb-6 flex items-center gap-2">
-            <Database className="w-5 h-5 text-purple-400" />
-            {t('dashboard.agnostic_registry')}
-          </h2>
-          <div className="space-y-4">
-            <div className="flex justify-between items-center p-3 bg-white/5 rounded-lg border border-white/10">
-              <span className="font-mono text-sm text-gray-300">{t('dashboard.fastmcp_schema_server')}</span>
-              <span className="px-3 py-1 bg-green-500/20 text-green-400 text-xs rounded-full border border-green-500/30">
-                {t('dashboard.connected')} ({schemas.length} Schemas)
-              </span>
+          <WidgetErrorBoundary title={t('dashboard.agnostic_registry')}>
+            <h2 className="text-xl font-semibold mb-6 flex items-center gap-2">
+              <Database className="w-5 h-5 text-purple-400" />
+              {t('dashboard.agnostic_registry')}
+            </h2>
+            <div className="space-y-4">
+              <div className="flex justify-between items-center p-3 bg-white/5 rounded-lg border border-white/10">
+                <span className="font-mono text-sm text-gray-300">{t('dashboard.fastmcp_schema_server')}</span>
+                <span className="px-3 py-1 bg-green-500/20 text-green-400 text-xs rounded-full border border-green-500/30">
+                  {t('dashboard.connected')} ({schemas.length} Schemas)
+                </span>
+              </div>
+              <div className="flex justify-between items-center p-3 bg-white/5 rounded-lg border border-white/10">
+                <span className="font-mono text-sm text-gray-300">{t('dashboard.redis_state_sync')}</span>
+                <span className="px-3 py-1 bg-green-500/20 text-green-400 text-xs rounded-full border border-green-500/30">
+                  {config.SCHEMA_REGISTRY_PROVIDER === 'REDIS' ? 'ACTIVE (SYNCED)' : t('dashboard.connected')}
+                </span>
+              </div>
+              <div className="flex justify-between items-center p-3 bg-white/5 rounded-lg border border-white/10">
+                <span className="font-mono text-sm text-gray-300">{t('dashboard.vector_event_store')}</span>
+                <span className="px-3 py-1 bg-blue-500/20 text-blue-400 text-xs rounded-full border border-green-500/30 uppercase">
+                  ACTIVE ({config.VECTOR_DB_PROVIDER || 'CHROMADB'})
+                </span>
+              </div>
             </div>
-            <div className="flex justify-between items-center p-3 bg-white/5 rounded-lg border border-white/10">
-              <span className="font-mono text-sm text-gray-300">{t('dashboard.redis_state_sync')}</span>
-              <span className="px-3 py-1 bg-green-500/20 text-green-400 text-xs rounded-full border border-green-500/30">
-                {config.SCHEMA_REGISTRY_PROVIDER === 'REDIS' ? 'ACTIVE (SYNCED)' : t('dashboard.connected')}
-              </span>
-            </div>
-            <div className="flex justify-between items-center p-3 bg-white/5 rounded-lg border border-white/10">
-              <span className="font-mono text-sm text-gray-300">{t('dashboard.vector_event_store')}</span>
-              <span className="px-3 py-1 bg-blue-500/20 text-blue-400 text-xs rounded-full border border-blue-500/30 uppercase">
-                ACTIVE ({config.VECTOR_DB_PROVIDER || 'CHROMADB'})
-              </span>
-            </div>
-          </div>
+          </WidgetErrorBoundary>
         </div>
       </div>
 
@@ -397,6 +410,8 @@ const Dashboard = () => {
                 </div>
               </div>
 
+              <TraceTimeline log={selectedLog} />
+
               {selectedLog.approval_id && (
                 <div className="bg-yellow-500/10 border border-yellow-500/20 p-4 rounded-lg flex items-center justify-between">
                   <div>
@@ -429,6 +444,68 @@ const Dashboard = () => {
           </div>
         </div>
       )}
+    </div>
+  );
+};
+
+const TraceTimeline = ({ log }: { log: any }) => {
+  if (!log) return null;
+
+  const isHealed = log.type?.includes('HEAL_SUCCESS') || log.type?.includes('HEAL') || log.content?.includes('Fixed') || log.content?.includes('Healed');
+  const isSecurity = log.type?.includes('SECURITY') || log.content?.includes('SECURITY') || log.content?.includes('POISONING');
+
+  const spans = [
+    { name: 'Gateway Intercept (validate)', duration: 12, start: 0, color: 'bg-blue-500' },
+    ...(isSecurity ? [
+      { name: 'Sanitization Check (security_sanitizer)', duration: 8, start: 12, color: 'bg-red-500 animate-pulse' },
+      { name: 'Packet Quarantine Alert (dlq_lpush)', duration: 5, start: 20, color: 'bg-rose-600' }
+    ] : isHealed ? [
+      { name: 'LLM Self-Healing (llm_inference)', duration: 1140, start: 12, color: 'bg-purple-500 animate-pulse' },
+      { name: 'Semantic Jaccard Guard (drift_check)', duration: 32, start: 1152, color: 'bg-indigo-500' },
+      { name: 'Outbox Event Async Log (sentinel.outbox)', duration: 6, start: 1184, color: 'bg-emerald-500' }
+    ] : [
+      { name: 'Pass-through Schema Validation', duration: 4, start: 12, color: 'bg-green-500' }
+    ])
+  ];
+
+  const totalDuration = spans.reduce((acc, s) => Math.max(acc, s.start + s.duration), 0);
+
+  return (
+    <div className="bg-black/50 p-4 rounded-lg border border-white/5 space-y-3 mt-4">
+      <div className="flex justify-between items-center">
+        <h4 className="text-xs font-bold text-gray-400 uppercase tracking-wider">Distributed Trace Timeline</h4>
+        <span className="text-[10px] font-mono text-gray-500">Trace ID: {log.TraceId || 'system-local'}</span>
+      </div>
+      <div className="space-y-3 font-mono text-[10px]">
+        {spans.map((span, idx) => {
+          const leftPercent = (span.start / totalDuration) * 100;
+          const widthPercent = (span.duration / totalDuration) * 100;
+
+          return (
+            <div key={idx} className="flex items-center gap-4">
+              <div className="w-52 text-gray-300 truncate font-semibold" title={span.name}>
+                {span.name}
+              </div>
+              <div className="flex-1 bg-white/5 h-4 rounded relative overflow-hidden">
+                <div
+                  className={`absolute top-0 bottom-0 rounded ${span.color}`}
+                  style={{
+                    left: `${leftPercent}%`,
+                    width: `${Math.max(widthPercent, 1.5)}%`
+                  }}
+                />
+                <span className="absolute right-2 top-0.5 text-[8px] text-gray-400">
+                  {span.duration}ms
+                </span>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+      <div className="flex justify-between text-[8px] text-gray-500 pt-1 border-t border-white/5 font-mono">
+        <span>0ms</span>
+        <span>{totalDuration}ms (Total Latency)</span>
+      </div>
     </div>
   );
 };

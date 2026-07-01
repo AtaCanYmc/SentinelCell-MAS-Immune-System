@@ -7,6 +7,7 @@ import { useHotkeys } from 'react-hotkeys-hook';
 import ReactDiffViewer, { DiffMethod } from 'react-diff-viewer-continued';
 import { fetchWithAuth } from '../hooks/api';
 import { DlqItem } from '../types';
+import { useToast } from '../components/Toast';
 
 const fetchDlq = async () => {
   const res = await fetchWithAuth('/api/dlq');
@@ -16,6 +17,7 @@ const fetchDlq = async () => {
 
 const Quarantine = () => {
   const queryClient = useQueryClient();
+  const toast = useToast();
   const { data: rawDlqItems, isLoading } = useQuery({ queryKey: ['dlq'], queryFn: fetchDlq });
   const dlqItems = Array.isArray(rawDlqItems) ? rawDlqItems : [];
 
@@ -56,10 +58,12 @@ const Quarantine = () => {
       return { previousDlq };
     },
     onSuccess: () => {
+      toast.success("Payload accepted and replayed successfully.");
       setReplayMessage("Success: Payload accepted!");
       setEditingDlq(null);
     },
     onError: (err, item, context: any) => {
+      toast.error(`Failed to replay payload: ${err.message}`);
       setReplayMessage(`Error: ${err.message}`);
       queryClient.setQueryData(['dlq'], context?.previousDlq);
     },

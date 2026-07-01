@@ -2,6 +2,7 @@ import React, { Suspense } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import Layout from './components/Layout';
+import { ToastProvider } from './components/Toast';
 
 // Lazy loaded pages for Code Splitting
 const Dashboard = React.lazy(() => import('./pages/Dashboard'));
@@ -68,40 +69,76 @@ class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundarySta
   }
 }
 
+export interface WidgetErrorBoundaryProps {
+  children: React.ReactNode;
+  title?: string;
+}
+
+export class WidgetErrorBoundary extends React.Component<WidgetErrorBoundaryProps, { hasError: boolean }> {
+  constructor(props: WidgetErrorBoundaryProps) {
+    super(props);
+    this.state = { hasError: false };
+  }
+
+  static getDerivedStateFromError() {
+    return { hasError: true };
+  }
+
+  componentDidCatch(error: any, errorInfo: any) {
+    console.error("WidgetErrorBoundary caught an error:", error, errorInfo);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="glass-panel p-4 border border-rose-500/30 bg-rose-950/20 text-rose-200 rounded-lg flex flex-col justify-center items-center h-full min-h-[120px] w-full">
+          <span className="text-xs font-semibold uppercase tracking-wider text-rose-400 mb-1">
+            {this.props.title || "Widget Error"}
+          </span>
+          <p className="text-xs opacity-80 text-center">Failed to load component</p>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
 const Login = React.lazy(() => import('./pages/Login'));
 
 function App() {
   return (
     <ErrorBoundary>
       <QueryClientProvider client={queryClient}>
-        <BrowserRouter>
-          <Suspense fallback={<div className="p-8"><div className="glass-panel p-4 animate-pulse">Loading module…</div></div>}>
-            <Routes>
-              <Route path="/login" element={<Login />} />
-              <Route
-                path="*"
-                element={
-                  <AuthGuard>
-                    <Layout>
-                      <Suspense fallback={<div className="p-8"><div className="glass-panel p-4 animate-pulse">Loading view…</div></div>}>
-                        <Routes>
-                          <Route path="dashboard" element={<Dashboard />} />
-                          <Route path="quarantine" element={<Quarantine />} />
-                          <Route path="schemas" element={<SchemaRegistry />} />
-                          <Route path="settings" element={<Settings />} />
-                          <Route path="audit" element={<AuditLogs />} />
-                          <Route path="chat" element={<ChatTest />} />
-                          <Route path="examples" element={<Examples />} />
-                          <Route path="*" element={<Navigate to="/dashboard" replace />} />
-                        </Routes>
-                      </Suspense>
-                    </Layout>
-                  </AuthGuard>
-                }
-              />
-            </Routes>
-          </Suspense>
-        </BrowserRouter>
+        <ToastProvider>
+          <BrowserRouter>
+            <Suspense fallback={<div className="p-8"><div className="glass-panel p-4 animate-pulse">Loading module…</div></div>}>
+              <Routes>
+                <Route path="/login" element={<Login />} />
+                <Route
+                  path="*"
+                  element={
+                    <AuthGuard>
+                      <Layout>
+                        <Suspense fallback={<div className="p-8"><div className="glass-panel p-4 animate-pulse">Loading view…</div></div>}>
+                          <Routes>
+                            <Route path="dashboard" element={<Dashboard />} />
+                            <Route path="quarantine" element={<Quarantine />} />
+                            <Route path="schemas" element={<SchemaRegistry />} />
+                            <Route path="settings" element={<Settings />} />
+                            <Route path="audit" element={<AuditLogs />} />
+                            <Route path="chat" element={<ChatTest />} />
+                            <Route path="examples" element={<Examples />} />
+                            <Route path="*" element={<Navigate to="/dashboard" replace />} />
+                          </Routes>
+                        </Suspense>
+                      </Layout>
+                    </AuthGuard>
+                  }
+                />
+              </Routes>
+            </Suspense>
+          </BrowserRouter>
+        </ToastProvider>
       </QueryClientProvider>
     </ErrorBoundary>
   );

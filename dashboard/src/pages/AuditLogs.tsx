@@ -54,7 +54,7 @@ const AuditLogs = () => {
         </div>
       </div>
 
-      <div className="bg-[#0d1117] border border-white/10 rounded-lg overflow-hidden">
+      <div className="bg-[#0d1117] border border-white/10 rounded-lg overflow-hidden overflow-x-auto">
         {currentLogs.length === 0 ? (
           <div className="p-8 text-center text-gray-500">No logs found.</div>
         ) : (

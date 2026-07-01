@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next';
 import { AgentTable } from '../components/AgentTable';
 import { fetchWithAuth } from '../hooks/api';
 import { Config } from '../types';
+import { useToast } from '../components/Toast';
 
 const ConfigInput = ({ configKey, value, onChange }) => {
   const [show, setShow] = useState(false);
@@ -51,6 +52,7 @@ const categorizeKey = (key) => {
 
 const Settings = () => {
   const { t, i18n } = useTranslation();
+  const toast = useToast();
   const { data: initialConfig, isLoading } = useQuery<Config>({ queryKey: ['config'], queryFn: fetchConfig });
   const [config, setConfig] = useState<Config>({});
   const [saveMessage, setSaveMessage] = useState("");
@@ -75,10 +77,12 @@ const Settings = () => {
       return res.json();
     },
     onSuccess: () => {
+      toast.success("Settings saved successfully! (Some changes may require server restart)");
       setSaveMessage("Settings saved successfully! (Some changes may require server restart)");
       setTimeout(() => setSaveMessage(""), 5000);
     },
     onError: () => {
+      toast.error("Error saving settings.");
       setSaveMessage("Error saving settings.");
       setTimeout(() => setSaveMessage(""), 5000);
     }
@@ -93,10 +97,12 @@ const Settings = () => {
       return res.json();
     },
     onSuccess: (data) => {
+      toast.success(`Successfully purged ${data.deleted_count} memories older than ${purgeDays} days.`);
       setPurgeMessage(`Successfully purged ${data.deleted_count} memories older than ${purgeDays} days.`);
       setTimeout(() => setPurgeMessage(""), 5000);
     },
     onError: (err) => {
+      toast.error(`Purge failed: ${err.message || 'Purge failed'}`);
       setPurgeMessage(`Error: ${err.message || 'Purge failed'}`);
       setTimeout(() => setPurgeMessage(""), 5000);
     }

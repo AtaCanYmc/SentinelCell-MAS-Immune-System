@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { ShieldAlert, RefreshCw, CheckCircle2 } from 'lucide-react';
 import { fetchWithAuth } from '../hooks/api';
+import { useToast } from './Toast';
 
 const fetchAgents = async () => {
   const res = await fetchWithAuth('/api/agents');
@@ -48,16 +49,21 @@ const StatusCell = ({ agent }: { agent: any }) => {
 
 export const AgentTable = () => {
   const queryClient = useQueryClient();
+  const toast = useToast();
   const { data, isLoading } = useQuery({ queryKey: ['agents'], queryFn: fetchAgents, refetchInterval: 5000 });
 
   const resetMutation = useMutation({
-    mutationFn: async (agentId) => {
+    mutationFn: async (agentId: string) => {
       const res = await fetchWithAuth(`/api/agents/${agentId}/reset`, { method: 'POST' });
       if (!res.ok) throw new Error('Failed to reset');
       return res.json();
     },
-    onSuccess: () => {
+    onSuccess: (_, agentId) => {
+      toast.success(`Agent ${agentId} circuit breaker successfully reset.`);
       queryClient.invalidateQueries({ queryKey: ['agents'] });
+    },
+    onError: (err) => {
+      toast.error(err.message || 'Failed to reset agent breaker.');
     }
   });
 
@@ -68,7 +74,7 @@ export const AgentTable = () => {
   if (agents.length === 0) return <div className="text-gray-500 italic">No agents tracked yet.</div>;
 
   return (
-    <div className="bg-[#0d1117] border border-white/10 rounded-lg overflow-hidden">
+    <div className="bg-[#0d1117] border border-white/10 rounded-lg overflow-hidden overflow-x-auto">
       <table className="w-full text-left text-sm text-gray-300">
         <thead className="bg-gray-900 border-b border-white/10 text-xs uppercase">
           <tr>
