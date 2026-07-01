@@ -439,7 +439,10 @@ async def websocket_chat(
     """
     WebSocket endpoint for real-time LLM chat streaming.
     """
-    await websocket.accept()
+    try:
+        await websocket.accept()
+    except RuntimeError:
+        pass
 
     # First Message Auth
     expected_api_key = os.getenv("API_KEY_SECRET")
@@ -482,7 +485,10 @@ async def websocket_chat(
             await websocket.send_text(
                 orjson.dumps({"type": "error", "content": str(e)}).decode("utf-8")
             )
-        except Exception:
+        except Exception as e:
+            console.print(
+                f"[bold red]WebSocket error sending error message:[/bold red] {e}"
+            )
             pass
 
 
