@@ -125,6 +125,7 @@ services:
       options:
         max-size: "10m"
         max-file: "3"
+
   # 4. Redis In-Memory Datastore (Message Broker & Cache)
   redis:
     image: redis:7-alpine
@@ -159,6 +160,24 @@ services:
       - ollama_data:/root/.ollama
     cap_drop:
       - MAC_ADMIN
+
+  # 6. PostgreSQL with pgvector (Optional for Vector DB)
+  sentinel-postgres:
+    profiles:
+      - postgres
+    image: pgvector/pgvector:pg16
+    container_name: sentinel_pgvector
+    environment:
+      - POSTGRES_USER=sentinel
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+      - POSTGRES_DB=sentinel_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgvector_data:/var/lib/postgresql/data
+    restart: unless-stopped
+    networks:
+      - sentinel_net
 
 networks:
   sentinel_net:
