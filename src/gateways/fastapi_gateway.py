@@ -172,6 +172,48 @@ def verify_api_key(
     raise HTTPException(status_code=401, detail="Invalid or missing API Key or Session")
 
 
+async def verify_api_key_in_ws(websocket: WebSocket):
+    expected_api_key = os.getenv("API_KEY_SECRET")
+    if not expected_api_key:
+        return True
+
+    session_cookie = websocket.cookies.get("sentinel_session")
+    has_valid_cookie = (
+        session_cookie and verify_session_token(session_cookie) is not None
+    )
+
+    if not has_valid_cookie:
+        try:
+            auth_msg = await asyncio.wait_for(websocket.receive_text(), timeout=10.0)
+            auth_data = orjson.loads(auth_msg)
+            if (
+                auth_data.get("type") != "AUTH"
+                or auth_data.get("token") != expected_api_key
+            ):
+                await websocket.send_text(
+                    orjson.dumps({"type": "AUTH_FAILED"}).decode("utf-8")
+                )
+                await websocket.close(code=1008)
+                raise HTTPException(
+                    status_code=401, detail="Invalid or missing API Key or Session"
+                )
+        except (asyncio.TimeoutError, Exception):
+            console.print(
+                "[bold red]WebSocket auth failed: Timeout or error during auth message receive[/bold red]"
+            )
+            await websocket.close(code=1008)
+            raise HTTPException(
+                status_code=401, detail="Invalid or missing API Key or Session"
+            )
+
+    raise HTTPException(status_code=401, detail="Invalid or missing API Key or Session")
+
+
+# ================================================
+# AUTH
+# =================================================
+
+
 class LoginRequest(BaseModel):
     username: str
     password: str
@@ -210,39 +252,12 @@ metrics_app = make_asgi_app()
 app.mount("/metrics", metrics_app)
 
 
-# Dashboard is served by Nginx container. FastAPI handles only API endpoints.
-
-
 @app.websocket("/ws/logs")
 async def websocket_logs(websocket: WebSocket):
     """Streams live SentinelCell logs from Redis PubSub to connected WebSockets"""
     await websocket.accept()
+    await verify_api_key_in_ws(websocket)
 
-    # First Message Auth: client sends {"type": "AUTH", "token": "..."} as first message
-    expected_api_key = os.getenv("API_KEY_SECRET")
-    if expected_api_key:
-        session_cookie = websocket.cookies.get("sentinel_session")
-        has_valid_cookie = (
-            session_cookie and verify_session_token(session_cookie) is not None
-        )
-        if not has_valid_cookie:
-            try:
-                auth_msg = await asyncio.wait_for(
-                    websocket.receive_text(), timeout=10.0
-                )
-                auth_data = orjson.loads(auth_msg)
-                if (
-                    auth_data.get("type") != "AUTH"
-                    or auth_data.get("token") != expected_api_key
-                ):
-                    await websocket.send_text(
-                        orjson.dumps({"type": "AUTH_FAILED"}).decode("utf-8")
-                    )
-                    await websocket.close(code=1008)
-                    return
-            except (asyncio.TimeoutError, Exception):
-                await websocket.close(code=1008)
-                return
     redis_url = os.getenv("REDIS_URL", "redis://redis:6379")
     try:
         client = redis.from_url(redis_url)
@@ -323,7 +338,10 @@ async def intercept_traffic(
                                         if isinstance(msg["data"], (bytes, str))
                                         else msg["data"]
                                     )
-                                except Exception:
+                                except Exception as e:
+                                    console.print(
+                                        f"[bold yellow]Idempotency channel payload parse error:[/bold yellow] {e}"
+                                    )
                                     payload = None
                                 if payload:
                                     return JSONResponse(
@@ -333,7 +351,10 @@ async def intercept_traffic(
                     finally:
                         try:
                             await pubsub.unsubscribe(channel)
-                        except Exception:
+                        except Exception as e:
+                            console.print(
+                                f"[bold yellow]Idempotency channel unsubscribe error:[/bold yellow] {e}"
+                            )
                             pass
                     # Timeout waiting for master result
                     raise HTTPException(
@@ -368,7 +389,10 @@ async def intercept_traffic(
                         f"sentinel:idem:channel:{x_idempotency_key}",
                         orjson.dumps(result).decode("utf-8"),
                     )
-                except Exception:
+                except Exception as e:
+                    console.print(
+                        f"[bold yellow]Redis idempotency publish error:[/bold yellow] {e}"
+                    )
                     pass
             except Exception as redis_set_err:
                 console.print(
@@ -441,36 +465,27 @@ async def websocket_chat(
     """
     WebSocket endpoint for real-time LLM chat streaming.
     """
-    await websocket.accept()
+    try:
+        await websocket.accept()
+    except RuntimeError:
+        pass
 
     # First Message Auth
-    expected_api_key = os.getenv("API_KEY_SECRET")
-    if expected_api_key:
-        session_cookie = websocket.cookies.get("sentinel_session")
-        has_valid_cookie = (
-            session_cookie and verify_session_token(session_cookie) is not None
-        )
-        if not has_valid_cookie:
-            try:
-                auth_msg = await asyncio.wait_for(
-                    websocket.receive_text(), timeout=10.0
-                )
-                auth_data = orjson.loads(auth_msg)
-                if (
-                    auth_data.get("type") != "AUTH"
-                    or auth_data.get("token") != expected_api_key
-                ):
-                    await websocket.send_text(
-                        orjson.dumps({"type": "AUTH_FAILED"}).decode("utf-8")
-                    )
-                    await websocket.close(code=1008)
-                    return
-            except (asyncio.TimeoutError, Exception):
-                await websocket.close(code=1008)
-                return
+    await verify_api_key_in_ws(websocket)
 
+    provider_order = os.getenv("PROVIDER_ORDER", "OPENAI").split(",")
     if not provider:
-        provider = os.getenv("PROVIDER_ORDER", "OPENAI").split(",")[0].strip()
+        provider = provider_order[0].strip()
+
+    if provider not in provider_order:
+        console.print(
+            f"[bold yellow]Warning: Requested provider '{provider}' is not in PROVIDER_ORDER. "
+        )
+        await websocket.close(reason=f"Available providers: {provider_order}")
+        raise HTTPException(
+            status_code=400,
+            detail=f"Requested provider '{provider}' is not in PROVIDER_ORDER. ",
+        )
 
     try:
         from src.services.chat_service import ChatService
@@ -484,7 +499,10 @@ async def websocket_chat(
             await websocket.send_text(
                 orjson.dumps({"type": "error", "content": str(e)}).decode("utf-8")
             )
-        except Exception:
+        except Exception as e:
+            console.print(
+                f"[bold red]WebSocket error sending error message:[/bold red] {e}"
+            )
             pass
 
 
@@ -810,7 +828,10 @@ async def submit_hitl_approval(
                 f"sentinel:hitl:channel:{req.approval_id}",
                 orjson.dumps(data).decode("utf-8"),
             )
-        except Exception:
+        except Exception as e:
+            console.print(
+                f"[bold yellow]HITL decision channel publish error:[/bold yellow] {e}"
+            )
             pass
 
         await r.aclose()
@@ -857,7 +878,10 @@ async def replay_payload(req: ReplayRequest, api_key: str = Depends(verify_api_k
 @app.get("/api/examples")
 async def list_examples(api_key: str = Depends(verify_api_key)):
     """Lists available interactive simulation examples with description."""
-    json_path = os.path.join("examples", "examples.json")
+    base_dir = os.path.dirname(
+        os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    )
+    json_path = os.path.join(base_dir, "examples", "examples.json")
     if not os.path.exists(json_path):
         return {"examples": []}
     try:
@@ -875,30 +899,7 @@ async def ws_run_example(websocket: WebSocket, script_name: str):
     await websocket.accept()
 
     # First Message Auth
-    expected_api_key = os.getenv("API_KEY_SECRET")
-    if expected_api_key:
-        session_cookie = websocket.cookies.get("sentinel_session")
-        has_valid_cookie = (
-            session_cookie and verify_session_token(session_cookie) is not None
-        )
-        if not has_valid_cookie:
-            try:
-                auth_msg = await asyncio.wait_for(
-                    websocket.receive_text(), timeout=10.0
-                )
-                auth_data = orjson.loads(auth_msg)
-                if (
-                    auth_data.get("type") != "AUTH"
-                    or auth_data.get("token") != expected_api_key
-                ):
-                    await websocket.send_text(
-                        orjson.dumps({"type": "AUTH_FAILED"}).decode("utf-8")
-                    )
-                    await websocket.close(code=1008)
-                    return
-            except (asyncio.TimeoutError, Exception):
-                await websocket.close(code=1008)
-                return
+    await verify_api_key_in_ws(websocket)
 
     if script_name not in SAFE_SCRIPTS:
         await websocket.send_text(
@@ -909,7 +910,10 @@ async def ws_run_example(websocket: WebSocket, script_name: str):
         await websocket.close()
         return
 
-    script_path = os.path.join("examples", script_name)
+    base_dir = os.path.dirname(
+        os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    )
+    script_path = os.path.join(base_dir, "examples", f"{script_name}.py")
     if not os.path.exists(script_path):
         await websocket.send_text(
             orjson.dumps({"type": "error", "line": "Script file not found."}).decode(

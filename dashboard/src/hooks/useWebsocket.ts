@@ -11,42 +11,50 @@ export const useWebsocket = (url) => {
   }, [isPaused]);
 
   useEffect(() => {
-    // Determine the actual WS URL, handling development vs production
-    const wsUrl = url.replace(/^http/, 'ws');
-    const ws = new WebSocket(wsUrl);
+    let ws;
 
-    ws.onopen = () => {
-      // First Message Auth: The HttpOnly cookie is sent automatically,
-      // and the cookie is verified on the backend.
-      // If API_KEY_SECRET is present, the auth message can be sent.
-      try {
-        const authMsg = {type: "AUTH"};
-        ws.send(JSON.stringify(authMsg));
-      } catch (e) {
-        console.error("Failed to send auth message", e);
-      }
-      setIsConnected(true);
-    };
-    ws.onclose = () => setIsConnected(false);
+    const timer = setTimeout(() => {
+      const wsUrl = url.replace(/^http/, 'ws');
+      ws = new WebSocket(wsUrl);
 
-    ws.onmessage = (event) => {
-      if (!isPausedRef.current) {
+      ws.onopen = () => {
+        setIsConnected(true);
         try {
-          const data = JSON.parse(event.data);
-          if (data.type === 'AUTH_FAILED') {
-            console.error('WebSocket authentication failed');
-            ws.close();
-            return;
-          }
-          setLogs((prev) => [data, ...prev].slice(0, 100)); // Keep last 100 logs
+          const authMsg = {
+            type: "AUTH",
+            token: localStorage.getItem('sentinel_api_key') || undefined
+          };
+          ws.send(JSON.stringify(authMsg));
         } catch (e) {
-          console.error("Failed to parse websocket message", e);
+          console.error("Failed to send auth message", e);
         }
-      }
-    };
+      };
+
+      ws.onclose = () => {
+        setIsConnected(false);
+      };
+
+      ws.onmessage = (event) => {
+        if (!isPausedRef.current) {
+          try {
+            const data = JSON.parse(event.data);
+            if (data.type === 'AUTH_FAILED') {
+              console.warn('WebSocket Auth Failed. Check backend cookie parser.');
+              return;
+            }
+            setLogs((prev) => [data, ...prev].slice(0, 100));
+          } catch (e) {
+            console.error("Failed to parse websocket message", e);
+          }
+        }
+      };
+    }, 100);
 
     return () => {
-      ws.close();
+      clearTimeout(timer);
+      if (ws && (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING)) {
+        ws.close();
+      }
     };
   }, [url]);
 
