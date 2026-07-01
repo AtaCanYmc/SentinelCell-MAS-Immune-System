@@ -63,7 +63,7 @@ const Settings = () => {
     if (initialConfig) setConfig(initialConfig);
   }, [initialConfig]);
 
-  const mutation = useMutation({
+  const mutation = useMutation<any, Error, Record<string, any>>({
     mutationFn: async (newConfig) => {
       const res = await fetchWithAuth('/api/config', {
         method: 'POST',
@@ -83,7 +83,7 @@ const Settings = () => {
     }
   });
 
-  const purgeMutation = useMutation({
+  const purgeMutation = useMutation<any, Error, number>({
     mutationFn: async (days) => {
       const res = await fetchWithAuth(`/memory/purge?days=${days}`, {
         method: 'DELETE'

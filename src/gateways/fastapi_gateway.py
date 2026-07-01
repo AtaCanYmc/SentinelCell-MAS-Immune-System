@@ -227,9 +227,9 @@ async def websocket_logs(websocket: WebSocket, token: str | None = None):
         )
         has_valid_token = token == expected_api_key
         if not has_valid_cookie and not has_valid_token:
-            await websocket.accept()
-            await websocket.close(code=4001)
-            return
+            raise HTTPException(
+                status_code=401, detail="Unauthorized WebSocket connection"
+            )
 
     await websocket.accept()
     redis_url = os.getenv("REDIS_URL", "redis://redis:6379")
@@ -366,9 +366,9 @@ async def websocket_chat(
         )
         has_valid_token = token == expected_api_key
         if not has_valid_cookie and not has_valid_token:
-            await websocket.accept()
-            await websocket.close(code=4001)
-            return
+            raise HTTPException(
+                status_code=401, detail="Unauthorized WebSocket connection"
+            )
 
     await websocket.accept()
     from src.core.llm_factory import LLMFactory
@@ -743,9 +743,9 @@ async def ws_run_example(
         )
         has_valid_token = token == expected_api_key
         if not has_valid_cookie and not has_valid_token:
-            await websocket.accept()
-            await websocket.close(code=4001)
-            return
+            raise HTTPException(
+                status_code=401, detail="Unauthorized WebSocket connection"
+            )
 
     await websocket.accept()
 

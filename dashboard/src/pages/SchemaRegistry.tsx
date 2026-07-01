@@ -20,7 +20,7 @@ export default function SchemaRegistry() {
     }
   });
 
-  const { data: schemas, isLoading, isError, refetch } = useQuery({
+  const { data: schemas, isLoading, isError, refetch } = useQuery<Record<string, any>>({
     queryKey: ['schemas'],
     queryFn: async () => {
       const res = await fetchWithAuth('/api/schemas');

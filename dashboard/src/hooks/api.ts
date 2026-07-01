@@ -1,7 +1,7 @@
-export const fetchWithAuth = async (url, options = {}) => {
+export const fetchWithAuth = async (url: string, options: RequestInit = {}) => {
   const token = localStorage.getItem('sentinel_api_key') || '';
-  const headers = {
-    ...options.headers,
+  const headers: Record<string, string> = {
+    ...(options.headers as Record<string, string>),
   };
 
   if (token) {

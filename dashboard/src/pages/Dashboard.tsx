@@ -9,7 +9,7 @@ const fetchSchemas = async () => {
   const res = await fetchWithAuth('/api/schemas');
   if (!res.ok) return [];
   const data = await res.json();
-  return data.schemas || [];
+  return Object.keys(data || {});
 };
 
 const fetchConfig = async () => {
@@ -48,18 +48,19 @@ const Dashboard = () => {
 
   useEffect(() => {
     if (metrics) {
+      const m = metrics as any;
       // RPS
-      const currentRps = (metrics.total_requests_current_min || 0) / 60;
+      const currentRps = (m.total_requests_current_min || 0) / 60;
       setRpsHistory((prev) => [...prev.slice(1), currentRps]);
 
       // Latency
-      const currentLatency = metrics.llm_average_latency_ms || 0;
+      const currentLatency = m.llm_average_latency_ms || 0;
       setLatencyHistory((prev) => [...prev.slice(1), currentLatency]);
 
       // Error Rate
-      const totalReq = metrics.llm_requests_current_min || 1;
-      const failures = metrics.agent_circuit_breakers
-        ? Object.values(metrics.agent_circuit_breakers).reduce((acc, b) => acc + (b.failures || 0), 0)
+      const totalReq: number = (m.llm_requests_current_min as number) || 1;
+      const failures: number = m.agent_circuit_breakers
+        ? (Object.values(m.agent_circuit_breakers).reduce((acc: number, b: any) => acc + (b.failures || 0), 0) as number)
         : 0;
       const currentErrorRate = (failures / totalReq) * 100;
       setErrorHistory((prev) => [...prev.slice(1), currentErrorRate]);

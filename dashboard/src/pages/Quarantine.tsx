@@ -27,7 +27,7 @@ const Quarantine = () => {
   const totalPages = Math.max(1, Math.ceil(dlqItems.length / itemsPerPage));
   const currentItems = dlqItems.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
-  const replayMutation = useMutation({
+  const replayMutation = useMutation<any, Error, any>({
     mutationFn: async (item) => {
       let parsedPayload = item.payload;
       if (typeof parsedPayload === 'string') {
@@ -58,9 +58,9 @@ const Quarantine = () => {
       setReplayMessage("Success: Payload accepted!");
       setEditingDlq(null);
     },
-    onError: (err, item, context) => {
+    onError: (err, item, context: any) => {
       setReplayMessage(`Error: ${err.message}`);
-      queryClient.setQueryData(['dlq'], context.previousDlq);
+      queryClient.setQueryData(['dlq'], context?.previousDlq);
     },
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: ['dlq'] });
