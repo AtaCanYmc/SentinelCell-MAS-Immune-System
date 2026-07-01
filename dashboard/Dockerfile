@@ -19,6 +19,7 @@ COPY --from=build --chown=nginx:nginx /app/dist /usr/share/nginx/html
 
 # Replace main Nginx configuration with our custom config
 COPY --chown=nginx:nginx nginx.conf /etc/nginx/nginx.conf
+COPY --chown=nginx:nginx conf.d/default.conf /etc/nginx/conf.d/default.conf
 
 EXPOSE 8080
 

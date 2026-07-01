@@ -5,8 +5,8 @@ x-sentinel-constraints: &sentinel-constraints
   deploy:
     resources:
       limits:
-        cpus: '0.5'
-        memory: 512M
+        cpus: '1.0'
+        memory: 2G
   cap_drop:
     - ALL
   read_only: true
@@ -15,12 +15,22 @@ x-sentinel-constraints: &sentinel-constraints
   volumes:
     - ./logs:/app/logs
     - chroma_db:/app/chroma_db
-  tmpfs:
-    - /temp
-    - /tmp
-    - /home/sentinel/.gunicorn
-    - /run
-    - /var/run
+    - type: tmpfs
+      target: /tmp
+      tmpfs:
+        mode: 1777 # Standard Linux temporary directory permissions
+    - type: tmpfs
+      target: /temp
+      tmpfs:
+        mode: 1777
+    - type: tmpfs
+      target: /home/sentinel/.gunicorn
+      tmpfs:
+        mode: 0777 # Gunicorn needs write access for PID files and sockets
+    - type: tmpfs
+      target: /run
+    - type: tmpfs
+      target: /var/run
   logging:
     driver: "json-file"
     options:
@@ -35,10 +45,11 @@ services:
       dockerfile: Dockerfile
     container_name: sentinelcell_fastapi
     restart: unless-stopped
-    command: [ "gunicorn", "src.gateways.fastapi_gateway:app", "-w", "4", "-k", "uvicorn.workers.UvicornWorker", "-b", "0.0.0.0:8000" ]
+    command: [ "gunicorn", "src.gateways.fastapi_gateway:app", "-w", "1", "-k", "uvicorn.workers.UvicornWorker", "-b", "0.0.0.0:8000", "--no-control-socket", "--worker-tmp-dir", "/dev/shm" ]
     environment:
       - REDIS_URL=redis://redis:6379/0
       - LOG_DIR=/app/logs
+      - TMPDIR=/dev/shm
     networks:
       - sentinel_net
     depends_on:
@@ -68,6 +79,8 @@ services:
     depends_on:
       redis:
         condition: service_healthy
+      fastapi_gateway:
+        condition: service_healthy
     <<: *sentinel-constraints
 
   # 3. Dashboard Frontend (Nginx Isolated)
@@ -85,7 +98,7 @@ services:
       fastapi_gateway:
         condition: service_healthy
     healthcheck:
-      test: [ "CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:80" ]
+      test: [ "CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:8080" ]
       interval: 15s
       timeout: 10s
       retries: 3
@@ -151,7 +164,7 @@ networks:
   sentinel_net:
     name: sentinel_net
     # Uncomment if you want docker-compose to manage the network automatically:
-    external: true
+    # external: true
     # driver: bridge
 
   # For production with existing external network:
