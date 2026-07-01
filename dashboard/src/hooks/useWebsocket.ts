@@ -20,7 +20,10 @@ export const useWebsocket = (url) => {
       // and the cookie is verified on the backend.
       // If API_KEY_SECRET is present, the auth message can be sent.
       try {
-        const authMsg = {type: "AUTH"};
+        const authMsg = {
+            type: "AUTH",
+            token: window.localStorage.getItem('sentinel_api_key') || undefined,
+        };
         ws.send(JSON.stringify(authMsg));
       } catch (e) {
         console.error("Failed to send auth message", e);

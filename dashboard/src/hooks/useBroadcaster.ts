@@ -19,8 +19,7 @@ export const useBroadcaster = (url) => {
       try {
         const authMsg = {
           type: "AUTH",
-          // Is the HttpOnly cookie insufficient? If an API key is used:
-          // token: "..." (optional; the cookie will suffice)
+          token: window.localStorage.getItem('sentinel_api_key') || undefined,
         };
         ws.send(JSON.stringify(authMsg));
       } catch (e) {

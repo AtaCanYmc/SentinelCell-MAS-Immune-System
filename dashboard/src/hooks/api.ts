@@ -11,6 +11,7 @@ export const fetchWithAuth = async (url: string, options: RequestInit = {}) => {
   const response = await fetch(url, {
     ...options,
     headers,
+    credentials: 'same-origin',
   });
 
   if (response.status === 401) {
