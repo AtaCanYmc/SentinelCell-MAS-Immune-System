@@ -481,9 +481,7 @@ async def websocket_chat(
         console.print(
             f"[bold yellow]Warning: Requested provider '{provider}' is not in PROVIDER_ORDER. "
         )
-        await websocket.close(
-            code=1008, reason=f"Available providers: {provider_order}"
-        )
+        await websocket.close(reason=f"Available providers: {provider_order}")
         return
 
     try:
