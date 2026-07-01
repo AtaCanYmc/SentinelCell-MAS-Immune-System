@@ -82,13 +82,34 @@ services:
     depends_on:
       fastapi_gateway:
         condition: service_healthy
-    <<: *sentinel-constraints
+    healthcheck:
+      test: [ "CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost:8080" ]
+      interval: 15s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
     cap_drop:
+      - ALL
       - MAC_ADMIN
+    env_file:
+      - .env
+    volumes:
+      - ./logs:/app/logs
+      - chroma_db:/app/chroma_db
     tmpfs:
       - /tmp
       - /var/cache/nginx
       - /var/run
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
   # 4. Redis In-Memory Datastore (Message Broker & Cache)
   redis:
     image: redis:7-alpine
