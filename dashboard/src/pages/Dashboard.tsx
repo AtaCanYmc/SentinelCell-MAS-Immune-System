@@ -57,6 +57,7 @@ const Dashboard = () => {
 
   const { data: schemas = [] } = useQuery({ queryKey: ['schemas'], queryFn: fetchSchemas, refetchInterval: 10000 });
   const { data: auditData } = useQuery({ queryKey: ['auditLogs'], queryFn: fetchAuditLogs, refetchInterval: 10000 });
+  const { data: dlqItems = [] } = useQuery<any[]>({ queryKey: ['dlq'], queryFn: () => fetchWithAuth('/api/dlq').then(res => res.json()), refetchInterval: 5000 });
 
   // Initial HTTP fetch for metrics, updates handled via WebSocket
   const { data: initialMetrics } = useQuery<Metrics | null>({ queryKey: ['metrics'], queryFn: fetchMetrics });
@@ -134,22 +135,15 @@ const Dashboard = () => {
     intercepts: logs.length,
     healed: logs.filter(l => l.action === 'healed' || l.type?.includes('HEAL_SUCCESS')).length,
     dropped: logs.filter(l => l.action === 'dropped' || l.action === 'quarantined' || l.type?.includes('HEAL_FAIL') || l.type?.includes('SECURITY')).length,
-    quarantineStatus: logs.some(l => l.action === 'quarantined' || l.type?.includes('SECURITY')) ? 1 : 0
+    quarantineStatus: dlqItems.length > 0 ? 1 : (logs.some(l => l.action === 'quarantined' || l.type?.includes('SECURITY')) ? 1 : 0)
   };
 
   // Database-wide historical totals
-  const systemLogs = Array.isArray(auditData?.logs) ? auditData.logs : [];
   const systemMetrics = {
-    intercepts: systemLogs.length,
-    healed: systemLogs.filter(log => {
-      const isLegacy = !log.TraceId;
-      return isLegacy ? !(log.reason || '').includes('Error') : log.SeverityNumber === 9;
-    }).length,
-    dropped: systemLogs.filter(log => {
-      const isLegacy = !log.TraceId;
-      return isLegacy ? (log.reason || '').includes('Error') : log.SeverityNumber !== 9;
-    }).length,
-    quarantineStatus: logs.some(l => l.action === 'quarantined' || l.type?.includes('SECURITY')) ? 1 : 0
+    intercepts: auditData?.total || 0,
+    healed: auditData?.total_healed || 0,
+    dropped: (auditData?.total_dropped || 0) + dlqItems.length,
+    quarantineStatus: dlqItems.length > 0 ? 1 : 0
   };
 
   const activeMetrics = metricScope === 'session' ? sessionMetrics : systemMetrics;

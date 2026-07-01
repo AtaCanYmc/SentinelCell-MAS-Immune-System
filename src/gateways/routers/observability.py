@@ -130,10 +130,26 @@ async def get_audit_logs(
                     filtered.append(log)
             logs = filtered
 
+        total_healed = 0
+        total_dropped = 0
+        for log in logs:
+            is_legacy = "TraceId" not in log
+            if is_legacy:
+                is_healed = "Error" not in log.get("reason", "")
+            else:
+                is_healed = log.get("SeverityNumber", 0) == 9
+
+            if is_healed:
+                total_healed += 1
+            else:
+                total_dropped += 1
+
         reversed_logs = logs[::-1]
         return {
             "logs": reversed_logs[offset : offset + limit],
             "total": len(reversed_logs),
+            "total_healed": total_healed,
+            "total_dropped": total_dropped,
         }
     except Exception as e:
         console.print(f"[bold red]Audit Logs Fetch Error:[/bold red] {e}")
