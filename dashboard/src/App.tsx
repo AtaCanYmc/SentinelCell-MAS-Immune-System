@@ -49,15 +49,18 @@ class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundarySta
   render() {
     if (this.state.hasError) {
       return (
-        <div style={{ padding: '20px', background: '#333', color: 'white', minHeight: '100vh', fontFamily: 'monospace' }}>
-          <h2>Something went wrong in the React App.</h2>
-          <details style={{ whiteSpace: 'pre-wrap', marginTop: '10px' }}>
-            <summary>Click for error details</summary>
-            <br />
-            {this.state.error && this.state.error.toString()}
-            <br />
-            {this.state.errorInfo && this.state.errorInfo.componentStack}
-          </details>
+        <div style={{ padding: '40px', background: 'linear-gradient(135deg, rgba(255,255,255,0.03), rgba(255,255,255,0.01))', color: 'var(--text-color)', minHeight: '100vh', fontFamily: 'Inter, monospace' }}>
+          <div style={{ maxWidth: 900, margin: '0 auto' }} className="glass-panel p-6">
+            <h2 style={{ fontSize: 22, marginBottom: 8 }}>Uh oh — bir hata oluştu.</h2>
+            <p style={{ opacity: 0.9 }}>Uygulamada beklenmeyen bir hata yakalandı. Lütfen sayfayı yenileyin veya geliştirici konsolunu kontrol edin.</p>
+            <details style={{ whiteSpace: 'pre-wrap', marginTop: '12px' }}>
+              <summary>Hata detaylarını göster</summary>
+              <br />
+              {this.state.error && this.state.error.toString()}
+              <br />
+              {this.state.errorInfo && this.state.errorInfo.componentStack}
+            </details>
+          </div>
         </div>
       );
     }
@@ -72,26 +75,28 @@ function App() {
     <ErrorBoundary>
       <QueryClientProvider client={queryClient}>
         <BrowserRouter>
-          <Suspense fallback={<div className="p-8 text-blue-400 font-mono">Loading module...</div>}>
+          <Suspense fallback={<div className="p-8"><div className="glass-panel p-4 animate-pulse">Loading module…</div></div>}>
             <Routes>
               <Route path="/login" element={<Login />} />
               <Route
                 path="*"
                 element={
-                  <Layout>
-                    <Suspense fallback={<div className="p-8 text-blue-400 font-mono">Loading view...</div>}>
-                      <Routes>
-                        <Route path="dashboard" element={<Dashboard />} />
-                        <Route path="quarantine" element={<Quarantine />} />
-                        <Route path="schemas" element={<SchemaRegistry />} />
-                        <Route path="settings" element={<Settings />} />
-                        <Route path="audit" element={<AuditLogs />} />
-                        <Route path="chat" element={<ChatTest />} />
-                        <Route path="examples" element={<Examples />} />
-                        <Route path="*" element={<Navigate to="/dashboard" replace />} />
-                      </Routes>
-                    </Suspense>
-                  </Layout>
+                  <AuthGuard>
+                    <Layout>
+                      <Suspense fallback={<div className="p-8"><div className="glass-panel p-4 animate-pulse">Loading view…</div></div>}>
+                        <Routes>
+                          <Route path="dashboard" element={<Dashboard />} />
+                          <Route path="quarantine" element={<Quarantine />} />
+                          <Route path="schemas" element={<SchemaRegistry />} />
+                          <Route path="settings" element={<Settings />} />
+                          <Route path="audit" element={<AuditLogs />} />
+                          <Route path="chat" element={<ChatTest />} />
+                          <Route path="examples" element={<Examples />} />
+                          <Route path="*" element={<Navigate to="/dashboard" replace />} />
+                        </Routes>
+                      </Suspense>
+                    </Layout>
+                  </AuthGuard>
                 }
               />
             </Routes>
@@ -103,3 +108,15 @@ function App() {
 }
 
 export default App;
+
+// Simple client-side AuthGuard. If an HttpOnly session cookie is used the
+// browser will send it automatically — here we detect the cookie presence and
+// otherwise fall back to checking a localStorage sentinel_username value.
+function AuthGuard({ children }: { children: React.ReactElement }) {
+  const hasSessionCookie = document.cookie.split(';').some(c => c.trim().startsWith('sentinel_session='));
+  const username = window.localStorage.getItem('sentinel_username');
+  if (!hasSessionCookie && !username) {
+    return <Navigate to="/login" replace />;
+  }
+  return children;
+}

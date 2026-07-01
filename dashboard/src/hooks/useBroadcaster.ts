@@ -39,7 +39,10 @@ export const useBroadcaster = (url) => {
             ws.close();
             return;
           }
-          setLogs((prev) => [{ ...data, timestamp: new Date() }, ...prev].slice(0, 200));
+          // Keep an in-memory cap to prevent DOM bloat and OOM during high-throughput
+          // log bursts. This cap is intentionally generous (1000) and will be
+          // rendered with a virtualized list on the Dashboard.
+          setLogs((prev) => [{ ...data, timestamp: new Date() }, ...prev].slice(0, 1000));
         } catch (e) {
           console.error("Failed to parse websocket message", e);
         }

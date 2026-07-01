@@ -77,3 +77,13 @@ body {
   50% { transform: scale(1.05); opacity: 0.8; }
   100% { transform: scale(1); opacity: 1; }
 }
+
+/* Abstracted glassmorphic utilities used across the app for consistent theming */
+.bg-glass {
+  background: rgba(255, 255, 255, 0.03) !important;
+  backdrop-filter: blur(8px) saturate(120%);
+}
+
+.border-glass {
+  border: 1px solid rgba(255, 255, 255, 0.06) !important;
+}
