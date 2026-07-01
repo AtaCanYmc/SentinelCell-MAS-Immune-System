@@ -24,6 +24,7 @@ import redis.asyncio as redis
 from src.agents.validator_agent import SentinelCell
 from prometheus_client import make_asgi_app
 from src.core.session_manager import create_session_token, verify_session_token
+from src.gateways.constants import SAFE_SCRIPTS
 
 console = get_console()
 
@@ -804,51 +805,7 @@ async def ws_run_example(
 
     await websocket.accept()
 
-    safe_scripts = [
-        "adaptive_unlearning_demo.py",
-        "agent_trust_score_degradation.py",
-        "auth_bypass_injection.py",
-        "auto_schema_inference_sim.py",
-        "base64_poison_pill.py",
-        "basic_usage.py",
-        "chaos_monkey.py",
-        "circuit_breaker_recovery.py",
-        "custom_skill_demo.py",
-        "finance_schema_evolution.py",
-        "financial_drift_anomaly_sim.py",
-        "financial_transaction_replay.py",
-        "fintech_transaction_flow.py",
-        "high_concurrency_burst.py",
-        "high_concurrency_stress_test.py",
-        "human_in_the_loop_approval.py",
-        "iot_passive_monitoring.py",
-        "iot_telemetry_recovery.py",
-        "json_dos_attack.py",
-        "kafka_heavy_duty_sim.py",
-        "latency_benchmark.py",
-        "mq_simulation_demo.py",
-        "mqtt_iot_sensor_sim.py",
-        "multi_agent_flow.py",
-        "multi_language_drift.py",
-        "opentelemetry_tracing_sim.py",
-        "outbox_backpressure_test.py",
-        "poison_pill_demo.py",
-        "quarantine_mode_demo.py",
-        "rabbitmq_heavy_duty_sim.py",
-        "redis_atomic_dlq_sim.py",
-        "redis_outage_fallback.py",
-        "repair_prompt_injection_test.py",
-        "schema_cache_hit_demo.py",
-        "schema_evolution_conflict.py",
-        "security_injection_demo.py",
-        "semantic_drift_test.py",
-        "semantic_repair_cache_hit.py",
-        "silent_business_logic_corruption.py",
-        "stealth_financial_drift.py",
-        "wallet_exhaustion_dos_sim.py",
-    ]
-
-    if script_name not in safe_scripts:
+    if script_name not in SAFE_SCRIPTS:
         await websocket.send_text(
             orjson.dumps({"type": "error", "line": "Invalid script name."}).decode(
                 "utf-8"
