@@ -117,6 +117,30 @@ async def get_audit_logs(
                     except orjson.JSONDecodeError:
                         continue
 
+        # Normalize timestamps: OTel logs store Timestamp in nanoseconds (19-digit int).
+        # JavaScript's Number.MAX_SAFE_INTEGER is ~9×10¹⁵, so values ~1.78×10¹⁸ lose
+        # precision when parsed as JSON floats. Convert to ISO string on the backend.
+        import datetime
+
+        for log in logs:
+            ts_raw = log.get("Timestamp")
+            if (
+                ts_raw
+                and isinstance(ts_raw, (int, float))
+                and "TimestampISO" not in log
+            ):
+                try:
+                    # Nanoseconds → seconds → UTC ISO string
+                    ts_sec = ts_raw / 1_000_000_000
+                    log["TimestampISO"] = (
+                        datetime.datetime.fromtimestamp(
+                            ts_sec, tz=datetime.timezone.utc
+                        ).strftime("%Y-%m-%dT%H:%M:%S.%f")
+                        + "Z"
+                    )
+                except Exception:
+                    pass
+
         if search:
             term = search.lower()
             filtered = []

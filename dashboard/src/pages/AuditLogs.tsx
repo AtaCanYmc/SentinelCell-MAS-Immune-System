@@ -73,7 +73,11 @@ const AuditLogs = () => {
                 const isLegacy = !log.TraceId;
                 let ts = "N/A";
                 if (isLegacy && log.timestamp) ts = new Date(log.timestamp).toLocaleString();
-                else if (log.Timestamp) ts = new Date(log.Timestamp * 1000).toLocaleString();
+                else if (log.TimestampISO) ts = new Date(log.TimestampISO).toLocaleString();
+                else if (log.Timestamp) {
+                  // Fallback: nanoseconds → milliseconds (may lose precision on very large ints)
+                  ts = new Date(Math.floor(log.Timestamp / 1_000_000)).toLocaleString();
+                }
 
                 const dId = isLegacy ? log.id : (log.Attributes && log.Attributes["decision.id"]);
                 const isSuccess = isLegacy ? !(log.reason || '').includes('Error') : log.SeverityNumber === 9;
