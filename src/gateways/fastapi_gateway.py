@@ -470,8 +470,18 @@ async def websocket_chat(
                 await websocket.close(code=1008)
                 return
 
+    provider_order = os.getenv("PROVIDER_ORDER", "OPENAI").split(",")
     if not provider:
-        provider = os.getenv("PROVIDER_ORDER", "OPENAI").split(",")[0].strip()
+        provider = provider_order[0].strip()
+
+    if provider not in provider_order:
+        console.print(
+            f"[bold yellow]Warning: Requested provider '{provider}' is not in PROVIDER_ORDER. "
+        )
+        await websocket.close(
+            code=1008, reason=f"Available providers: {provider_order}"
+        )
+        return
 
     try:
         from src.services.chat_service import ChatService

@@ -1,5 +1,8 @@
 import orjson
 from fastapi import WebSocket, WebSocketDisconnect
+from src.core.logger import get_console
+
+console = get_console()
 
 
 class ChatService:
@@ -10,7 +13,11 @@ class ChatService:
         """
         Extracted chat handling logic. Keeps websocket handling separate from routing.
         """
-        await websocket.accept()
+        try:
+            await websocket.accept()
+        except RuntimeError:  # already accepted or closed
+            pass
+
         from src.core.llm_factory import LLMFactory
         from src.core.chat_tools import get_chat_tools
         from langchain_core.messages import (
@@ -34,7 +41,10 @@ class ChatService:
             messages = [SystemMessage(content=system_prompt)]
 
             while True:
-                data = await websocket.receive_text()
+                try:
+                    data = await websocket.receive_text()
+                except WebSocketDisconnect:
+                    break
 
                 # Send initial metadata
                 await websocket.send_text(
@@ -144,5 +154,8 @@ class ChatService:
                 await websocket.send_text(
                     orjson.dumps({"type": "error", "content": str(e)}).decode("utf-8")
                 )
-            except Exception:
+            except Exception as e:
+                console.print(
+                    f"[bold red]Error sending error message to websocket:[/bold red] {e}"
+                )
                 pass
