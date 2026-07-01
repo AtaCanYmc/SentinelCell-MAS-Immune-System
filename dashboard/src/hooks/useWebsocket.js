@@ -1,9 +1,14 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 
 export const useWebsocket = (url) => {
   const [logs, setLogs] = useState([]);
   const [isConnected, setIsConnected] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
+
+  const isPausedRef = useRef(isPaused);
+  useEffect(() => {
+    isPausedRef.current = isPaused;
+  }, [isPaused]);
 
   useEffect(() => {
     // Determine the actual WS URL, handling development vs production
@@ -14,7 +19,7 @@ export const useWebsocket = (url) => {
     ws.onclose = () => setIsConnected(false);
 
     ws.onmessage = (event) => {
-      if (!isPaused) {
+      if (!isPausedRef.current) {
         try {
           const data = JSON.parse(event.data);
           setLogs((prev) => [data, ...prev].slice(0, 100)); // Keep last 100 logs
@@ -27,7 +32,7 @@ export const useWebsocket = (url) => {
     return () => {
       ws.close();
     };
-  }, [url, isPaused]);
+  }, [url]);
 
   const togglePause = useCallback(() => setIsPaused((prev) => !prev), []);
   const clearLogs = useCallback(() => setLogs([]), []);

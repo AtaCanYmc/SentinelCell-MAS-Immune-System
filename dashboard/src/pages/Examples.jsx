@@ -2,10 +2,17 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Play, Square, Terminal, CheckCircle, AlertCircle, Loader2, RefreshCw, Search, Code, Cpu } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
+import { fetchWithAuth } from '../hooks/api';
 
 const fetchExamples = async () => {
-  const res = await fetch('/api/examples');
+  const res = await fetchWithAuth('/api/examples');
   if (!res.ok) throw new Error('Failed to fetch examples');
+  return res.json();
+};
+
+const fetchConfig = async () => {
+  const res = await fetchWithAuth('/api/config');
+  if (!res.ok) return {};
   return res.json();
 };
 
@@ -15,6 +22,7 @@ const Examples = () => {
     queryKey: ['examples'],
     queryFn: fetchExamples,
   });
+  const { data: config = {} } = useQuery({ queryKey: ['config'], queryFn: fetchConfig, refetchInterval: 30000 });
 
   const [selectedExample, setSelectedExample] = useState(null);
   const [consoleLogs, setConsoleLogs] = useState([]);
@@ -50,7 +58,9 @@ const Examples = () => {
     setExitCode(null);
 
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const wsUrl = `${protocol}//${window.location.host}/ws/examples/run/${example.id}`;
+    const token = localStorage.getItem('sentinel_api_key') || config.API_KEY_SECRET || '';
+    const tokenParam = token ? `?token=${token}` : '';
+    const wsUrl = `${protocol}//${window.location.host}/ws/examples/run/${example.id}${tokenParam}`;
 
     const ws = new WebSocket(wsUrl);
     wsRef.current = ws;

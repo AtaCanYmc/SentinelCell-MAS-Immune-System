@@ -12,7 +12,12 @@
     "title": "Ayarlar",
     "language": "Dil",
     "language_desc": "Uygulama dilini seçin.",
-    "theme": "Tema"
+    "theme": "Tema",
+    "system_maintenance": "Sistem Bakımı",
+    "garbage_collection": "Bellek Deposu Çöp Toplayıcı",
+    "garbage_desc": "Vektör Veritabanından eski LLM düzeltme kayıtlarını ve anlamsal sapma belleklerini temizleyin. Bu, RAG arama hızını yüksek tutmaya yardımcı olur.",
+    "purge_threshold": "Temizleme Eşiği (Gün)",
+    "purge_button": "Eski Bellekleri Temizle"
   },
   "chat": {
     "title": "LLM Test Sohbet",
@@ -28,6 +33,7 @@
     "actions": "İşlemler",
     "view_details": "Detayları Gör",
     "close": "Kapat",
-    "empty": "Henüz kayıtlı bir şema yok."
+    "empty": "Henüz kayıtlı bir şema yok.",
+    "refresh_cache": "Kayıt Defteri Önbelleğini Yenile"
   }
 }

@@ -1,8 +1,17 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Send, Bot, Loader2, Trash2 } from 'lucide-react';
+import { useQuery } from '@tanstack/react-query';
+import { fetchWithAuth } from '../hooks/api';
+
+const fetchConfig = async () => {
+  const res = await fetchWithAuth('/api/config');
+  if (!res.ok) return {};
+  return res.json();
+};
 
 export default function ChatTest() {
+  const { data: config = {} } = useQuery({ queryKey: ['config'], queryFn: fetchConfig, refetchInterval: 30000 });
   const { t, i18n } = useTranslation();
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
@@ -18,7 +27,9 @@ export default function ChatTest() {
       : window.location.host;
 
     const lang = i18n.language || 'en';
-    const wsUrl = `${protocol}//${host}/ws/chat?lang=${lang}&provider=${provider}`;
+    const token = localStorage.getItem('sentinel_api_key') || config.API_KEY_SECRET || '';
+    const tokenParam = token ? `&token=${token}` : '';
+    const wsUrl = `${protocol}//${host}/ws/chat?lang=${lang}&provider=${provider}${tokenParam}`;
 
     const connectWs = () => {
       console.log('Connecting to WebSocket:', wsUrl);
@@ -62,7 +73,7 @@ export default function ChatTest() {
         wsRef.current.close();
       }
     };
-  }, [provider, i18n.language]);
+  }, [provider, i18n.language, config]);
 
   const sendMessage = async (e) => {
     e.preventDefault();

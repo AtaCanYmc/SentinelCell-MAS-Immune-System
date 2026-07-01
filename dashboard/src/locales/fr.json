@@ -4,6 +4,7 @@
     "quarantine": "Quarantaine",
     "audit_logs": "Journaux d'Audit",
     "chat_test": "Chat Test LLM",
+    "schemas": "Registre de Schéma",
     "settings": "Paramètres",
     "examples": "Exemples Rapides"
   },
@@ -11,7 +12,12 @@
     "title": "Paramètres",
     "language": "Langue",
     "language_desc": "Sélectionnez la langue de l'application.",
-    "theme": "Thème"
+    "theme": "Thème",
+    "system_maintenance": "Maintenance du Système",
+    "garbage_collection": "Collecte des Ordures de Mémoire",
+    "garbage_desc": "Purger les anciens enregistrements de correction LLM et les mémoires de dérive sémantique de la base de données vectorielle. Cela aide à maintenir une vitesse de recherche RAG élevée.",
+    "purge_threshold": "Seuil de Purge (Jours)",
+    "purge_button": "Purger les Vieilles Mémoires"
   },
   "chat": {
     "title": "Chat Test LLM",
@@ -27,6 +33,7 @@
     "actions": "Actions",
     "view_details": "Voir les détails",
     "close": "Fermer",
-    "empty": "Aucun schéma enregistré pour le moment."
+    "empty": "Aucun schéma enregistré pour le moment.",
+    "refresh_cache": "Rafraîchir le Cache du Registre"
   }
 }

@@ -5,9 +5,10 @@ import CodeMirror from '@uiw/react-codemirror';
 import { json } from '@codemirror/lang-json';
 import { useHotkeys } from 'react-hotkeys-hook';
 import ReactDiffViewer, { DiffMethod } from 'react-diff-viewer-continued';
+import { fetchWithAuth } from '../hooks/api';
 
 const fetchDlq = async () => {
-  const res = await fetch('/api/dlq');
+  const res = await fetchWithAuth('/api/dlq');
   if (!res.ok) throw new Error('Network response was not ok');
   return res.json();
 };
@@ -28,7 +29,7 @@ const Quarantine = () => {
 
   const replayMutation = useMutation({
     mutationFn: async (item) => {
-      const res = await fetch('/api/dlq/replay', {
+      const res = await fetchWithAuth('/api/dlq/replay', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ source: item.source, target: item.target, payload: item.payload })
@@ -97,7 +98,7 @@ const Quarantine = () => {
                     <p className="text-xs text-gray-500">{new Date(item.timestamp * 1000).toLocaleString()} | Source: {item.source} ➔ Target: {item.target}</p>
                   </div>
                   <div className="flex gap-2">
-                    <button onClick={() => setEditingDlq({ ...item, idx })} className="px-3 py-1 bg-blue-500/20 text-blue-400 rounded hover:bg-blue-500/30 flex items-center gap-1 text-sm transition-colors">
+                    <button onClick={() => setEditingDlq({ ...item, idx, payload: typeof item.payload === 'object' ? JSON.stringify(item.payload, null, 2) : item.payload })} className="px-3 py-1 bg-blue-500/20 text-blue-400 rounded hover:bg-blue-500/30 flex items-center gap-1 text-sm transition-colors">
                       <Edit3 className="w-4 h-4" /> Edit
                     </button>
                     <button onClick={() => handleReplay(item)} disabled={replayMutation.isPending} className="px-3 py-1 bg-green-500/20 text-green-400 rounded hover:bg-green-500/30 flex items-center gap-1 text-sm transition-colors disabled:opacity-50">

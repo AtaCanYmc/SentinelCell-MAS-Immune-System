@@ -2,33 +2,36 @@ import React, { useState } from 'react';
 import { Activity, CheckCircle, AlertTriangle, Shield, Database, Pause, Play, Trash2 } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import { useBroadcaster } from '../hooks/useBroadcaster';
+import { fetchWithAuth } from '../hooks/api';
 
 const fetchSchemas = async () => {
-  const res = await fetch('/api/schemas');
+  const res = await fetchWithAuth('/api/schemas');
   if (!res.ok) return [];
   const data = await res.json();
   return data.schemas || [];
 };
 
 const fetchConfig = async () => {
-  const res = await fetch('/api/config');
+  const res = await fetchWithAuth('/api/config');
   if (!res.ok) return {};
   return res.json();
 };
 
 const fetchAuditLogs = async () => {
-  const res = await fetch('/api/audit-logs');
+  const res = await fetchWithAuth('/api/audit-logs');
   if (!res.ok) return { logs: [] };
   return res.json();
 };
 
 const Dashboard = () => {
   // Use Broadcaster for live tail logs
+  const { data: config = {} } = useQuery({ queryKey: ['config'], queryFn: fetchConfig, refetchInterval: 10000 });
   const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-  const { logs, isConnected, isPaused, filterType, setFilterType, togglePause, clearLogs } = useBroadcaster(`${protocol}//${window.location.host}/ws/logs`);
+  const token = localStorage.getItem('sentinel_api_key') || config.API_KEY_SECRET || '';
+  const tokenParam = token ? `?token=${token}` : '';
+  const { logs, isConnected, isPaused, filterType, setFilterType, togglePause, clearLogs } = useBroadcaster(`${protocol}//${window.location.host}/ws/logs${tokenParam}`);
 
   const { data: schemas = [] } = useQuery({ queryKey: ['schemas'], queryFn: fetchSchemas, refetchInterval: 10000 });
-  const { data: config = {} } = useQuery({ queryKey: ['config'], queryFn: fetchConfig, refetchInterval: 10000 });
   const { data: auditData } = useQuery({ queryKey: ['auditLogs'], queryFn: fetchAuditLogs, refetchInterval: 10000 });
 
   const [metricScope, setMetricScope] = useState('session'); // 'session' | 'system'

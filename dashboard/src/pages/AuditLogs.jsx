@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Search, ShieldCheck, AlertTriangle, ChevronDown, ChevronUp, Info } from 'lucide-react';
+import { fetchWithAuth } from '../hooks/api';
 
 const fetchAuditLogs = async () => {
-  const res = await fetch('/api/audit-logs');
+  const res = await fetchWithAuth('/api/audit-logs');
   if (!res.ok) throw new Error('Failed to fetch');
   return res.json();
 };
@@ -12,7 +13,7 @@ const AuditLogs = () => {
   const { data, isLoading } = useQuery({ queryKey: ['auditLogs'], queryFn: fetchAuditLogs, refetchInterval: 10000 });
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
-  const [expandedLogIdx, setExpandedLogIdx] = useState(null);
+  const [expandedLogKey, setExpandedLogKey] = useState(null);
   const itemsPerPage = 10;
 
   if (isLoading) return <div className="text-gray-400">Loading audit logs...</div>;
@@ -21,11 +22,21 @@ const AuditLogs = () => {
 
   const filteredLogs = logs.filter(log => {
     if (!searchTerm) return true;
-    try {
-      return JSON.stringify(log).toLowerCase().includes(searchTerm.toLowerCase());
-    } catch {
-      return false;
-    }
+    const term = searchTerm.toLowerCase();
+
+    const traceId = log.TraceId ? String(log.TraceId).toLowerCase() : '';
+    const spanId = log.SpanId ? String(log.SpanId).toLowerCase() : '';
+    const reason = log.reason ? String(log.reason).toLowerCase() : '';
+    const source = (log.Attributes?.["agent.source"] || log.source || '').toLowerCase();
+    const target = (log.Attributes?.["agent.target"] || log.target || '').toLowerCase();
+    const dId = (log.id || log.Attributes?.["decision.id"] || '').toLowerCase();
+
+    return traceId.includes(term) ||
+           spanId.includes(term) ||
+           reason.includes(term) ||
+           source.includes(term) ||
+           target.includes(term) ||
+           dId.includes(term);
   });
 
   const totalPages = Math.max(1, Math.ceil(filteredLogs.length / itemsPerPage));
@@ -76,12 +87,14 @@ const AuditLogs = () => {
 
                 const dId = isLegacy ? log.id : (log.Attributes && log.Attributes["decision.id"]);
                 const isSuccess = isLegacy ? !(log.reason || '').includes('Error') : log.SeverityNumber === 9;
-                const isExpanded = expandedLogIdx === idx;
+
+                const logKey = log.TraceId ? `${log.TraceId}-${log.SpanId}` : (log.id || `${log.timestamp || log.Timestamp}-${idx}`);
+                const isExpanded = expandedLogKey === logKey;
 
                 return (
-                  <React.Fragment key={idx}>
+                  <React.Fragment key={logKey}>
                     <tr
-                      onClick={() => setExpandedLogIdx(isExpanded ? null : idx)}
+                      onClick={() => setExpandedLogKey(isExpanded ? null : logKey)}
                       className="border-b border-white/5 last:border-0 hover:bg-white/5 cursor-pointer transition-colors"
                     >
                       <td className="px-4 py-3 text-center">

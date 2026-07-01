@@ -12,7 +12,12 @@
     "title": "Settings",
     "language": "Language",
     "language_desc": "Select the application language.",
-    "theme": "Theme"
+    "theme": "Theme",
+    "system_maintenance": "System Maintenance",
+    "garbage_collection": "Memory Store Garbage Collection",
+    "garbage_desc": "Purge old LLM correction records and semantic drift memories from the Vector Database. This helps maintain high RAG search speed.",
+    "purge_threshold": "Purge Threshold (Days)",
+    "purge_button": "Purge Old Memories"
   },
   "chat": {
     "title": "LLM Test Chat",
@@ -28,6 +33,7 @@
     "actions": "Actions",
     "view_details": "View Details",
     "close": "Close",
-    "empty": "No schemas registered yet."
+    "empty": "No schemas registered yet.",
+    "refresh_cache": "Refresh Registry Cache"
   }
 }
