@@ -169,8 +169,14 @@ async def get_dashboard():
 
 
 @app.websocket("/ws/logs")
-async def websocket_logs(websocket: WebSocket):
+async def websocket_logs(websocket: WebSocket, token: str | None = None):
     """Streams live SentinelCell logs from Redis PubSub to connected WebSockets"""
+    expected_api_key = os.getenv("API_KEY_SECRET")
+    if expected_api_key and token != expected_api_key:
+        await websocket.accept()
+        await websocket.close(code=4001)
+        return
+
     await websocket.accept()
     redis_url = os.getenv("REDIS_URL", "redis://redis:6379")
     try:
@@ -290,11 +296,20 @@ async def chat_test(req: ChatRequest, api_key: str = Depends(verify_api_key)):
 
 @app.websocket("/ws/chat")
 async def websocket_chat(
-    websocket: WebSocket, lang: str = "en", provider: str | None = None
+    websocket: WebSocket,
+    lang: str = "en",
+    provider: str | None = None,
+    token: str | None = None,
 ):
     """
     WebSocket endpoint for real-time LLM chat streaming.
     """
+    expected_api_key = os.getenv("API_KEY_SECRET")
+    if expected_api_key and token != expected_api_key:
+        await websocket.accept()
+        await websocket.close(code=4001)
+        return
+
     await websocket.accept()
     from src.core.llm_factory import LLMFactory
     from src.core.chat_tools import get_chat_tools
@@ -641,7 +656,7 @@ async def replay_payload(req: ReplayRequest, api_key: str = Depends(verify_api_k
 
 
 @app.get("/api/examples")
-async def list_examples():
+async def list_examples(api_key: str = Depends(verify_api_key)):
     """Lists available interactive simulation examples with description."""
     json_path = os.path.join("examples", "examples.json")
     if not os.path.exists(json_path):
@@ -656,8 +671,16 @@ async def list_examples():
 
 
 @app.websocket("/ws/examples/run/{script_name}")
-async def ws_run_example(websocket: WebSocket, script_name: str):
+async def ws_run_example(
+    websocket: WebSocket, script_name: str, token: str | None = None
+):
     """Runs a simulation script and streams stdout/stderr back in real-time."""
+    expected_api_key = os.getenv("API_KEY_SECRET")
+    if expected_api_key and token != expected_api_key:
+        await websocket.accept()
+        await websocket.close(code=4001)
+        return
+
     await websocket.accept()
 
     safe_scripts = [

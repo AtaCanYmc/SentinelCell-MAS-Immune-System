@@ -9,12 +9,19 @@ const fetchExamples = async () => {
   return res.json();
 };
 
+const fetchConfig = async () => {
+  const res = await fetch('/api/config');
+  if (!res.ok) return {};
+  return res.json();
+};
+
 const Examples = () => {
   const { t } = useTranslation();
   const { data, isLoading, error, refetch } = useQuery({
     queryKey: ['examples'],
     queryFn: fetchExamples,
   });
+  const { data: config = {} } = useQuery({ queryKey: ['config'], queryFn: fetchConfig, refetchInterval: 30000 });
 
   const [selectedExample, setSelectedExample] = useState(null);
   const [consoleLogs, setConsoleLogs] = useState([]);
@@ -50,7 +57,8 @@ const Examples = () => {
     setExitCode(null);
 
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const wsUrl = `${protocol}//${window.location.host}/ws/examples/run/${example.id}`;
+    const tokenParam = config.API_KEY_SECRET ? `?token=${config.API_KEY_SECRET}` : '';
+    const wsUrl = `${protocol}//${window.location.host}/ws/examples/run/${example.id}${tokenParam}`;
 
     const ws = new WebSocket(wsUrl);
     wsRef.current = ws;

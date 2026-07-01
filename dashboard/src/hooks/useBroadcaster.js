@@ -1,10 +1,15 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 
 export const useBroadcaster = (url) => {
   const [logs, setLogs] = useState([]);
   const [isConnected, setIsConnected] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
   const [filterType, setFilterType] = useState('ALL'); // ALL, ERROR, HEAL, SECURITY
+
+  const isPausedRef = useRef(isPaused);
+  useEffect(() => {
+    isPausedRef.current = isPaused;
+  }, [isPaused]);
 
   useEffect(() => {
     const wsUrl = url.replace(/^http/, 'ws');
@@ -14,7 +19,7 @@ export const useBroadcaster = (url) => {
     ws.onclose = () => setIsConnected(false);
 
     ws.onmessage = (event) => {
-      if (!isPaused) {
+      if (!isPausedRef.current) {
         try {
           const data = JSON.parse(event.data);
           setLogs((prev) => [{ ...data, timestamp: new Date() }, ...prev].slice(0, 200));
@@ -25,7 +30,7 @@ export const useBroadcaster = (url) => {
     };
 
     return () => ws.close();
-  }, [url, isPaused]);
+  }, [url]);
 
   const togglePause = useCallback(() => setIsPaused((prev) => !prev), []);
   const clearLogs = useCallback(() => setLogs([]), []);
