@@ -67,6 +67,7 @@
     "name": "Semantic Drift Guard",
     "description": "Calculates Jaccard Similarity on LLM-repaired payloads to reject hallucinated keys.",
     "category": "Security",
+    "difficulty": "Medium"
   },
   {
     "id": "antigravity_integrity_demo.py",
