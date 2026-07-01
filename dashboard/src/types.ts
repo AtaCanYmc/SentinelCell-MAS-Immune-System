@@ -41,8 +41,10 @@ export interface AuditLog {
 export interface Agent {
   id: string;
   errors: number | { failures: number; last_failure_time: number };
-  status: 'HEALTHY' | 'TRIPPED';
+  status: 'HEALTHY' | 'TRIPPED' | 'RECOVERING';
   threshold: number;
+  last_failure_time?: number;
+  cooldown?: number;
 }
 
 export interface Example {

@@ -3,44 +3,34 @@ import { useQuery } from '@tanstack/react-query';
 import { Search, ShieldCheck, AlertTriangle, ChevronDown, ChevronUp, Info } from 'lucide-react';
 import { fetchWithAuth } from '../hooks/api';
 
-const fetchAuditLogs = async () => {
-  const res = await fetchWithAuth('/api/audit-logs');
+const fetchAuditLogs = async (limit: number, offset: number, search: string) => {
+  const searchParam = search ? `&search=${encodeURIComponent(search)}` : '';
+  const res = await fetchWithAuth(`/api/audit-logs?limit=${limit}&offset=${offset}${searchParam}`);
   if (!res.ok) throw new Error('Failed to fetch');
   return res.json();
 };
 
 const AuditLogs = () => {
-  const { data, isLoading } = useQuery({ queryKey: ['auditLogs'], queryFn: fetchAuditLogs, refetchInterval: 10000 });
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
-  const [expandedLogKey, setExpandedLogKey] = useState(null);
+  const [expandedLogKey, setExpandedLogKey] = useState<string | null>(null);
   const itemsPerPage = 10;
+
+  const offset = (currentPage - 1) * itemsPerPage;
+
+  const { data, isLoading } = useQuery({
+    queryKey: ['auditLogs', itemsPerPage, offset, searchTerm],
+    queryFn: () => fetchAuditLogs(itemsPerPage, offset, searchTerm),
+    refetchInterval: 10000
+  });
 
   if (isLoading) return <div className="text-gray-400">Loading audit logs...</div>;
 
   const logs = Array.isArray(data?.logs) ? data.logs : [];
+  const totalLogsCount = data?.total || 0;
 
-  const filteredLogs = logs.filter(log => {
-    if (!searchTerm) return true;
-    const term = searchTerm.toLowerCase();
-
-    const traceId = log.TraceId ? String(log.TraceId).toLowerCase() : '';
-    const spanId = log.SpanId ? String(log.SpanId).toLowerCase() : '';
-    const reason = log.reason ? String(log.reason).toLowerCase() : '';
-    const source = (log.Attributes?.["agent.source"] || log.source || '').toLowerCase();
-    const target = (log.Attributes?.["agent.target"] || log.target || '').toLowerCase();
-    const dId = (log.id || log.Attributes?.["decision.id"] || '').toLowerCase();
-
-    return traceId.includes(term) ||
-           spanId.includes(term) ||
-           reason.includes(term) ||
-           source.includes(term) ||
-           target.includes(term) ||
-           dId.includes(term);
-  });
-
-  const totalPages = Math.max(1, Math.ceil(filteredLogs.length / itemsPerPage));
-  const currentLogs = filteredLogs.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+  const totalPages = Math.max(1, Math.ceil(totalLogsCount / itemsPerPage));
+  const currentLogs = logs;
 
   const getSafeStr = (val) => {
     if (val === null || val === undefined) return "";
@@ -65,7 +55,7 @@ const AuditLogs = () => {
       </div>
 
       <div className="bg-[#0d1117] border border-white/10 rounded-lg overflow-hidden">
-        {filteredLogs.length === 0 ? (
+        {currentLogs.length === 0 ? (
           <div className="p-8 text-center text-gray-500">No logs found.</div>
         ) : (
           <table className="w-full text-left text-sm text-gray-300">
@@ -165,7 +155,7 @@ const AuditLogs = () => {
       {totalPages > 1 && (
         <div className="flex items-center justify-between mt-6 bg-black/40 p-4 rounded-lg border border-white/10">
           <div className="text-sm text-gray-400">
-            Page {currentPage} of {totalPages} (Total {filteredLogs.length})
+            Page {currentPage} of {totalPages} (Total {totalLogsCount})
           </div>
           <div className="flex gap-2">
             <button

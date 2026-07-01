@@ -633,19 +633,35 @@ class ReplayRequest(BaseModel):
 @app.get("/api/agents")
 async def get_agents(api_key: str = Depends(verify_api_key)):
     """Returns the current state of agent circuit breakers."""
+    import time
+
     threshold = int(os.getenv("CIRCUIT_BREAKER_THRESHOLD", "5"))
+    cooldown = int(os.getenv("CIRCUIT_BREAKER_COOLDOWN", "60"))
     breakers = sentinel.orchestrator.agent_circuit_breakers
     result = []
     for agent, errors in breakers.items():
         failures = (
             errors.get("failures", 0) if isinstance(errors, dict) else (errors or 0)
         )
+        last_failure = (
+            errors.get("last_failure_time", 0.0) if isinstance(errors, dict) else 0.0
+        )
+
+        status = "HEALTHY"
+        if failures >= threshold:
+            if time.time() - last_failure > cooldown:
+                status = "RECOVERING"
+            else:
+                status = "TRIPPED"
+
         result.append(
             {
                 "id": agent,
                 "errors": errors,
-                "status": "TRIPPED" if failures >= threshold else "HEALTHY",
+                "status": status,
                 "threshold": threshold,
+                "last_failure_time": last_failure,
+                "cooldown": cooldown,
             }
         )
     return {"agents": result}
@@ -682,18 +698,57 @@ async def get_metrics(api_key: str = Depends(verify_api_key)):
 
 
 @app.get("/api/audit-logs")
-async def get_audit_logs(api_key: str = Depends(verify_api_key)):
-    """Returns OTel formatted decisions from the repair logs."""
+async def get_audit_logs(
+    limit: int = 50,
+    offset: int = 0,
+    search: str | None = None,
+    api_key: str = Depends(verify_api_key),
+):
+    """Returns OTel formatted decisions from the repair logs with pagination and search."""
     log_path = os.path.join(os.getcwd(), ".antigravity", "logs", "agent_decisions.json")
     if not os.path.exists(log_path):
-        return {"logs": []}
+        return {"logs": [], "total": 0}
 
     try:
         with open(log_path, "r") as f:
             logs = orjson.loads(f.read())
-        return {"logs": logs[::-1]}  # newest first
+
+        if search:
+            term = search.lower()
+            filtered = []
+            for log in logs:
+                trace_id = str(log.get("TraceId", "")).lower()
+                span_id = str(log.get("SpanId", "")).lower()
+                reason = str(log.get("reason", "")).lower()
+                attributes = log.get("Attributes") or {}
+                source = str(
+                    attributes.get("agent.source", log.get("source", ""))
+                ).lower()
+                target = str(
+                    attributes.get("agent.target", log.get("target", ""))
+                ).lower()
+                decision_id = str(
+                    log.get("id", attributes.get("decision.id", ""))
+                ).lower()
+
+                if (
+                    term in trace_id
+                    or term in span_id
+                    or term in reason
+                    or term in source
+                    or term in target
+                    or term in decision_id
+                ):
+                    filtered.append(log)
+            logs = filtered
+
+        reversed_logs = logs[::-1]
+        return {
+            "logs": reversed_logs[offset : offset + limit],
+            "total": len(reversed_logs),
+        }
     except Exception:
-        return {"logs": []}
+        return {"logs": [], "total": 0}
 
 
 @app.post("/api/dlq/replay")
