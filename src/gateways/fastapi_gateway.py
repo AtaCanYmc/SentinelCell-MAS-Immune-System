@@ -172,6 +172,48 @@ def verify_api_key(
     raise HTTPException(status_code=401, detail="Invalid or missing API Key or Session")
 
 
+async def verify_api_key_in_ws(websocket: WebSocket):
+    expected_api_key = os.getenv("API_KEY_SECRET")
+    if not expected_api_key:
+        return True
+
+    session_cookie = websocket.cookies.get("sentinel_session")
+    has_valid_cookie = (
+        session_cookie and verify_session_token(session_cookie) is not None
+    )
+
+    if not has_valid_cookie:
+        try:
+            auth_msg = await asyncio.wait_for(websocket.receive_text(), timeout=10.0)
+            auth_data = orjson.loads(auth_msg)
+            if (
+                auth_data.get("type") != "AUTH"
+                or auth_data.get("token") != expected_api_key
+            ):
+                await websocket.send_text(
+                    orjson.dumps({"type": "AUTH_FAILED"}).decode("utf-8")
+                )
+                await websocket.close(code=1008)
+                raise HTTPException(
+                    status_code=401, detail="Invalid or missing API Key or Session"
+                )
+        except (asyncio.TimeoutError, Exception):
+            console.print(
+                "[bold red]WebSocket auth failed: Timeout or error during auth message receive[/bold red]"
+            )
+            await websocket.close(code=1008)
+            raise HTTPException(
+                status_code=401, detail="Invalid or missing API Key or Session"
+            )
+
+    raise HTTPException(status_code=401, detail="Invalid or missing API Key or Session")
+
+
+# ================================================
+# AUTH
+# =================================================
+
+
 class LoginRequest(BaseModel):
     username: str
     password: str
@@ -214,32 +256,7 @@ app.mount("/metrics", metrics_app)
 async def websocket_logs(websocket: WebSocket):
     """Streams live SentinelCell logs from Redis PubSub to connected WebSockets"""
     await websocket.accept()
-
-    # First Message Auth: client sends {"type": "AUTH", "token": "..."} as first message
-    expected_api_key = os.getenv("API_KEY_SECRET")
-    if expected_api_key:
-        session_cookie = websocket.cookies.get("sentinel_session")
-        has_valid_cookie = (
-            session_cookie and verify_session_token(session_cookie) is not None
-        )
-        if not has_valid_cookie:
-            try:
-                auth_msg = await asyncio.wait_for(
-                    websocket.receive_text(), timeout=10.0
-                )
-                auth_data = orjson.loads(auth_msg)
-                if (
-                    auth_data.get("type") != "AUTH"
-                    or auth_data.get("token") != expected_api_key
-                ):
-                    await websocket.send_text(
-                        orjson.dumps({"type": "AUTH_FAILED"}).decode("utf-8")
-                    )
-                    await websocket.close(code=1008)
-                    return
-            except (asyncio.TimeoutError, Exception):
-                await websocket.close(code=1008)
-                return
+    await verify_api_key_in_ws(websocket)
 
     redis_url = os.getenv("REDIS_URL", "redis://redis:6379")
     try:
@@ -454,30 +471,7 @@ async def websocket_chat(
         pass
 
     # First Message Auth
-    expected_api_key = os.getenv("API_KEY_SECRET")
-    if expected_api_key:
-        session_cookie = websocket.cookies.get("sentinel_session")
-        has_valid_cookie = (
-            session_cookie and verify_session_token(session_cookie) is not None
-        )
-        if not has_valid_cookie:
-            try:
-                auth_msg = await asyncio.wait_for(
-                    websocket.receive_text(), timeout=10.0
-                )
-                auth_data = orjson.loads(auth_msg)
-                if (
-                    auth_data.get("type") != "AUTH"
-                    or auth_data.get("token") != expected_api_key
-                ):
-                    await websocket.send_text(
-                        orjson.dumps({"type": "AUTH_FAILED"}).decode("utf-8")
-                    )
-                    await websocket.close(code=1008)
-                    return
-            except (asyncio.TimeoutError, Exception):
-                await websocket.close(code=1008)
-                return
+    await verify_api_key_in_ws(websocket)
 
     provider_order = os.getenv("PROVIDER_ORDER", "OPENAI").split(",")
     if not provider:
@@ -904,30 +898,7 @@ async def ws_run_example(websocket: WebSocket, script_name: str):
     await websocket.accept()
 
     # First Message Auth
-    expected_api_key = os.getenv("API_KEY_SECRET")
-    if expected_api_key:
-        session_cookie = websocket.cookies.get("sentinel_session")
-        has_valid_cookie = (
-            session_cookie and verify_session_token(session_cookie) is not None
-        )
-        if not has_valid_cookie:
-            try:
-                auth_msg = await asyncio.wait_for(
-                    websocket.receive_text(), timeout=10.0
-                )
-                auth_data = orjson.loads(auth_msg)
-                if (
-                    auth_data.get("type") != "AUTH"
-                    or auth_data.get("token") != expected_api_key
-                ):
-                    await websocket.send_text(
-                        orjson.dumps({"type": "AUTH_FAILED"}).decode("utf-8")
-                    )
-                    await websocket.close(code=1008)
-                    return
-            except (asyncio.TimeoutError, Exception):
-                await websocket.close(code=1008)
-                return
+    await verify_api_key_in_ws(websocket)
 
     if script_name not in SAFE_SCRIPTS:
         await websocket.send_text(
