@@ -6,6 +6,7 @@ import { json } from '@codemirror/lang-json';
 import { useHotkeys } from 'react-hotkeys-hook';
 import ReactDiffViewer, { DiffMethod } from 'react-diff-viewer-continued';
 import { fetchWithAuth } from '../hooks/api';
+import { DlqItem } from '../types';
 
 const fetchDlq = async () => {
   const res = await fetchWithAuth('/api/dlq');
@@ -18,7 +19,7 @@ const Quarantine = () => {
   const { data: rawDlqItems, isLoading } = useQuery({ queryKey: ['dlq'], queryFn: fetchDlq });
   const dlqItems = Array.isArray(rawDlqItems) ? rawDlqItems : [];
 
-  const [editingDlq, setEditingDlq] = useState(null);
+  const [editingDlq, setEditingDlq] = useState<DlqItem | null>(null);
   const [activeTab, setActiveTab] = useState('edit'); // 'edit' | 'diff'
   const [replayMessage, setReplayMessage] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
@@ -27,20 +28,20 @@ const Quarantine = () => {
   const totalPages = Math.max(1, Math.ceil(dlqItems.length / itemsPerPage));
   const currentItems = dlqItems.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
-  const replayMutation = useMutation<any, Error, any>({
+  const replayMutation = useMutation<any, Error, DlqItem>({
     mutationFn: async (item) => {
-      let parsedPayload = item.payload;
-      if (typeof parsedPayload === 'string') {
+      let rawPayload = item.payload;
+      if (typeof rawPayload !== 'string') {
         try {
-          parsedPayload = JSON.parse(parsedPayload);
+          rawPayload = JSON.stringify(rawPayload);
         } catch (e) {
-          throw new Error('Invalid JSON format in payload');
+          rawPayload = String(rawPayload);
         }
       }
       const res = await fetchWithAuth('/api/dlq/replay', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ source: item.source, target: item.target, payload: parsedPayload })
+        body: JSON.stringify({ source: item.source, target: item.target, payload: rawPayload })
       });
       if (!res.ok) {
         const err = await res.json();
@@ -67,7 +68,7 @@ const Quarantine = () => {
     }
   });
 
-  const handleReplay = (item) => {
+  const handleReplay = (item: DlqItem) => {
     setReplayMessage("Replaying payload...");
     replayMutation.mutate(item);
   };

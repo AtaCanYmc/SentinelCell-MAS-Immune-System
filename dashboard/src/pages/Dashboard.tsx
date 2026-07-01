@@ -4,6 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useBroadcaster } from '../hooks/useBroadcaster';
 import { fetchWithAuth } from '../hooks/api';
 import AreaChart from '../components/AreaChart';
+import { Metrics } from '../types';
 
 const fetchSchemas = async () => {
   const res = await fetchWithAuth('/api/schemas');
@@ -24,7 +25,7 @@ const fetchAuditLogs = async () => {
   return res.json();
 };
 
-const fetchMetrics = async () => {
+const fetchMetrics = async (): Promise<Metrics | null> => {
   const res = await fetchWithAuth('/api/metrics');
   if (!res.ok) return null;
   return res.json();
@@ -40,7 +41,7 @@ const Dashboard = () => {
 
   const { data: schemas = [] } = useQuery({ queryKey: ['schemas'], queryFn: fetchSchemas, refetchInterval: 10000 });
   const { data: auditData } = useQuery({ queryKey: ['auditLogs'], queryFn: fetchAuditLogs, refetchInterval: 10000 });
-  const { data: metrics } = useQuery({ queryKey: ['metrics'], queryFn: fetchMetrics, refetchInterval: 3000 });
+  const { data: metrics } = useQuery<Metrics | null>({ queryKey: ['metrics'], queryFn: fetchMetrics, refetchInterval: 3000 });
 
   const [rpsHistory, setRpsHistory] = useState([0, 0, 0, 0, 0, 0, 0, 0, 0, 0]);
   const [latencyHistory, setLatencyHistory] = useState([0, 0, 0, 0, 0, 0, 0, 0, 0, 0]);
