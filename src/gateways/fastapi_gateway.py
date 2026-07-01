@@ -482,7 +482,10 @@ async def websocket_chat(
             f"[bold yellow]Warning: Requested provider '{provider}' is not in PROVIDER_ORDER. "
         )
         await websocket.close(reason=f"Available providers: {provider_order}")
-        return
+        raise HTTPException(
+            status_code=400,
+            detail=f"Requested provider '{provider}' is not in PROVIDER_ORDER. ",
+        )
 
     try:
         from src.services.chat_service import ChatService
