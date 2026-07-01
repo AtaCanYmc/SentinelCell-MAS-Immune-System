@@ -321,7 +321,10 @@ async def intercept_traffic(
                                         if isinstance(msg["data"], (bytes, str))
                                         else msg["data"]
                                     )
-                                except Exception:
+                                except Exception as e:
+                                    console.print(
+                                        f"[bold yellow]Idempotency channel payload parse error:[/bold yellow] {e}"
+                                    )
                                     payload = None
                                 if payload:
                                     return JSONResponse(
@@ -331,7 +334,10 @@ async def intercept_traffic(
                     finally:
                         try:
                             await pubsub.unsubscribe(channel)
-                        except Exception:
+                        except Exception as e:
+                            console.print(
+                                f"[bold yellow]Idempotency channel unsubscribe error:[/bold yellow] {e}"
+                            )
                             pass
                     # Timeout waiting for master result
                     raise HTTPException(
@@ -366,7 +372,10 @@ async def intercept_traffic(
                         f"sentinel:idem:channel:{x_idempotency_key}",
                         orjson.dumps(result).decode("utf-8"),
                     )
-                except Exception:
+                except Exception as e:
+                    console.print(
+                        f"[bold yellow]Redis idempotency publish error:[/bold yellow] {e}"
+                    )
                     pass
             except Exception as redis_set_err:
                 console.print(
@@ -824,7 +833,10 @@ async def submit_hitl_approval(
                 f"sentinel:hitl:channel:{req.approval_id}",
                 orjson.dumps(data).decode("utf-8"),
             )
-        except Exception:
+        except Exception as e:
+            console.print(
+                f"[bold yellow]HITL decision channel publish error:[/bold yellow] {e}"
+            )
             pass
 
         await r.aclose()
