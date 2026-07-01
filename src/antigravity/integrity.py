@@ -41,7 +41,7 @@ def verify_chain():
     Reads the agent_decisions.json logs and computes the Merkle Root.
     Ensures that no agent action has been stealthily modified.
     """
-    log_path = os.path.join(os.getcwd(), ".antigravity", "logs", "agent_decisions.json")
+    log_path = os.path.join(os.getcwd(), "logs", "agent_decisions.json")
     console.print(
         f"[bold cyan]Starting Cryptographic Integrity Check[/bold cyan] on {log_path}"
     )
