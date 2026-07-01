@@ -295,7 +295,9 @@ class MemoryFactory:
             from src.core.logger import get_console
 
             get_console().print(
-                "[bold red][!] WARNING: Using InMemoryMemoryStore mock. This does not perform true semantic search. Not for production use![/bold red]"
+                "[bold red][!] WARNING: Using InMemoryMemoryStore mock. "
+                "This does not perform true semantic search. "
+                "Not for production use![/bold red]"
             )
             return InMemoryMemoryStore()
         else:

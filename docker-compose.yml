@@ -19,6 +19,8 @@ x-sentinel-constraints: &sentinel-constraints
     - /temp
     - /tmp
     - /home/sentinel/.gunicorn
+    - /run
+    - /var/run
   logging:
     driver: "json-file"
     options:
@@ -149,7 +151,7 @@ networks:
   sentinel_net:
     name: sentinel_net
     # Uncomment if you want docker-compose to manage the network automatically:
-    # (Remove external: true below)
+    external: true
     # driver: bridge
 
   # For production with existing external network:
