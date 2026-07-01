@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Activity, CheckCircle, AlertTriangle, Shield, Database, Pause, Play, Trash2 } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
+import { useTranslation } from 'react-i18next';
 import { useBroadcaster } from '../hooks/useBroadcaster';
 import { fetchWithAuth } from '../hooks/api';
 import AreaChart from '../components/AreaChart';
@@ -32,6 +33,7 @@ const fetchMetrics = async (): Promise<Metrics | null> => {
 };
 
 const Dashboard = () => {
+  const { t } = useTranslation();
   // Use Broadcaster for live tail logs
   const { data: config = {} } = useQuery({ queryKey: ['config'], queryFn: fetchConfig, refetchInterval: 10000 });
   const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
@@ -108,7 +110,7 @@ const Dashboard = () => {
                 : 'text-gray-400 hover:text-gray-200'
             }`}
           >
-            Session View
+            {t('dashboard.session_view')}
           </button>
           <button
             onClick={() => setMetricScope('system')}
@@ -118,11 +120,11 @@ const Dashboard = () => {
                 : 'text-gray-400 hover:text-gray-200'
             }`}
           >
-            System Totals
+            {t('dashboard.system_totals')}
           </button>
         </div>
         <div className="text-xs text-gray-500 font-mono">
-          Scope: {metricScope === 'session' ? 'Live Browser Session' : 'Historical Audit Log'}
+          {t('dashboard.scope')}: {metricScope === 'session' ? t('dashboard.live_browser_session') : t('dashboard.historical_audit_log')}
         </div>
       </div>
 
@@ -131,7 +133,7 @@ const Dashboard = () => {
           <Activity className="w-8 h-8 text-blue-400 mb-4" />
           <div className="metric-value text-3xl font-bold">{activeMetrics.intercepts}</div>
           <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mt-1">
-            {metricScope === 'session' ? 'Session Packets' : 'Total Intercepted'}
+            {metricScope === 'session' ? t('dashboard.session_packets') : t('dashboard.total_intercepted')}
           </div>
         </div>
 
@@ -140,7 +142,7 @@ const Dashboard = () => {
           <div className="metric-value text-3xl font-bold bg-gradient-to-r from-green-500 to-green-600 bg-clip-text text-transparent">
             {activeMetrics.healed}
           </div>
-          <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mt-1">Successfully Healed</div>
+          <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mt-1">{t('dashboard.successfully_healed')}</div>
         </div>
 
         <div className="glass-panel metric-card">
@@ -148,28 +150,28 @@ const Dashboard = () => {
           <div className="metric-value text-3xl font-bold bg-gradient-to-r from-yellow-500 to-yellow-600 bg-clip-text text-transparent">
             {activeMetrics.dropped}
           </div>
-          <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mt-1">Quarantined / Dropped</div>
+          <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mt-1">{t('dashboard.quarantined_dropped')}</div>
         </div>
 
         <div className={`glass-panel metric-card ${activeMetrics.quarantineStatus ? 'border-red-500/50' : ''}`}>
           <Shield className={`w-8 h-8 mb-4 ${activeMetrics.quarantineStatus ? 'text-red-500 animate-pulse' : 'text-green-400'}`} />
           <div className={`text-2xl font-bold mb-2 ${activeMetrics.quarantineStatus ? 'text-red-500' : 'text-green-400'}`}>
-            {activeMetrics.quarantineStatus ? 'QUARANTINE' : 'SAFE'}
+            {activeMetrics.quarantineStatus ? t('dashboard.quarantine') : t('dashboard.safe')}
           </div>
-          <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Network Status</div>
+          <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider">{t('dashboard.network_status')}</div>
         </div>
       </div>
 
       {/* Live Metrics SVG Charts */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-12">
         <div className="glass-panel p-4">
-          <AreaChart data={rpsHistory} label="Requests Per Second (RPS)" color="#3b82f6" height={100} />
+          <AreaChart data={rpsHistory} label={t('dashboard.requests_per_second')} color="#3b82f6" height={100} />
         </div>
         <div className="glass-panel p-4">
-          <AreaChart data={latencyHistory} label="LLM Average Latency (ms)" color="#a855f7" height={100} />
+          <AreaChart data={latencyHistory} label={t('dashboard.llm_average_latency')} color="#a855f7" height={100} />
         </div>
         <div className="glass-panel p-4">
-          <AreaChart data={errorHistory} label="Active Error Rate (%)" color="#ef4444" height={100} />
+          <AreaChart data={errorHistory} label={t('dashboard.active_error_rate')} color="#ef4444" height={100} />
         </div>
       </div>
 
@@ -178,17 +180,17 @@ const Dashboard = () => {
           <div className="flex justify-between items-center mb-6">
             <h2 className="text-xl font-semibold flex items-center gap-2">
               <Activity className="w-5 h-5 text-blue-400" />
-              Live Tail Logs
+              {t('dashboard.live_tail_logs')}
               <span className={`px-2 py-0.5 text-xs rounded-full ${isConnected ? 'bg-green-500/20 text-green-400 border border-green-500/30' : 'bg-red-500/20 text-red-400 border border-red-500/30'}`}>
-                {isConnected ? 'CONNECTED' : 'DISCONNECTED'}
+                {isConnected ? t('dashboard.connected') : t('dashboard.disconnected')}
               </span>
             </h2>
             <div className="flex gap-2 items-center">
               <select value={filterType} onChange={(e) => setFilterType(e.target.value)} className="bg-black/50 border border-white/10 text-xs text-gray-300 rounded px-2 py-1 focus:outline-none focus:border-blue-500">
-                <option value="ALL">All Events</option>
-                <option value="HEAL">Heals</option>
-                <option value="SECURITY">Security</option>
-                <option value="ERROR">Errors</option>
+                <option value="ALL">{t('dashboard.all_events')}</option>
+                <option value="HEAL">{t('dashboard.heals')}</option>
+                <option value="SECURITY">{t('dashboard.security')}</option>
+                <option value="ERROR">{t('dashboard.errors')}</option>
               </select>
               <button onClick={togglePause} className="p-2 hover:bg-white/10 rounded-md transition-colors" title={isPaused ? "Resume" : "Pause"}>
                 {isPaused ? <Play className="w-4 h-4 text-green-400" /> : <Pause className="w-4 h-4 text-yellow-400" />}
@@ -201,7 +203,7 @@ const Dashboard = () => {
 
           <div className="flex-1 overflow-y-auto bg-[#0d1117] border border-white/5 rounded-md p-4 font-mono text-xs text-gray-300">
             {logs.length === 0 ? (
-              <div className="text-gray-500 italic">Waiting for traffic...</div>
+              <div className="text-gray-500 italic">{t('dashboard.waiting_for_traffic')}</div>
             ) : (
               logs.map((log, i) => {
                 let colorClass = "text-gray-300";
@@ -224,23 +226,23 @@ const Dashboard = () => {
         <div className="glass-panel p-6">
           <h2 className="text-xl font-semibold mb-6 flex items-center gap-2">
             <Database className="w-5 h-5 text-purple-400" />
-            Agnostic Registry
+            {t('dashboard.agnostic_registry')}
           </h2>
           <div className="space-y-4">
             <div className="flex justify-between items-center p-3 bg-white/5 rounded-lg border border-white/10">
-              <span className="font-mono text-sm text-gray-300">FastMCP Schema Server</span>
+              <span className="font-mono text-sm text-gray-300">{t('dashboard.fastmcp_schema_server')}</span>
               <span className="px-3 py-1 bg-green-500/20 text-green-400 text-xs rounded-full border border-green-500/30">
-                CONNECTED ({schemas.length} Schemas)
+                {t('dashboard.connected')} ({schemas.length} Schemas)
               </span>
             </div>
             <div className="flex justify-between items-center p-3 bg-white/5 rounded-lg border border-white/10">
-              <span className="font-mono text-sm text-gray-300">Redis State Sync</span>
+              <span className="font-mono text-sm text-gray-300">{t('dashboard.redis_state_sync')}</span>
               <span className="px-3 py-1 bg-green-500/20 text-green-400 text-xs rounded-full border border-green-500/30">
-                {config.SCHEMA_REGISTRY_PROVIDER === 'REDIS' ? 'ACTIVE (SYNCED)' : 'CONNECTED'}
+                {config.SCHEMA_REGISTRY_PROVIDER === 'REDIS' ? 'ACTIVE (SYNCED)' : t('dashboard.connected')}
               </span>
             </div>
             <div className="flex justify-between items-center p-3 bg-white/5 rounded-lg border border-white/10">
-              <span className="font-mono text-sm text-gray-300">Vector Event Store</span>
+              <span className="font-mono text-sm text-gray-300">{t('dashboard.vector_event_store')}</span>
               <span className="px-3 py-1 bg-blue-500/20 text-blue-400 text-xs rounded-full border border-blue-500/30 uppercase">
                 ACTIVE ({config.VECTOR_DB_PROVIDER || 'CHROMADB'})
               </span>
