@@ -9,6 +9,7 @@ __pycache__
 *.pyd
 .DS_Store
 ._*
+**/._*
 .antigravity
 chroma_db
 logs
