@@ -80,10 +80,10 @@ async def get_metrics(api_key: str = Depends(verify_api_key)):
 
 @router.get("/api/audit-logs")
 async def get_audit_logs(
-        limit: int = 50,
-        offset: int = 0,
-        search: str | None = None,
-        api_key: str = Depends(verify_api_key),
+    limit: int = 50,
+    offset: int = 0,
+    search: str | None = None,
+    api_key: str = Depends(verify_api_key),
 ):
     """Returns OTel formatted decisions from the repair logs with pagination and search."""
     log_dir = os.getenv("LOG_DIR", os.path.join(os.getcwd(), "logs"))
@@ -125,18 +125,18 @@ async def get_audit_logs(
         for log in logs:
             ts_raw = log.get("Timestamp")
             if (
-                    ts_raw
-                    and isinstance(ts_raw, (int, float))
-                    and "TimestampISO" not in log
+                ts_raw
+                and isinstance(ts_raw, (int, float))
+                and "TimestampISO" not in log
             ):
                 try:
                     # Nanoseconds → seconds → UTC ISO string
                     ts_sec = ts_raw / 1_000_000_000
                     log["TimestampISO"] = (
-                            datetime.datetime.fromtimestamp(
-                                ts_sec, tz=datetime.timezone.utc
-                            ).strftime("%Y-%m-%dT%H:%M:%S.%f")
-                            + "Z"
+                        datetime.datetime.fromtimestamp(
+                            ts_sec, tz=datetime.timezone.utc
+                        ).strftime("%Y-%m-%dT%H:%M:%S.%f")
+                        + "Z"
                     )
                 except Exception:
                     pass
@@ -160,12 +160,12 @@ async def get_audit_logs(
                 ).lower()
 
                 if (
-                        term in trace_id
-                        or term in span_id
-                        or term in reason
-                        or term in source
-                        or term in target
-                        or term in decision_id
+                    term in trace_id
+                    or term in span_id
+                    or term in reason
+                    or term in source
+                    or term in target
+                    or term in decision_id
                 ):
                     filtered.append(log)
             logs = filtered
@@ -186,7 +186,7 @@ async def get_audit_logs(
 
         reversed_logs = logs[::-1]
         return {
-            "logs": reversed_logs[offset: offset + limit],
+            "logs": reversed_logs[offset : offset + limit],
             "total": len(reversed_logs),
             "total_healed": total_healed,
             "total_dropped": total_dropped,
@@ -258,7 +258,8 @@ async def get_dlq_logs(api_key: str = Depends(verify_api_key)):
         redis_client = None
         try:
             redis_client = redis.from_url(
-                os.getenv("REDIS_URL", "redis://localhost:6379/0"), decode_responses=False
+                os.getenv("REDIS_URL", "redis://localhost:6379/0"),
+                decode_responses=False,
             )
             redis_entries = await redis_client.lrange("sentinel.dlq", 0, 499)
             for entry in redis_entries:
