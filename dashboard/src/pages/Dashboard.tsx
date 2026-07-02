@@ -63,8 +63,11 @@ const Dashboard = () => {
     queryFn: () => fetchWithAuth('/api/dlq?limit=1&offset=0').then((res) => res.json()),
     refetchInterval: 5000,
   });
-  const dlqItems = dlqData?.logs || [];
   const dlqTotal = dlqData?.total || 0;
+  const hasHistoricalDlq = dlqTotal > 0;
+  const activeIncident =
+    hitlAlerts.length > 0 ||
+    logs.some((l) => l.action === 'quarantined' || l.type?.includes('SECURITY'));
 
   // Initial HTTP fetch for metrics, updates handled via WebSocket
   const { data: initialMetrics } = useQuery<Metrics | null>({ queryKey: ['metrics'], queryFn: fetchMetrics });
@@ -142,7 +145,7 @@ const Dashboard = () => {
     intercepts: logs.length,
     healed: logs.filter(l => l.action === 'healed' || l.type?.includes('HEAL_SUCCESS')).length,
     dropped: logs.filter(l => l.action === 'dropped' || l.action === 'quarantined' || l.type?.includes('HEAL_FAIL') || l.type?.includes('SECURITY')).length,
-    quarantineStatus: dlqTotal > 0 ? 1 : (logs.some(l => l.action === 'quarantined' || l.type?.includes('SECURITY')) ? 1 : 0)
+    quarantineStatus: hasHistoricalDlq || activeIncident ? 1 : 0
   };
 
   // Database-wide historical totals
@@ -150,7 +153,7 @@ const Dashboard = () => {
     intercepts: auditData?.total || 0,
     healed: auditData?.total_healed || 0,
     dropped: (auditData?.total_dropped || 0) + dlqTotal,
-    quarantineStatus: dlqTotal > 0 ? 1 : 0
+    quarantineStatus: hasHistoricalDlq ? 1 : 0
   };
 
   const activeMetrics = metricScope === 'session' ? sessionMetrics : systemMetrics;
@@ -257,6 +260,14 @@ const Dashboard = () => {
           <Shield className={`w-8 h-8 mb-4 ${activeMetrics.quarantineStatus ? 'text-red-500 animate-pulse' : 'text-green-400'}`} />
           <div className={`text-2xl font-bold mb-2 ${activeMetrics.quarantineStatus ? 'text-red-500' : 'text-green-400'}`}>
             {activeMetrics.quarantineStatus ? t('dashboard.quarantine') : t('dashboard.safe')}
+          </div>
+          <div className="flex flex-wrap gap-2 mb-2">
+            <span className={`px-2 py-0.5 text-[10px] rounded-full border ${hasHistoricalDlq ? 'bg-red-500/20 text-red-300 border-red-500/40' : 'bg-green-500/20 text-green-300 border-green-500/40'}`}>
+              Has Historical DLQ: {hasHistoricalDlq ? 'YES' : 'NO'}
+            </span>
+            <span className={`px-2 py-0.5 text-[10px] rounded-full border ${activeIncident ? 'bg-yellow-500/20 text-yellow-300 border-yellow-500/40' : 'bg-green-500/20 text-green-300 border-green-500/40'}`}>
+              Active Incident: {activeIncident ? 'YES' : 'NO'}
+            </span>
           </div>
           <div className="text-xs font-semibold text-gray-400 uppercase tracking-wider">{t('dashboard.network_status')}</div>
         </div>
