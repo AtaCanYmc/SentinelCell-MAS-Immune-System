@@ -1,6 +1,7 @@
 SAFE_SCRIPTS = [
     "adaptive_unlearning_demo.py",
     "agent_trust_score_degradation.py",
+    "antigravity_integrity_demo.py",
     "auth_bypass_injection.py",
     "auto_schema_inference_sim.py",
     "base64_poison_pill.py",
@@ -8,6 +9,8 @@ SAFE_SCRIPTS = [
     "chaos_monkey.py",
     "circuit_breaker_recovery.py",
     "custom_skill_demo.py",
+    "end_to_end_telemetry_demo.py",
+    "fastapi_live_server_demo.py",
     "finance_schema_evolution.py",
     "financial_drift_anomaly_sim.py",
     "financial_transaction_replay.py",
