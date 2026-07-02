@@ -1,5 +1,5 @@
 <div align="center">
-  <img src="assets/SentinelCell-logo.png" width="300" alt="SentinelCell Logo" style="border-radius: 25%;">
+  <img src=".github/screenshots/SentinelCell-logo.png" width="300" alt="SentinelCell Logo" style="border-radius: 25%;">
   <h1>SentinelCell - MAS Immune System</h1>
 
   ![Version](https://img.shields.io/github/v/release/atacanymc/SentinelCell-MAS-Immune-System?style=flat-square&color=blue)
@@ -11,8 +11,8 @@
 </div>
 
 <p align="center">
-  <img src="assets/SentinelCell-defense.png" width="48%" alt="SentinelCell Defense Mechanism">
-  <img src="assets/SentinelCell-fix.png" width="48%" alt="SentinelCell Self-Healing Repair">
+  <img src=".github/screenshots/SentinelCell-defense.png" width="48%" alt="SentinelCell Defense Mechanism">
+  <img src=".github/screenshots/SentinelCell-fix.png" width="48%" alt="SentinelCell Self-Healing Repair">
 </p>
 
 ## Table of Contents
@@ -275,7 +275,7 @@ Sending Obfuscated Payload: {"message": "Hello", "metadata": "aWdub3JlIHByZXZpb3
 ### Live Examples Library
 
 <div align="center">
-  <img src="assets/examples_simulation_cli.png" width="700" alt="Simulation Command Center" style="border-radius: 10px; margin-bottom: 15px;">
+  <img src=".github/screenshots/examples_simulation_cli.png" width="700" alt="Simulation Command Center" style="border-radius: 10px; margin-bottom: 15px;">
 </div>
 
 You can now run all 41 simulations via the interactive Command Center. These examples simulate deep anomalies including Prompt Injection, Semantic Drift, Quarantines, and Payload Corruption with 100% test coverage:
