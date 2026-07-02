@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { ShieldAlert, Edit3, Play, Loader2 } from 'lucide-react';
+import { ShieldAlert, Edit3, Play, Loader2, Trash2 } from 'lucide-react';
 import CodeMirror from '@uiw/react-codemirror';
 import { json } from '@codemirror/lang-json';
 import { useHotkeys } from 'react-hotkeys-hook';
@@ -82,9 +82,36 @@ const Quarantine = () => {
     }
   });
 
+  const deleteMutation = useMutation<any, Error, DlqItem>({
+    mutationFn: async (item) => {
+      const res = await fetchWithAuth('/api/dlq/delete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ entry: item }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.detail || 'Delete failed');
+      }
+      return res.json();
+    },
+    onSuccess: (data) => {
+      toast.success(`DLQ item removed (${data?.total_removed || 0}).`);
+      queryClient.invalidateQueries({ queryKey: ['dlq'] });
+    },
+    onError: (err) => {
+      toast.error(`Failed to delete DLQ item: ${err.message}`);
+    },
+  });
+
   const handleReplay = (item: DlqItem) => {
     setReplayMessage("Replaying payload...");
     replayMutation.mutate(item);
+  };
+
+  const handleDelete = (item: DlqItem) => {
+    if (!window.confirm('Delete this item from DLQ?')) return;
+    deleteMutation.mutate(item);
   };
 
   useHotkeys('meta+enter, ctrl+enter', () => {
@@ -126,6 +153,13 @@ const Quarantine = () => {
                     </button>
                     <button onClick={() => handleReplay(item)} disabled={replayMutation.isPending} className="px-3 py-1 bg-green-500/20 text-green-400 rounded hover:bg-green-500/30 flex items-center gap-1 text-sm transition-colors disabled:opacity-50">
                       {replayMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4" />} Replay
+                    </button>
+                    <button
+                      onClick={() => handleDelete(item)}
+                      disabled={deleteMutation.isPending}
+                      className="px-3 py-1 bg-red-500/20 text-red-400 rounded hover:bg-red-500/30 flex items-center gap-1 text-sm transition-colors disabled:opacity-50"
+                    >
+                      {deleteMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />} Delete
                     </button>
                   </div>
                 </div>

@@ -4,6 +4,7 @@ import orjson
 import asyncio
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Depends, Query
 from fastapi.websockets import WebSocketState
+from pydantic import BaseModel
 import redis.asyncio as redis
 from src.gateways.shared import sentinel
 from src.gateways.dependencies import verify_api_key, verify_api_key_in_ws
@@ -11,6 +12,10 @@ from src.core.logger import get_console
 
 console = get_console()
 router = APIRouter(tags=["observability"])
+
+
+class DlqDeleteRequest(BaseModel):
+    entry: dict
 
 
 @router.get("/health")
@@ -305,6 +310,88 @@ async def get_dlq_logs(
         "limit": limit,
         "offset": offset,
     }
+
+
+@router.post("/api/dlq/delete")
+async def delete_dlq_item(
+    req: DlqDeleteRequest,
+    api_key: str = Depends(verify_api_key),
+):
+    """Deletes matching DLQ entry from all supported persistence layers."""
+    target = req.entry
+    removed = {"redis": 0, "file": 0, "postgres": 0}
+
+    provider = os.getenv("MESSAGE_BROKER", "REDIS").upper()
+    if provider == "REDIS":
+        redis_client = None
+        try:
+            redis_client = redis.from_url(
+                os.getenv("REDIS_URL", "redis://localhost:6379/0"),
+                decode_responses=False,
+            )
+            redis_entries = await redis_client.lrange("sentinel.dlq", 0, -1)
+            for raw_entry in redis_entries:
+                try:
+                    parsed = orjson.loads(raw_entry)
+                    if parsed == target:
+                        removed["redis"] += await redis_client.lrem(
+                            "sentinel.dlq", 1, raw_entry
+                        )
+                except Exception:
+                    continue
+        except Exception as e:
+            console.print(f"[bold yellow]DLQ Redis delete error:[/bold yellow] {e}")
+        finally:
+            if redis_client is not None:
+                try:
+                    await redis_client.aclose()
+                except Exception:
+                    pass
+
+    dlq_dir = os.getenv("LOG_DIR", os.path.join(os.getcwd(), "logs"))
+    dlq_path = os.path.join(dlq_dir, "dlq.json")
+    if os.path.exists(dlq_path):
+        try:
+            retained_lines = []
+            with open(dlq_path, "r", encoding="utf-8") as f:
+                for line in f:
+                    stripped = line.strip()
+                    if not stripped:
+                        continue
+                    try:
+                        parsed = orjson.loads(stripped)
+                        if parsed == target:
+                            removed["file"] += 1
+                            continue
+                    except Exception:
+                        pass
+                    retained_lines.append(line)
+            with open(dlq_path, "w", encoding="utf-8") as f:
+                f.writelines(retained_lines)
+        except Exception as e:
+            console.print(f"[bold yellow]DLQ file delete error:[/bold yellow] {e}")
+
+    pg_uri = os.getenv("POSTGRES_URI") or os.getenv("SCHEMA_POSTGRES_URI")
+    if pg_uri:
+        try:
+            import psycopg2
+            from psycopg2.extras import Json
+
+            conn = psycopg2.connect(pg_uri)
+            cur = conn.cursor()
+            cur.execute(
+                "DELETE FROM sentinel_dlq_fallback WHERE entry = %s::jsonb",
+                (Json(target),),
+            )
+            removed["postgres"] = cur.rowcount or 0
+            conn.commit()
+            cur.close()
+            conn.close()
+        except Exception as e:
+            console.print(f"[bold yellow]DLQ Postgres delete error:[/bold yellow] {e}")
+
+    total_removed = removed["redis"] + removed["file"] + removed["postgres"]
+    return {"status": "success", "removed": removed, "total_removed": total_removed}
 
 
 def _ts(entry):
