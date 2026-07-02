@@ -189,7 +189,7 @@ networks:
   sentinel_net:
     name: sentinel_net
     # Uncomment if you want docker-compose to manage the network automatically:
-    # external: true
+    external: true
     # driver: bridge
 
   # For production with existing external network:
