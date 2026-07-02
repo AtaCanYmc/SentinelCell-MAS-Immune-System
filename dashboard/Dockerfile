@@ -10,9 +10,14 @@ COPY . .
 RUN npm run build
 
 FROM nginx:alpine
-# Fix permissions so Nginx can run as non-root user
-RUN chown -R nginx:nginx /usr/share/nginx/html /var/cache/nginx /var/log/nginx /etc/nginx/conf.d
-RUN touch /var/run/nginx.pid && chown nginx:nginx /var/run/nginx.pid
+
+# Pre-create all nginx directories with correct ownership before nginx starts
+# This prevents chown permission errors on macOS Docker Desktop
+RUN mkdir -p /var/cache/nginx/client_temp /var/cache/nginx/proxy_temp /var/run/nginx && \
+    chown -R nginx:nginx /usr/share/nginx/html /var/cache/nginx /var/log/nginx /etc/nginx/conf.d /var/run/nginx && \
+    chmod 755 /var/cache/nginx/client_temp /var/cache/nginx/proxy_temp /var/run/nginx
+
+RUN touch /var/run/nginx.pid && chown nginx:nginx /var/run/nginx.pid && chmod 644 /var/run/nginx.pid
 
 # Copy the built assets to the Nginx html folder
 COPY --from=build --chown=nginx:nginx /app/dist /usr/share/nginx/html

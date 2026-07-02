@@ -118,10 +118,6 @@ services:
     volumes:
       - ./logs:/app/logs
       - chroma_db:/app/chroma_db
-    tmpfs:
-      - /tmp
-      - /var/cache/nginx
-      - /var/run
     logging:
       driver: "json-file"
       options:
@@ -188,12 +184,7 @@ services:
 networks:
   sentinel_net:
     name: sentinel_net
-    # Uncomment if you want docker-compose to manage the network automatically:
     external: true
-    # driver: bridge
-
-  # For production with existing external network:
-  # Create first with: docker network create sentinel_net
 
 volumes:
   redis_data:
