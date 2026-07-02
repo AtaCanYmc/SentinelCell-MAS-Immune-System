@@ -2,7 +2,7 @@ import os
 import time
 import orjson
 import asyncio
-from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Depends
+from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Depends, Query
 from fastapi.websockets import WebSocketState
 import redis.asyncio as redis
 from src.gateways.shared import sentinel
@@ -237,7 +237,11 @@ async def websocket_logs(websocket: WebSocket):
 
 
 @router.get("/api/dlq")
-async def get_dlq_logs(api_key: str = Depends(verify_api_key)):
+async def get_dlq_logs(
+    limit: int = Query(default=50, ge=1, le=500),
+    offset: int = Query(default=0, ge=0, le=10000),
+    api_key: str = Depends(verify_api_key),
+):
     """Returns all payloads currently in the Dead Letter Queue (DLQ) for the UI."""
     logs = []
     seen_signatures = set()
@@ -253,6 +257,9 @@ async def get_dlq_logs(api_key: str = Depends(verify_api_key)):
         except Exception as e:
             console.print(f"[bold red]DLQ file read error:[/bold red] {e}")
 
+    # Read enough records for requested page while keeping an upper bound.
+    fetch_size = min(max(limit + offset, 500), 5000)
+
     provider = os.getenv("MESSAGE_BROKER", "REDIS").upper()
     if provider == "REDIS":
         redis_client = None
@@ -261,7 +268,7 @@ async def get_dlq_logs(api_key: str = Depends(verify_api_key)):
                 os.getenv("REDIS_URL", "redis://localhost:6379/0"),
                 decode_responses=False,
             )
-            redis_entries = await redis_client.lrange("sentinel.dlq", 0, 499)
+            redis_entries = await redis_client.lrange("sentinel.dlq", 0, fetch_size - 1)
             for entry in redis_entries:
                 _append_entry(entry, logs, seen_signatures)
         except Exception as e:
@@ -281,7 +288,8 @@ async def get_dlq_logs(api_key: str = Depends(verify_api_key)):
             conn = psycopg2.connect(pg_uri)
             cur = conn.cursor()
             cur.execute(
-                "SELECT entry FROM sentinel_dlq_fallback ORDER BY created_at DESC LIMIT 500"
+                "SELECT entry FROM sentinel_dlq_fallback ORDER BY created_at DESC LIMIT %s",
+                (fetch_size,),
             )
             for (entry,) in cur.fetchall():
                 _append_entry(entry, logs, seen_signatures)
@@ -290,7 +298,13 @@ async def get_dlq_logs(api_key: str = Depends(verify_api_key)):
         except Exception as e:
             console.print(f"[bold yellow]DLQ Postgres fetch error:[/bold yellow] {e}")
 
-    return sorted(logs, key=_ts, reverse=True)
+    sorted_logs = sorted(logs, key=_ts, reverse=True)
+    return {
+        "logs": sorted_logs[offset : offset + limit],
+        "total": len(sorted_logs),
+        "limit": limit,
+        "offset": offset,
+    }
 
 
 def _ts(entry):

@@ -24,15 +24,20 @@ describe('Quarantine Component', () => {
     global.fetch = vi.fn(() =>
       Promise.resolve({
         ok: true,
-        json: () => Promise.resolve([
-          {
-            source: 'TestAgent',
-            target: 'TargetAgent',
-            payload: '{"test":"value"}',
-            reason: 'Test Reason',
-            timestamp: 1600000000
-          }
-        ]),
+        json: () => Promise.resolve({
+          logs: [
+            {
+              source: 'TestAgent',
+              target: 'TargetAgent',
+              payload: '{"test":"value"}',
+              reason: 'Test Reason',
+              timestamp: 1600000000
+            }
+          ],
+          total: 1,
+          limit: 5,
+          offset: 0,
+        }),
       })
     );
 

@@ -9,8 +9,8 @@ import { fetchWithAuth } from '../hooks/api';
 import { DlqItem } from '../types';
 import { useToast } from '../components/Toast';
 
-const fetchDlq = async () => {
-  const res = await fetchWithAuth('/api/dlq');
+const fetchDlq = async (limit: number, offset: number) => {
+  const res = await fetchWithAuth(`/api/dlq?limit=${limit}&offset=${offset}`);
   if (!res.ok) throw new Error('Network response was not ok');
   return res.json();
 };
@@ -18,22 +18,24 @@ const fetchDlq = async () => {
 const Quarantine = () => {
   const queryClient = useQueryClient();
   const toast = useToast();
-  const { data: rawDlqItems, isLoading } = useQuery({
-    queryKey: ['dlq'],
-    queryFn: fetchDlq,
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 5;
+
+  const { data: dlqData, isLoading } = useQuery({
+    queryKey: ['dlq', currentPage],
+    queryFn: () => fetchDlq(itemsPerPage, (currentPage - 1) * itemsPerPage),
     refetchInterval: 5000,
     refetchOnWindowFocus: true,
   });
-  const dlqItems = Array.isArray(rawDlqItems) ? rawDlqItems : [];
+
+  const dlqItems = dlqData?.logs || [];
+  const totalLogs = dlqData?.total || 0;
+  const totalPages = Math.max(1, Math.ceil(totalLogs / itemsPerPage));
+  const currentItems = dlqItems;
 
   const [editingDlq, setEditingDlq] = useState<DlqItem | null>(null);
   const [activeTab, setActiveTab] = useState('edit'); // 'edit' | 'diff'
   const [replayMessage, setReplayMessage] = useState("");
-  const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 5;
-
-  const totalPages = Math.max(1, Math.ceil(dlqItems.length / itemsPerPage));
-  const currentItems = dlqItems.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
   const replayMutation = useMutation<any, Error, DlqItem>({
     mutationFn: async (item) => {
@@ -57,9 +59,12 @@ const Quarantine = () => {
       return res.json();
     },
     onMutate: async (item) => {
-      await queryClient.cancelQueries({ queryKey: ['dlq'] });
-      const previousDlq = queryClient.getQueryData(['dlq']);
-      queryClient.setQueryData(['dlq'], (old) => (Array.isArray(old) ? old.filter(i => i !== item) : []));
+      await queryClient.cancelQueries({ queryKey: ['dlq', currentPage] });
+      const previousDlq = queryClient.getQueryData(['dlq', currentPage]);
+      queryClient.setQueryData(['dlq', currentPage], (old: any) => ({
+        ...old,
+        logs: old?.logs?.filter((i: any) => i !== item) || []
+      }));
       return { previousDlq };
     },
     onSuccess: () => {
@@ -70,10 +75,10 @@ const Quarantine = () => {
     onError: (err, item, context: any) => {
       toast.error(`Failed to replay payload: ${err.message}`);
       setReplayMessage(`Error: ${err.message}`);
-      queryClient.setQueryData(['dlq'], context?.previousDlq);
+      queryClient.setQueryData(['dlq', currentPage], context?.previousDlq);
     },
     onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: ['dlq'] });
+      queryClient.invalidateQueries({ queryKey: ['dlq', currentPage] });
     }
   });
 
@@ -105,7 +110,7 @@ const Quarantine = () => {
         <div className="text-gray-400 animate-pulse">Loading quarantined payloads...</div>
       ) : (
         <div className="space-y-4">
-          {dlqItems.length === 0 ? (
+          {totalLogs === 0 ? (
             <p className="text-gray-400">No quarantined payloads found. The system is secure.</p>
           ) : (
             currentItems.map((item, idx) => (
@@ -203,7 +208,7 @@ const Quarantine = () => {
           {totalPages > 1 && (
             <div className="flex items-center justify-between mt-6 bg-black/40 p-4 rounded-lg border border-white/10">
               <div className="text-sm text-gray-400">
-                Page {currentPage} of {totalPages} (Total {dlqItems.length})
+                Page {currentPage} of {totalPages} (Total {totalLogs})
               </div>
               <div className="flex gap-2">
                 <button

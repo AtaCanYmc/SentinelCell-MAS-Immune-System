@@ -58,7 +58,13 @@ const Dashboard = () => {
 
   const { data: schemas = [] } = useQuery({ queryKey: ['schemas'], queryFn: fetchSchemas, refetchInterval: 10000 });
   const { data: auditData } = useQuery({ queryKey: ['auditLogs'], queryFn: fetchAuditLogs, refetchInterval: 10000 });
-  const { data: dlqItems = [] } = useQuery<any[]>({ queryKey: ['dlq'], queryFn: () => fetchWithAuth('/api/dlq').then(res => res.json()), refetchInterval: 5000 });
+  const { data: dlqData } = useQuery<{ logs: any[]; total: number }>({
+    queryKey: ['dlq-summary'],
+    queryFn: () => fetchWithAuth('/api/dlq').then(res => res.json()),
+    refetchInterval: 5000,
+  });
+  const dlqItems = dlqData?.logs || [];
+  const dlqTotal = dlqData?.total || 0;
 
   // Initial HTTP fetch for metrics, updates handled via WebSocket
   const { data: initialMetrics } = useQuery<Metrics | null>({ queryKey: ['metrics'], queryFn: fetchMetrics });
@@ -136,15 +142,15 @@ const Dashboard = () => {
     intercepts: logs.length,
     healed: logs.filter(l => l.action === 'healed' || l.type?.includes('HEAL_SUCCESS')).length,
     dropped: logs.filter(l => l.action === 'dropped' || l.action === 'quarantined' || l.type?.includes('HEAL_FAIL') || l.type?.includes('SECURITY')).length,
-    quarantineStatus: dlqItems.length > 0 ? 1 : (logs.some(l => l.action === 'quarantined' || l.type?.includes('SECURITY')) ? 1 : 0)
+    quarantineStatus: dlqTotal > 0 ? 1 : (logs.some(l => l.action === 'quarantined' || l.type?.includes('SECURITY')) ? 1 : 0)
   };
 
   // Database-wide historical totals
   const systemMetrics = {
     intercepts: auditData?.total || 0,
     healed: auditData?.total_healed || 0,
-    dropped: (auditData?.total_dropped || 0) + dlqItems.length,
-    quarantineStatus: dlqItems.length > 0 ? 1 : 0
+    dropped: (auditData?.total_dropped || 0) + dlqTotal,
+    quarantineStatus: dlqTotal > 0 ? 1 : 0
   };
 
   const activeMetrics = metricScope === 'session' ? sessionMetrics : systemMetrics;
