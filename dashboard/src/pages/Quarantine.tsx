@@ -18,7 +18,12 @@ const fetchDlq = async () => {
 const Quarantine = () => {
   const queryClient = useQueryClient();
   const toast = useToast();
-  const { data: rawDlqItems, isLoading } = useQuery({ queryKey: ['dlq'], queryFn: fetchDlq });
+  const { data: rawDlqItems, isLoading } = useQuery({
+    queryKey: ['dlq'],
+    queryFn: fetchDlq,
+    refetchInterval: 5000,
+    refetchOnWindowFocus: true,
+  });
   const dlqItems = Array.isArray(rawDlqItems) ? rawDlqItems : [];
 
   const [editingDlq, setEditingDlq] = useState<DlqItem | null>(null);

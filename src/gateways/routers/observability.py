@@ -80,10 +80,10 @@ async def get_metrics(api_key: str = Depends(verify_api_key)):
 
 @router.get("/api/audit-logs")
 async def get_audit_logs(
-    limit: int = 50,
-    offset: int = 0,
-    search: str | None = None,
-    api_key: str = Depends(verify_api_key),
+        limit: int = 50,
+        offset: int = 0,
+        search: str | None = None,
+        api_key: str = Depends(verify_api_key),
 ):
     """Returns OTel formatted decisions from the repair logs with pagination and search."""
     log_dir = os.getenv("LOG_DIR", os.path.join(os.getcwd(), "logs"))
@@ -125,18 +125,18 @@ async def get_audit_logs(
         for log in logs:
             ts_raw = log.get("Timestamp")
             if (
-                ts_raw
-                and isinstance(ts_raw, (int, float))
-                and "TimestampISO" not in log
+                    ts_raw
+                    and isinstance(ts_raw, (int, float))
+                    and "TimestampISO" not in log
             ):
                 try:
                     # Nanoseconds → seconds → UTC ISO string
                     ts_sec = ts_raw / 1_000_000_000
                     log["TimestampISO"] = (
-                        datetime.datetime.fromtimestamp(
-                            ts_sec, tz=datetime.timezone.utc
-                        ).strftime("%Y-%m-%dT%H:%M:%S.%f")
-                        + "Z"
+                            datetime.datetime.fromtimestamp(
+                                ts_sec, tz=datetime.timezone.utc
+                            ).strftime("%Y-%m-%dT%H:%M:%S.%f")
+                            + "Z"
                     )
                 except Exception:
                     pass
@@ -160,12 +160,12 @@ async def get_audit_logs(
                 ).lower()
 
                 if (
-                    term in trace_id
-                    or term in span_id
-                    or term in reason
-                    or term in source
-                    or term in target
-                    or term in decision_id
+                        term in trace_id
+                        or term in span_id
+                        or term in reason
+                        or term in source
+                        or term in target
+                        or term in decision_id
                 ):
                     filtered.append(log)
             logs = filtered
@@ -186,7 +186,7 @@ async def get_audit_logs(
 
         reversed_logs = logs[::-1]
         return {
-            "logs": reversed_logs[offset : offset + limit],
+            "logs": reversed_logs[offset: offset + limit],
             "total": len(reversed_logs),
             "total_healed": total_healed,
             "total_dropped": total_dropped,
@@ -239,24 +239,89 @@ async def websocket_logs(websocket: WebSocket):
 @router.get("/api/dlq")
 async def get_dlq_logs(api_key: str = Depends(verify_api_key)):
     """Returns all payloads currently in the Dead Letter Queue (DLQ) for the UI."""
+    logs = []
+    seen_signatures = set()
+
+    # Merge from all possible DLQ persistence layers to match runtime write behavior.
     dlq_dir = os.getenv("LOG_DIR", os.path.join(os.getcwd(), "logs"))
     dlq_path = os.path.join(dlq_dir, "dlq.json")
-    if not os.path.exists(dlq_path):
-        return []
+    if os.path.exists(dlq_path):
+        try:
+            with open(dlq_path, "r", encoding="utf-8") as f:
+                for line in f:
+                    _append_entry(line, logs, seen_signatures)
+        except Exception as e:
+            console.print(f"[bold red]DLQ file read error:[/bold red] {e}")
 
-    logs = []
+    provider = os.getenv("MESSAGE_BROKER", "REDIS").upper()
+    if provider == "REDIS":
+        redis_client = None
+        try:
+            redis_client = redis.from_url(
+                os.getenv("REDIS_URL", "redis://localhost:6379/0"), decode_responses=False
+            )
+            redis_entries = await redis_client.lrange("sentinel.dlq", 0, 499)
+            for entry in redis_entries:
+                _append_entry(entry, logs, seen_signatures)
+        except Exception as e:
+            console.print(f"[bold yellow]DLQ Redis fetch error:[/bold yellow] {e}")
+        finally:
+            if redis_client is not None:
+                try:
+                    await redis_client.aclose()
+                except Exception:
+                    pass
+
+    pg_uri = os.getenv("POSTGRES_URI") or os.getenv("SCHEMA_POSTGRES_URI")
+    if pg_uri:
+        try:
+            import psycopg2
+
+            conn = psycopg2.connect(pg_uri)
+            cur = conn.cursor()
+            cur.execute(
+                "SELECT entry FROM sentinel_dlq_fallback ORDER BY created_at DESC LIMIT 500"
+            )
+            for (entry,) in cur.fetchall():
+                _append_entry(entry, logs, seen_signatures)
+            cur.close()
+            conn.close()
+        except Exception as e:
+            console.print(f"[bold yellow]DLQ Postgres fetch error:[/bold yellow] {e}")
+
+    return sorted(logs, key=_ts, reverse=True)
+
+
+def _ts(entry):
     try:
-        with open(dlq_path, "r", encoding="utf-8") as f:
-            for line in f:
-                if line.strip():
-                    try:
-                        logs.append(orjson.loads(line))
-                    except orjson.JSONDecodeError as decode_err:
-                        console.print(
-                            f"[dim yellow]DLQ log parse error on line:[/dim yellow] {line.strip()} - {decode_err}"
-                        )
-    except Exception as e:
-        console.print(f"[bold red]DLQ Logs Fetch Error:[/bold red] {e}")
-        return []
+        return float(entry.get("timestamp", 0))
+    except Exception:
+        return 0.0
 
-    return logs[::-1]
+
+def _append_entry(raw_entry, logs, seen_signatures):
+    if isinstance(raw_entry, (bytes, bytearray)):
+        raw_entry = raw_entry.decode("utf-8", errors="replace")
+    if isinstance(raw_entry, str):
+        raw_entry = raw_entry.strip()
+        if not raw_entry:
+            return
+        try:
+            raw_entry = orjson.loads(raw_entry)
+        except orjson.JSONDecodeError as decode_err:
+            console.print(
+                f"[dim yellow]DLQ parse error:[/dim yellow] {raw_entry} - {decode_err}"
+            )
+            return
+    if not isinstance(raw_entry, dict):
+        return
+
+    try:
+        signature = orjson.dumps(raw_entry, option=orjson.OPT_SORT_KEYS)
+    except Exception:
+        signature = str(raw_entry)
+
+    if signature in seen_signatures:
+        return
+    seen_signatures.add(signature)
+    logs.append(raw_entry)
