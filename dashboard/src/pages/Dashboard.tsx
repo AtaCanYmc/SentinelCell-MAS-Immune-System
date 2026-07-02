@@ -60,7 +60,7 @@ const Dashboard = () => {
   const { data: auditData } = useQuery({ queryKey: ['auditLogs'], queryFn: fetchAuditLogs, refetchInterval: 10000 });
   const { data: dlqData } = useQuery<{ logs: any[]; total: number }>({
     queryKey: ['dlq-summary'],
-    queryFn: () => fetchWithAuth('/api/dlq').then(res => res.json()),
+    queryFn: () => fetchWithAuth('/api/dlq?limit=1&offset=0').then((res) => res.json()),
     refetchInterval: 5000,
   });
   const dlqItems = dlqData?.logs || [];
