@@ -307,7 +307,7 @@ class SentinelOrchestrator:
                 final_state = await self.workflow.ainvoke(initial_state, config)
 
                 # HITL Interruption Check
-                state_snapshot = self.workflow.get_state(config)
+                state_snapshot = await self.workflow.aget_state(config)
                 if state_snapshot.next and "repair" in state_snapshot.next:
                     console.print(
                         f"[bold yellow][!] HITL Approval Required before LLM Repair for {agent_source}.[/bold yellow]"
@@ -627,7 +627,10 @@ class SentinelOrchestrator:
 
                 if not self._pg_pool:
                     self._pg_pool = AsyncConnectionPool(
-                        conninfo=postgres_uri, max_size=10, open=False
+                        conninfo=postgres_uri,
+                        max_size=10,
+                        open=False,
+                        kwargs={"autocommit": True},
                     )
                     await self._pg_pool.open()
 
