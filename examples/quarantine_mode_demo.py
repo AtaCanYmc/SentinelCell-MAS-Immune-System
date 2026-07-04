@@ -20,10 +20,16 @@ async def main():
         )
     )
 
-    # Set a short cooldown for the demo
+    # Set a short cooldown and threshold for the demo
     os.environ["QUARANTINE_COOLDOWN_SECONDS"] = "5"
+    os.environ["QUARANTINE_ERROR_THRESHOLD"] = "3"
     sentinel = SentinelCell()
     try:
+        # Reset quarantine state and agent trust scores for a clean/deterministic test run
+        await sentinel._set_quarantine_state(False)
+        await sentinel.orchestrator.agent_trust_scores.set("AttackerBot", 40)
+        await sentinel.orchestrator.agent_trust_scores.set("GoodBot", 100)
+
         invalid_payload = json.dumps({"status": "error"})  # Missing message => Invalid
         valid_payload = json.dumps({"status": "ok", "message": "All clear!"})
 

@@ -53,11 +53,11 @@ class SchemaRegistryClient:
             if self._session:
                 try:
                     await self._session_context.__aexit__(None, None, None)
-                except Exception:
+                except BaseException:
                     pass
                 try:
                     await self._client_context.__aexit__(None, None, None)
-                except Exception:
+                except BaseException:
                     pass
                 self._session = None
                 self._session_context = None

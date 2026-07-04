@@ -122,6 +122,14 @@ class SentinelCell:
     async def _intercept_internal(
         self, source: str, target: str, payload: str, context: dict | None = None
     ) -> dict | None:
+        if hasattr(self, "mcp_client") and self.mcp_client:
+            start_fn = getattr(self.mcp_client, "start", None)
+            if start_fn:
+                import inspect
+
+                res = start_fn()
+                if inspect.isawaitable(res):
+                    await res
         now = time.time()
         q_mode, q_ts = await self._get_quarantine_state()
 
