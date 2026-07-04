@@ -68,9 +68,10 @@ flowchart TD
             Validate[Validation Node]
             Decide{Is Valid?}
             Repair[Repair Node]
+            Log[Log & Forward]
 
             Validate --> Decide
-            Decide -- Yes --> Log[Log to VectorDB]
+            Decide -- Yes --> Log
             Decide -- No --> Repair
             Repair -- Attempt Heal --> Validate
             Decide -- Max Retries --> Quarantine[Quarantine Payload]
