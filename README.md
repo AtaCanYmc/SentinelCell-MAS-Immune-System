@@ -252,6 +252,30 @@ npm run dev
 
 ## 9. Visual Proof & Examples
 
+### Frontend Showcase
+
+<div align="center">
+  <marquee behavior="scroll" direction="left" scrollamount="8" loop="infinite">
+    <img src=".github/screenshots/LOGIN.png" width="320" alt="Login Screen" style="border-radius: 10px; margin-right: 12px;">
+    <img src=".github/screenshots/DASHBOARD.png" width="320" alt="Dashboard Screen" style="border-radius: 10px; margin-right: 12px;">
+    <img src=".github/screenshots/LOGS.png" width="320" alt="Logs Screen" style="border-radius: 10px; margin-right: 12px;">
+    <img src=".github/screenshots/SCHEMAS.png" width="320" alt="Schemas Screen" style="border-radius: 10px; margin-right: 12px;">
+    <img src=".github/screenshots/SETTINGS.png" width="320" alt="Settings Screen" style="border-radius: 10px; margin-right: 12px;">
+    <img src=".github/screenshots/DLQ_REPLAY.png" width="320" alt="DLQ Replay Screen" style="border-radius: 10px; margin-right: 12px;">
+  </marquee>
+</div>
+
+<div align="center">
+  <marquee behavior="scroll" direction="right" scrollamount="7" loop="infinite">
+    <img src=".github/screenshots/QUICK_EXAMPLES.png" width="320" alt="Quick Examples Screen" style="border-radius: 10px; margin-right: 12px;">
+    <img src=".github/screenshots/DASHBOARD_LANGS.png" width="320" alt="Dashboard Languages Screen" style="border-radius: 10px; margin-right: 12px;">
+    <img src=".github/screenshots/SCHEMA_DETAIL.png" width="320" alt="Schema Detail Screen" style="border-radius: 10px; margin-right: 12px;">
+    <img src=".github/screenshots/SCHEMA_REFRESH_CACHE.png" width="320" alt="Schema Refresh Cache Screen" style="border-radius: 10px; margin-right: 12px;">
+    <img src=".github/screenshots/SETTINGS_CIRCUIT_BREAKER.png" width="320" alt="Circuit Breaker Settings Screen" style="border-radius: 10px; margin-right: 12px;">
+    <img src=".github/screenshots/AUDIT_LOGS.png" width="320" alt="Audit Logs Screen" style="border-radius: 10px; margin-right: 12px;">
+  </marquee>
+</div>
+
 ### Real-Time Interception Output
 When SentinelCell detects an obfuscated Prompt Injection attack, operators receive immediate, clear terminal observability:
 
