@@ -7,24 +7,31 @@
     "difficulty": "Easy"
   },
   {
+    "id": "multi_agent_flow.py",
+    "name": "Multi-Agent Flow Simulation",
+    "description": "Producer → SentinelCell → Agent pipeline: intercepts and validates traffic between agents in real time.",
+    "category": "Basic",
+    "difficulty": "Easy"
+  },
+  {
+    "id": "custom_skill_demo.py",
+    "name": "Custom Skill Integration",
+    "description": "Shows how to register and invoke a custom healing skill inside the SentinelCell pipeline.",
+    "category": "Basic",
+    "difficulty": "Easy"
+  },
+  {
+    "id": "fastapi_live_server_demo.py",
+    "name": "FastAPI Gateway Live Demo",
+    "description": "Tests the real FastAPI gateway endpoints using an in-memory ASGI transport.",
+    "category": "Basic",
+    "difficulty": "Easy"
+  },
+  {
     "id": "chaos_monkey.py",
     "name": "Chaos Monkey Simulation",
     "description": "Random agent hallucinations, schema contract breaks, and garbage data mutation.",
     "category": "Resilience",
-    "difficulty": "Medium"
-  },
-  {
-    "id": "security_injection_demo.py",
-    "name": "Adversarial Security Injection",
-    "description": "Malicious agent attempting prompt injection attacks to bypass constraints.",
-    "category": "Security",
-    "difficulty": "Hard"
-  },
-  {
-    "id": "latency_benchmark.py",
-    "name": "Latency & Performance Benchmark",
-    "description": "Fires 500 valid packets to measure caching vs 1 malformed packet with LLM healing.",
-    "category": "Performance",
     "difficulty": "Medium"
   },
   {
@@ -35,9 +42,107 @@
     "difficulty": "Hard"
   },
   {
+    "id": "circuit_breaker_recovery.py",
+    "name": "Circuit Breaker Recovery",
+    "description": "Demonstrates automatic circuit-breaker tripping and self-recovery after agent fault threshold is exceeded.",
+    "category": "Resilience",
+    "difficulty": "Medium"
+  },
+  {
+    "id": "redis_outage_fallback.py",
+    "name": "Redis Outage Fallback",
+    "description": "Simulates a Redis broker outage and shows the system gracefully falling back to in-memory mode.",
+    "category": "Resilience",
+    "difficulty": "Medium"
+  },
+  {
+    "id": "outbox_backpressure_test.py",
+    "name": "Outbox Pattern Backpressure Test",
+    "description": "Floods the outbox queue to stress-test backpressure handling and message durability.",
+    "category": "Resilience",
+    "difficulty": "Hard"
+  },
+  {
+    "id": "security_injection_demo.py",
+    "name": "Adversarial Security Injection",
+    "description": "Malicious agent attempting prompt injection attacks to bypass constraints.",
+    "category": "Security",
+    "difficulty": "Hard"
+  },
+  {
     "id": "poison_pill_demo.py",
     "name": "Poison Pill Jailbreak Guard",
     "description": "Instantly drops jailbreak/prompt injection attempts hidden within nested structures using Regex Sanitizer.",
+    "category": "Security",
+    "difficulty": "Medium"
+  },
+  {
+    "id": "base64_poison_pill.py",
+    "name": "Base64 Encoded Poison Pill",
+    "description": "Attempts to smuggle malicious payloads encoded in Base64 through the validation layer.",
+    "category": "Security",
+    "difficulty": "Hard"
+  },
+  {
+    "id": "auth_bypass_injection.py",
+    "name": "Authentication Bypass Injection",
+    "description": "Simulates an adversary attempting to bypass authentication checks via crafted payload injection.",
+    "category": "Security",
+    "difficulty": "Hard"
+  },
+  {
+    "id": "repair_prompt_injection_test.py",
+    "name": "Repair Prompt Injection Test",
+    "description": "Tests whether the LLM self-healer is resistant to prompt injection embedded inside malformed payloads.",
+    "category": "Security",
+    "difficulty": "Hard"
+  },
+  {
+    "id": "json_dos_attack.py",
+    "name": "JSON Depth DoS Attack",
+    "description": "Sends deeply nested / oversized JSON structures to validate the DoS protection and payload depth limiter.",
+    "category": "Security",
+    "difficulty": "Hard"
+  },
+  {
+    "id": "wallet_exhaustion_dos_sim.py",
+    "name": "Wallet Exhaustion DoS Simulation",
+    "description": "Simulates an LLM API token-exhaustion attack by flooding the healer with repair requests.",
+    "category": "Security",
+    "difficulty": "Hard"
+  },
+  {
+    "id": "agent_trust_score_degradation.py",
+    "name": "Agent Trust Score Degradation",
+    "description": "Shows how repeated agent violations progressively degrade the trust score until quarantine is triggered.",
+    "category": "Security",
+    "difficulty": "Hard"
+  },
+  {
+    "id": "silent_business_logic_corruption.py",
+    "name": "Silent Business Logic Corruption",
+    "description": "Injects subtle, schema-valid mutations that corrupt business logic without triggering schema errors.",
+    "category": "Security",
+    "difficulty": "Hard"
+  },
+  {
+    "id": "semantic_drift_test.py",
+    "name": "Semantic Drift Guard",
+    "description": "Calculates Jaccard Similarity on LLM-repaired payloads to reject hallucinated keys.",
+    "category": "Security",
+    "difficulty": "Medium"
+  },
+  {
+    "id": "multi_language_drift.py",
+    "name": "Multi-Language Semantic Drift",
+    "description": "Sends payloads with mixed-language content to detect semantic drift across localized agent responses.",
+    "category": "Security",
+    "difficulty": "Medium"
+  },
+  {
+    "id": "antigravity_integrity_demo.py",
+    "name": "Cryptographic Integrity Check",
+    "description": "Demonstrates the Merkle Tree validation for agent decisions log to detect tampering.",
     "category": "Security",
     "difficulty": "Medium"
   },
@@ -47,6 +152,55 @@
     "description": "Demonstrates real-time schema upgrades/downgrades between V1 and V2 protocols.",
     "category": "Schema",
     "difficulty": "Medium"
+  },
+  {
+    "id": "schema_evolution_conflict.py",
+    "name": "Schema Evolution Conflict Resolution",
+    "description": "Triggers concurrent schema version conflicts and shows the registry reconciliation strategy.",
+    "category": "Schema",
+    "difficulty": "Hard"
+  },
+  {
+    "id": "auto_schema_inference_sim.py",
+    "name": "Auto Schema Inference",
+    "description": "Demonstrates automatic schema inference from raw unstructured payloads without a pre-registered contract.",
+    "category": "Schema",
+    "difficulty": "Medium"
+  },
+  {
+    "id": "schema_cache_hit_demo.py",
+    "name": "Schema Cache Hit Demo",
+    "description": "Sends repeated identical requests to demonstrate the schema cache serving sub-millisecond validations.",
+    "category": "Performance",
+    "difficulty": "Easy"
+  },
+  {
+    "id": "latency_benchmark.py",
+    "name": "Latency & Performance Benchmark",
+    "description": "Fires 500 valid packets to measure caching vs 1 malformed packet with LLM healing.",
+    "category": "Performance",
+    "difficulty": "Medium"
+  },
+  {
+    "id": "high_concurrency_burst.py",
+    "name": "High Concurrency Burst",
+    "description": "Fires a burst of concurrent requests to benchmark SentinelCell throughput and queue handling.",
+    "category": "Performance",
+    "difficulty": "Hard"
+  },
+  {
+    "id": "high_concurrency_stress_test.py",
+    "name": "High Concurrency Stress Test",
+    "description": "Sustained high-load stress test measuring latency percentiles and error rates under maximum concurrency.",
+    "category": "Performance",
+    "difficulty": "Hard"
+  },
+  {
+    "id": "semantic_repair_cache_hit.py",
+    "name": "Semantic Repair Cache Hit",
+    "description": "Verifies that semantically identical malformed payloads are served from the vector memory cache, bypassing LLM.",
+    "category": "Performance",
+    "difficulty": "Easy"
   },
   {
     "id": "iot_passive_monitoring.py",
@@ -59,35 +213,98 @@
     "id": "iot_telemetry_recovery.py",
     "name": "IoT Telemetry Recovery",
     "description": "Intercepts and repairs fragmented/broken JSON streams from edge IoT devices.",
-    "category": "Repair",
+    "category": "Monitoring",
     "difficulty": "Medium"
   },
   {
-    "id": "semantic_drift_test.py",
-    "name": "Semantic Drift Guard",
-    "description": "Calculates Jaccard Similarity on LLM-repaired payloads to reject hallucinated keys.",
-    "category": "Security",
+    "id": "mqtt_iot_sensor_sim.py",
+    "name": "MQTT IoT Sensor Simulation",
+    "description": "Publishes real sensor data via MQTT broker and intercepts malformed sensor readings through SentinelCell.",
+    "category": "Monitoring",
     "difficulty": "Medium"
   },
   {
-    "id": "antigravity_integrity_demo.py",
-    "name": "Cryptographic Integrity Check",
-    "description": "Demonstrates the Merkle Tree validation for agent decisions log to detect tampering.",
-    "category": "Security",
+    "id": "opentelemetry_tracing_sim.py",
+    "name": "OpenTelemetry Tracing Simulation",
+    "description": "Demonstrates distributed trace context propagation across agents using OpenTelemetry spans and exporters.",
+    "category": "Monitoring",
     "difficulty": "Medium"
-  },
-  {
-    "id": "fastapi_live_server_demo.py",
-    "name": "FastAPI Gateway Live Demo",
-    "description": "Tests the real FastAPI gateway endpoints using an in-memory ASGI transport.",
-    "category": "Basic",
-    "difficulty": "Easy"
   },
   {
     "id": "end_to_end_telemetry_demo.py",
     "name": "End-to-End Telemetry Trace",
     "description": "Demonstrates distributed tracing context propagation from Gateway to Healing Engine.",
     "category": "Monitoring",
+    "difficulty": "Medium"
+  },
+  {
+    "id": "fintech_transaction_flow.py",
+    "name": "FinTech Transaction Flow",
+    "description": "Full financial transaction pipeline with schema validation, fraud signal detection, and automatic repair.",
+    "category": "Finance",
+    "difficulty": "Medium"
+  },
+  {
+    "id": "financial_transaction_replay.py",
+    "name": "Financial Transaction Replay",
+    "description": "Replays historical financial transaction logs through SentinelCell to detect and heal schema violations.",
+    "category": "Finance",
+    "difficulty": "Medium"
+  },
+  {
+    "id": "financial_drift_anomaly_sim.py",
+    "name": "Financial Drift Anomaly Detection",
+    "description": "Detects gradual financial data drift (e.g. currency field mutations) that bypass hard schema validation.",
+    "category": "Finance",
+    "difficulty": "Hard"
+  },
+  {
+    "id": "stealth_financial_drift.py",
+    "name": "Stealth Financial Drift",
+    "description": "Injects subtle numeric mutations into financial payloads to test the semantic drift and anomaly detectors.",
+    "category": "Finance",
+    "difficulty": "Hard"
+  },
+  {
+    "id": "kafka_heavy_duty_sim.py",
+    "name": "Kafka Heavy Duty Simulation",
+    "description": "Routes high-throughput agent traffic through a Kafka broker to validate message durability and ordering.",
+    "category": "Messaging",
+    "difficulty": "Hard"
+  },
+  {
+    "id": "rabbitmq_heavy_duty_sim.py",
+    "name": "RabbitMQ Heavy Duty Simulation",
+    "description": "Stress-tests the RabbitMQ broker integration with thousands of concurrent agent messages.",
+    "category": "Messaging",
+    "difficulty": "Hard"
+  },
+  {
+    "id": "mq_simulation_demo.py",
+    "name": "Message Queue Worker Demo",
+    "description": "Simulates the background MQ worker processing messages from a Redis queue with retry and DLQ logic.",
+    "category": "Messaging",
+    "difficulty": "Medium"
+  },
+  {
+    "id": "redis_atomic_dlq_sim.py",
+    "name": "Redis Atomic DLQ Simulation",
+    "description": "Tests atomic Dead Letter Queue operations in Redis: guaranteed exactly-once delivery and DLQ drain.",
+    "category": "Messaging",
+    "difficulty": "Medium"
+  },
+  {
+    "id": "adaptive_unlearning_demo.py",
+    "name": "Adaptive Unlearning Demo",
+    "description": "Demonstrates the memory unlearning mechanism: purges stale or poisoned healing memories from the vector store.",
+    "category": "Memory",
+    "difficulty": "Medium"
+  },
+  {
+    "id": "human_in_the_loop_approval.py",
+    "name": "Human-in-the-Loop Approval",
+    "description": "Demonstrates the HITL workflow: SentinelCell pauses and waits for an operator decision before applying a repair.",
+    "category": "HITL",
     "difficulty": "Medium"
   }
 ]
