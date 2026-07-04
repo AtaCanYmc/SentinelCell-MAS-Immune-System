@@ -32,7 +32,7 @@ def get_chat_tools(sentinel_cell):
             reason: The explicit reason why you are querying the LLM metrics.
         """
         try:
-            r = redis.from_url(os.getenv("REDIS_URL", "redis://redis:6379/0"))
+            r = redis.from_url(os.getenv("REDIS_URL", "redis://localhost:6379/0"))
             current_minute = int(time.time() / 60)
             llm_requests = await r.get(f"sentinel:llm_rate_limit:{current_minute}")
             reqs = int(llm_requests) if llm_requests else 0

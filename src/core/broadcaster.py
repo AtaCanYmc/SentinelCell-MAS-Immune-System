@@ -13,7 +13,7 @@ class LogBroadcaster:
     """
 
     def __init__(self):
-        redis_url = os.getenv("REDIS_URL", "redis://redis:6379")
+        redis_url = os.getenv("REDIS_URL", "redis://localhost:6379")
         self.client = redis.from_url(redis_url)
 
     async def broadcast(self, message_type: str, content: str):

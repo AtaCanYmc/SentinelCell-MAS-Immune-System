@@ -207,7 +207,7 @@ async def websocket_logs(websocket: WebSocket):
     await websocket.accept()
     await verify_api_key_in_ws(websocket)
 
-    redis_url = os.getenv("REDIS_URL", "redis://redis:6379")
+    redis_url = os.getenv("REDIS_URL", "redis://localhost:6379")
     try:
         client = redis.from_url(redis_url)
         pubsub = client.pubsub()
