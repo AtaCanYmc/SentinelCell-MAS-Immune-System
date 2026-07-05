@@ -7,6 +7,7 @@
   ![Python](https://img.shields.io/badge/python-3.11+-blue?style=flat-square)
   ![Docker](https://img.shields.io/badge/docker-containerized-2496ED?logo=docker&style=flat-square)
   ![License](https://img.shields.io/badge/License-Apache_2.0-green.svg?style=flat-square)
+  ![Conventional Commits](https://img.shields.io/badge/Conventional%20Commits-1.0.0-%23FE5196?logo=conventionalcommits&style=flat-square)
   ![Stars](https://img.shields.io/github/stars/atacanymc/SentinelCell-MAS-Immune-System?style=flat-square)
 </div>
 
@@ -181,7 +182,11 @@ Get the Immune System up and running in under a minute:
 git clone https://github.com/atacanymc/SentinelCell-MAS-Immune-System.git
 cd SentinelCell-MAS-Immune-System
 
-# 2. Run the interactive deployment wizard
+# 2. Setup Pre-commit Hooks (Recommended for development)
+pip install pre-commit
+pre-commit install
+
+# 3. Run the interactive deployment wizard
 chmod +x setup.sh
 ./setup.sh
 ```
@@ -338,12 +343,14 @@ Explore our detailed documentation for a deeper dive:
 - **[Vector Database Setup](docs/vector_databases.md)**
 - **[Agnostic Logger & Telemetry](docs/agnostic_logger.md)**
 - **[Architecture Decision Records (ADR)](ADR/)**
+- **[Changelog & Release History](CHANGELOG.md)**
+- **[Security Policy](SECURITY.md)**
 
 ### 🤝 Community & Support
 We welcome contributions and feedback!
 - **Found a bug?** Please open an issue in the [GitHub Issues](https://github.com/atacanymc/SentinelCell-MAS-Immune-System/issues) tab.
 - **Have an idea or question?** Join the conversation in [GitHub Discussions](https://github.com/atacanymc/SentinelCell-MAS-Immune-System/discussions).
-- **Contributing:** Please see our [CONTRIBUTING.md](CONTRIBUTING.md) for details on our development environment setup (pytest, linting) and the process for submitting Pull Requests.
+- **Contributing:** Please see our [CONTRIBUTING.md](CONTRIBUTING.md) for details on our development environment setup and the process for submitting Pull Requests. *Note: We strictly enforce **Conventional Commits** for automated versioning.*
 
 ---
 

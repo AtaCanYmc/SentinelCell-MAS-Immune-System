@@ -17,9 +17,12 @@ source .venv/bin/activate
 
 # 3. Install Requirements (including dev tools)
 pip install -r requirements.txt
-pip install pytest flake8 black
+pip install pytest flake8 black pre-commit
 
-# 4. Configure Environment
+# 4. Install Pre-commit Hooks
+pre-commit install
+
+# 5. Configure Environment
 cp .env.example .env
 # Edit .env with your LLM keys
 ```
