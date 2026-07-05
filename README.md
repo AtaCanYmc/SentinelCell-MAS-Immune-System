@@ -180,6 +180,8 @@ flowchart TD
 - Python 3.11+
 - Docker & Docker Compose V2
 - Git
+- Node.js 18+ *(Optional: Only if developing the React dashboard locally)*
+- macOS, Linux, or WSL *(Windows users must use WSL for the `setup.sh` wizard)*
 
 ### Quick Start (TL;DR)
 Get the Immune System up and running in under a minute:
