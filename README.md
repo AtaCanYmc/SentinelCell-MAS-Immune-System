@@ -16,6 +16,14 @@
   <img src=".github/screenshots/SentinelCell-fix.png" width="48%" alt="SentinelCell Self-Healing Repair">
 </p>
 
+---
+<div align="center">
+  <a href="https://youtu.be/NQBR6YZ-G9c" target="_blank">
+    <img src="https://img.youtube.com/vi/NQBR6YZ-G9c/maxresdefault.jpg" width="80%" alt="SentinelCell Project Presentation Video">
+  </a>
+  <p><em>Click the image above to watch the full project presentation on our <a href="https://www.youtube.com/@atcan_ymc">YouTube channel</a>!</em></p>
+</div>
+
 ## Table of Contents
 - [1. Background & Acknowledgments](#1-background--acknowledgments)
 - [2. Problem Statement](#2-problem-statement)
