@@ -114,8 +114,11 @@ flowchart TD
 ├── ADR/                    # Architecture Decision Records (ADR)
 ├── assets/                 # Brand assets and design logos
 ├── dashboard/              # React + Vite live telemetry monitoring dashboard
+├── docker/                 # Custom Dockerfiles and container configurations
 ├── docs/                   # Deep technical documentation and user guides
+├── envoy/                  # Envoy Proxy sidecar configurations for transparent interception
 ├── examples/               # Chaos simulation scenarios (prompt injection, drift)
+├── registry/               # Local schema registry storage
 ├── src/                    # Main SentinelCell source code
 │   ├── agents/             # LangGraph-based validator and repair nodes
 │   ├── core/               # Centralized schema registry, validation logic, and sanitizers
@@ -123,7 +126,9 @@ flowchart TD
 │   ├── mcp_integration/    # Model Context Protocol integration layers
 │   ├── utils/              # Cryptographic log verifier, CLI formatters, and telemetry
 │   └── main.py             # Application gateway startup script
+├── terraform/              # Infrastructure as Code (IaC) deployment templates
 ├── tests/                  # Robust pytest unit and integration test suite
+├── website/                # Project landing page and marketing site
 ├── simulate.py             # Interactive Command Center for running simulations
 └── skills.yaml             # Codeless dynamic validation rules schema
 ```
