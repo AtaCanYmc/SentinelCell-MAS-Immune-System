@@ -134,8 +134,9 @@ flowchart TD
 
 | Feature | Description | Stack / Tech |
 |---------|-------------|--------------|
-| **Model Agnostic Fallback** | Seamless fallback if an LLM provider fails. | OpenAI, Anthropic, Groq, Local Ollama |
-| **Database Agnostic Memory** | Adaptive RAG decoupled from underlying storage. | ChromaDB, PGVector, Pinecone |
+| **Model Agnostic Fallback** | Seamless fallback if an LLM provider fails. | OpenAI, Anthropic, Groq, Gemini, Local Ollama |
+| **Database Agnostic Memory** | Adaptive RAG decoupled from underlying storage. | ChromaDB, PGVector, Pinecone, MongoDB, Supabase, Firebase |
+| **High-Performance Parsing** | Ultra-fast zero-latency JSON serialization for traffic interceptors. | `orjson`, Pydantic |
 | **OpenTelemetry Distributed Tracing** | Full W3C trace context propagation across Agent logic, LLM calls, and MQ. | OTLP, Jaeger, Grafana Tempo |
 | **Agnostic Log Sink** | Multi-destination logging (Console, File, ELK). | `rich`, `elasticsearch-py` |
 | **Time-Series Telemetry** | Success/Failure rates and Latency tracking. | Prometheus, Grafana |
@@ -149,6 +150,7 @@ flowchart TD
 | **Live Dashboard & DLQ UI** | Micro-frontend for telemetry, Quarantine, and Replay. | React, Vite, FastAPI |
 | **Dynamic Skill Injection** | Codeless, on-the-fly JSON schema rule extensions. | `skills.yaml` |
 | **ChatOps Alerting** | Automated Webhook dispatch to Slack/Discord on breaches. | `httpx`, Webhooks |
+| **Production-Parity Testing** | Integration testing using real Docker containers instead of mocks. | `testcontainers`, `pytest` |
 | **Automated Versioning CI/CD** | Conventional Commits based semantic versioning, automated PRs, and Changelog generation. | `release-please` |
 
 ### 🛡️ Enterprise-Grade Security & Hardening
