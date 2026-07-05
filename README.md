@@ -148,6 +148,7 @@ flowchart TD
 | **Live Dashboard & DLQ UI** | Micro-frontend for telemetry, Quarantine, and Replay. | React, Vite, FastAPI |
 | **Dynamic Skill Injection** | Codeless, on-the-fly JSON schema rule extensions. | `skills.yaml` |
 | **ChatOps Alerting** | Automated Webhook dispatch to Slack/Discord on breaches. | `httpx`, Webhooks |
+| **Automated Versioning CI/CD** | Conventional Commits based semantic versioning, automated PRs, and Changelog generation. | `release-please` |
 
 ### 🛡️ Enterprise-Grade Security & Hardening
 - **Zero-Trust by Default (Fail-Closed)**: Unregistered agents or undefined schemas are blocked unconditionally. If the Schema Registry goes down, the system maintains a strict `Fail-Closed` posture. Observation mode must be manually enabled to bypass.
