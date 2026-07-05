@@ -299,11 +299,8 @@ Sending Obfuscated Payload: {"message": "Hello", "metadata": "aWdub3JlIHByZXZpb3
 
 ### Live Examples Library
 
-<div align="center">
-  <img src=".github/screenshots/examples_simulation_cli.png" width="700" alt="Simulation Command Center" style="border-radius: 10px; margin-bottom: 15px;">
-</div>
-
 You can now run all 41 simulations via the interactive Command Center. These examples simulate deep anomalies including Prompt Injection, Semantic Drift, Quarantines, and Payload Corruption with 100% test coverage:
+
 ```bash
 python simulate.py
 ```
