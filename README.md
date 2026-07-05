@@ -382,6 +382,18 @@ We welcome contributions and feedback!
 > [!WARNING]
 > Make sure you ran the `./setup.sh` deployment wizard. This script configures the required `.env` variables and sets up the docker bridge network (`sentinel_net`) automatically.
 
+#### Q4: I get a "port is already allocated" error when running docker compose up?
+> [!CAUTION]
+> This happens if you already have local services running on the same ports. SentinelCell uses Port `6379` (Redis), `8000` (FastAPI Gateway), and `3000` (React Dashboard). Ensure you stop any local instances of Redis or web servers, or modify the exposed ports in `docker-compose.yml`.
+
+#### Q5: SentinelCell is logging the payloads, but it is not blocking or repairing malicious traffic. Why?
+> [!NOTE]
+> Check your `.env` file for the `PASSIVE_MONITORING` variable. If it is set to `true`, SentinelCell runs in a zero-latency sniffer mode where it only observes and logs traffic. Set `PASSIVE_MONITORING=false` to enable active interception, validation, and auto-healing.
+
+#### Q6: The React Dashboard is running, but no logs or payloads are appearing. The Quarantine room is empty.
+> [!TIP]
+> Ensure that your Multi-Agent System (Producer agents) is routing its HTTP/MQTT requests through the SentinelCell Gateway (`http://localhost:8000`) instead of calling the target consumers directly. Also, verify that the `redis` message broker container is healthy, as the dashboard relies on it for real-time WebSockets.
+
 ---
 
 ## 12. License
