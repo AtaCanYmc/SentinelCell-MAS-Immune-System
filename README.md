@@ -208,13 +208,25 @@ Edit `.env` with your provider keys. Here is a description of the key configurat
 
 | Environment Variable | Default Value | Description |
 | :--- | :--- | :--- |
+| **LLM & Provider Settings** | | |
+| `PROVIDER_ORDER` | `LOCAL_OLLAMA,OPENAI,...` | Preferred order of model providers for the auto-healing fallback mechanism. |
 | `OPENAI_API_KEY` | `""` | API Key for OpenAI models. |
 | `ANTHROPIC_API_KEY` | `""` | API Key for Anthropic models. |
+| `GEMINI_API_KEY` | `""` | API Key for Google Gemini models. |
+| `DEEPSEEK_API_KEY` | `""` | API Key for DeepSeek models. |
 | `GROQ_API_KEY` | `""` | API Key for Groq models. |
+| **Infrastructure & Databases** | | |
+| `SCHEMA_REGISTRY_PROVIDER`| `REDIS` | Backend for Schema Registry (`REDIS`, `POSTGRES`, `SUPABASE`, `MONGO`, etc.). |
+| `VECTOR_DB_PROVIDER` | `PGVECTOR` | Backend for Semantic Memory (`PGVECTOR`, `CHROMADB`, `PINECONE`). |
+| `MESSAGE_BROKER` | `REDIS` | Queue system for interceptor (`REDIS`, `KAFKA`, `RABBITMQ`). |
 | `REDIS_URL` | `redis://localhost:6379/0` | URL for the Redis instance used for caching, rate limiting, and DLQ. |
+| `POSTGRES_URI` | `""` | Connection URI for the PostgreSQL database (if used). |
+| **Security & Limits** | | |
 | `API_KEY_SECRET` | `""` | Shared secret key to authorize client agent requests at the FastAPI Gateway. |
-| `PROVIDER_ORDER` | `OPENAI,ANTHROPIC,LOCAL_OLLAMA` | Preferred order of model providers for the auto-healing fallback mechanism. |
-| `MONITORING_MODE` | `active` | Set to `passive` for zero-latency sniffer-only mode, or `active` for fail-closed intercept. |
+| `PASSIVE_MONITORING` | `false` | Set to `true` for zero-latency sniffer-only mode, or `false` for fail-closed intercept. |
+| `MAX_PAYLOAD_SIZE` | `10000` | Maximum allowed JSON payload size (bytes) before immediate rejection. |
+| `LLM_RATE_LIMIT_PER_MIN`| `50` | Maximum number of LLM auto-healing attempts per minute. |
+| `CIRCUIT_BREAKER_THRESHOLD`| `5` | Failures required to trip the circuit breaker and halt processing. |
 
 ### Codeless Skill Injection (`skills.yaml`)
 You can inject dynamic JSON schema rules on the fly without changing Python code. The schema is defined in [skills.yaml](file:///Users/atacan/ata-codes/SentinelCell-MAS-Immune-System/skills.yaml):
