@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "SentinelCell"
-version = "0.1.3"
+version = "0.1.4"
 description = "Middleware AI Immune System for Multi-Agent Systems"
 readme = "README.md"
 requires-python = ">=3.11"

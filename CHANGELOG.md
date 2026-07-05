@@ -15,6 +15,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [0.1.4](https://github.com/AtaCanYmc/SentinelCell-MAS-Immune-System/compare/v0.1.3...v0.1.4) (2026-07-05)
+
+
+### 🐛 Bug Fixes
+
+* remove outdated image and update live examples section in README… ([f82f5f2](https://github.com/AtaCanYmc/SentinelCell-MAS-Immune-System/commit/f82f5f238fae515364d63ff292d3beb44e5e93ec))
+* remove outdated image and update live examples section in README.md for clarity ([ef2764e](https://github.com/AtaCanYmc/SentinelCell-MAS-Immune-System/commit/ef2764e88de914cd6359cbad7b0494a46600f44f))
+
+
+### 📝 Documentation
+
+* add project presentation video link to README.md ([2c45491](https://github.com/AtaCanYmc/SentinelCell-MAS-Immune-System/commit/2c454911a1dfe7d618e48141b3ad3cf0217df0df))
+* update CONTRIBUTING.md and README.md to clarify Conventional Commits guidelines and add automated versioning section ([fa0dec0](https://github.com/AtaCanYmc/SentinelCell-MAS-Immune-System/commit/fa0dec0cd510c563e1a92542089f34fee96db56c))
+* update CONTRIBUTING.md and README.md to include pre-commit installation instructions and clarify development setup ([fbc2899](https://github.com/AtaCanYmc/SentinelCell-MAS-Immune-System/commit/fbc28996ea3574a24f5a258ffc366e885585482b))
+* update README.md to add new environment variables and clarify existing settings ([181a7be](https://github.com/AtaCanYmc/SentinelCell-MAS-Immune-System/commit/181a7be5abd858a1f5821a91bfaea7bb8f592b3e))
+* update README.md to add troubleshooting tips for common issues with SentinelCell ([12c6542](https://github.com/AtaCanYmc/SentinelCell-MAS-Immune-System/commit/12c6542ea19a3f3f9a00835043204575a646affa))
+* update README.md to include additional technologies for features and enhance clarity ([7d5a9ce](https://github.com/AtaCanYmc/SentinelCell-MAS-Immune-System/commit/7d5a9ce44e91f4d8a36a2ea2a642ae944d297f96))
+* update README.md to include new directories for Docker, Envoy Proxy, Terraform, and website assets ([7c2f63f](https://github.com/AtaCanYmc/SentinelCell-MAS-Immune-System/commit/7c2f63f40b0afd294608556cb3c95307cf018a8f))
+* update README.md to include optional Node.js and OS requirements for local development ([cca0aa2](https://github.com/AtaCanYmc/SentinelCell-MAS-Immune-System/commit/cca0aa248d945f05882689a153033681701d58ba))
+
 ## [0.1.3](https://github.com/AtaCanYmc/SentinelCell-MAS-Immune-System/compare/v0.1.2...v0.1.3) (2026-07-05)
 
 
