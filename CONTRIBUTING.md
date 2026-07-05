@@ -17,9 +17,12 @@ source .venv/bin/activate
 
 # 3. Install Requirements (including dev tools)
 pip install -r requirements.txt
-pip install pytest flake8 black
+pip install pytest flake8 black pre-commit
 
-# 4. Configure Environment
+# 4. Install Pre-commit Hooks
+pre-commit install
+
+# 5. Configure Environment
 cp .env.example .env
 # Edit .env with your LLM keys
 ```
@@ -49,11 +52,19 @@ Please prefix your branches correctly:
 - `docs/...` for documentation updates
 - `chore/...` for routine maintenance
 
-## 5. Pull Request & Merge Rules
+## 5. Pull Request, Commits & Release Rules
+
+To support our automated `release-please` CI/CD pipeline, this project strictly adheres to **Conventional Commits**:
+- `feat: ...` for new features (triggers a Minor release)
+- `fix: ...` for bug fixes (triggers a Patch release)
+- `feat!: ...` or `BREAKING CHANGE: ...` for breaking changes (triggers a Major release)
+- `chore:`, `docs:`, `refactor:`, `perf:`, `test:` for changes that do not require a release bump.
+
 1. Open a PR and ensure the `Sentinel-Verified` CI actions (pytest & sandbox validation) succeed.
-2. Ensure your code passes all linting (`black`, `flake8`) and unit tests.
-3. A human reviewer must approve the PR with an "LGTM".
-4. Only after approval, the PR can be merged to `main`.
+2. Ensure your commit messages follow the Conventional Commits format described above.
+3. Ensure your code passes all linting (`black`, `flake8`) and unit tests.
+4. A human reviewer must approve the PR with an "LGTM".
+5. Only after approval, the PR can be merged to `main`.
 
 ## 6. Code & Documentation
 - **Architecture**: The core orchestrator uses **LangGraph**. Ensure any new nodes return a valid `AgentState`.

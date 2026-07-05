@@ -7,6 +7,7 @@
   ![Python](https://img.shields.io/badge/python-3.11+-blue?style=flat-square)
   ![Docker](https://img.shields.io/badge/docker-containerized-2496ED?logo=docker&style=flat-square)
   ![License](https://img.shields.io/badge/License-Apache_2.0-green.svg?style=flat-square)
+  ![Conventional Commits](https://img.shields.io/badge/Conventional%20Commits-1.0.0-%23FE5196?logo=conventionalcommits&style=flat-square)
   ![Stars](https://img.shields.io/github/stars/atacanymc/SentinelCell-MAS-Immune-System?style=flat-square)
 </div>
 
@@ -14,6 +15,14 @@
   <img src=".github/screenshots/SentinelCell-defense.png" width="48%" alt="SentinelCell Defense Mechanism">
   <img src=".github/screenshots/SentinelCell-fix.png" width="48%" alt="SentinelCell Self-Healing Repair">
 </p>
+
+---
+<div align="center">
+  <a href="https://youtu.be/NQBR6YZ-G9c" target="_blank">
+    <img src="https://img.youtube.com/vi/NQBR6YZ-G9c/maxresdefault.jpg" width="80%" alt="SentinelCell Project Presentation Video">
+  </a>
+  <p><em>Click the image above to watch the full project presentation on our <a href="https://www.youtube.com/@atcan_ymc">YouTube channel</a>!</em></p>
+</div>
 
 ## Table of Contents
 - [1. Background & Acknowledgments](#1-background--acknowledgments)
@@ -113,8 +122,11 @@ flowchart TD
 ├── ADR/                    # Architecture Decision Records (ADR)
 ├── assets/                 # Brand assets and design logos
 ├── dashboard/              # React + Vite live telemetry monitoring dashboard
+├── docker/                 # Custom Dockerfiles and container configurations
 ├── docs/                   # Deep technical documentation and user guides
+├── envoy/                  # Envoy Proxy sidecar configurations for transparent interception
 ├── examples/               # Chaos simulation scenarios (prompt injection, drift)
+├── registry/               # Local schema registry storage
 ├── src/                    # Main SentinelCell source code
 │   ├── agents/             # LangGraph-based validator and repair nodes
 │   ├── core/               # Centralized schema registry, validation logic, and sanitizers
@@ -122,7 +134,9 @@ flowchart TD
 │   ├── mcp_integration/    # Model Context Protocol integration layers
 │   ├── utils/              # Cryptographic log verifier, CLI formatters, and telemetry
 │   └── main.py             # Application gateway startup script
+├── terraform/              # Infrastructure as Code (IaC) deployment templates
 ├── tests/                  # Robust pytest unit and integration test suite
+├── website/                # Project landing page and marketing site
 ├── simulate.py             # Interactive Command Center for running simulations
 └── skills.yaml             # Codeless dynamic validation rules schema
 ```
@@ -133,8 +147,9 @@ flowchart TD
 
 | Feature | Description | Stack / Tech |
 |---------|-------------|--------------|
-| **Model Agnostic Fallback** | Seamless fallback if an LLM provider fails. | OpenAI, Anthropic, Groq, Local Ollama |
-| **Database Agnostic Memory** | Adaptive RAG decoupled from underlying storage. | ChromaDB, PGVector, Pinecone |
+| **Model Agnostic Fallback** | Seamless fallback if an LLM provider fails. | OpenAI, Anthropic, Groq, Gemini, Local Ollama |
+| **Database Agnostic Memory** | Adaptive RAG decoupled from underlying storage. | ChromaDB, PGVector, Pinecone, MongoDB, Supabase, Firebase |
+| **High-Performance Parsing** | Ultra-fast zero-latency JSON serialization for traffic interceptors. | `orjson`, Pydantic |
 | **OpenTelemetry Distributed Tracing** | Full W3C trace context propagation across Agent logic, LLM calls, and MQ. | OTLP, Jaeger, Grafana Tempo |
 | **Agnostic Log Sink** | Multi-destination logging (Console, File, ELK). | `rich`, `elasticsearch-py` |
 | **Time-Series Telemetry** | Success/Failure rates and Latency tracking. | Prometheus, Grafana |
@@ -148,6 +163,8 @@ flowchart TD
 | **Live Dashboard & DLQ UI** | Micro-frontend for telemetry, Quarantine, and Replay. | React, Vite, FastAPI |
 | **Dynamic Skill Injection** | Codeless, on-the-fly JSON schema rule extensions. | `skills.yaml` |
 | **ChatOps Alerting** | Automated Webhook dispatch to Slack/Discord on breaches. | `httpx`, Webhooks |
+| **Production-Parity Testing** | Integration testing using real Docker containers instead of mocks. | `testcontainers`, `pytest` |
+| **Automated Versioning CI/CD** | Conventional Commits based semantic versioning, automated PRs, and Changelog generation. | `release-please` |
 
 ### 🛡️ Enterprise-Grade Security & Hardening
 - **Zero-Trust by Default (Fail-Closed)**: Unregistered agents or undefined schemas are blocked unconditionally. If the Schema Registry goes down, the system maintains a strict `Fail-Closed` posture. Observation mode must be manually enabled to bypass.
@@ -171,6 +188,8 @@ flowchart TD
 - Python 3.11+
 - Docker & Docker Compose V2
 - Git
+- Node.js 18+ *(Optional: Only if developing the React dashboard locally)*
+- macOS, Linux, or WSL *(Windows users must use WSL for the `setup.sh` wizard)*
 
 ### Quick Start (TL;DR)
 Get the Immune System up and running in under a minute:
@@ -180,7 +199,11 @@ Get the Immune System up and running in under a minute:
 git clone https://github.com/atacanymc/SentinelCell-MAS-Immune-System.git
 cd SentinelCell-MAS-Immune-System
 
-# 2. Run the interactive deployment wizard
+# 2. Setup Pre-commit Hooks (Recommended for development)
+pip install pre-commit
+pre-commit install
+
+# 3. Run the interactive deployment wizard
 chmod +x setup.sh
 ./setup.sh
 ```
@@ -200,13 +223,25 @@ Edit `.env` with your provider keys. Here is a description of the key configurat
 
 | Environment Variable | Default Value | Description |
 | :--- | :--- | :--- |
+| **LLM & Provider Settings** | | |
+| `PROVIDER_ORDER` | `LOCAL_OLLAMA,OPENAI,...` | Preferred order of model providers for the auto-healing fallback mechanism. |
 | `OPENAI_API_KEY` | `""` | API Key for OpenAI models. |
 | `ANTHROPIC_API_KEY` | `""` | API Key for Anthropic models. |
+| `GEMINI_API_KEY` | `""` | API Key for Google Gemini models. |
+| `DEEPSEEK_API_KEY` | `""` | API Key for DeepSeek models. |
 | `GROQ_API_KEY` | `""` | API Key for Groq models. |
+| **Infrastructure & Databases** | | |
+| `SCHEMA_REGISTRY_PROVIDER`| `REDIS` | Backend for Schema Registry (`REDIS`, `POSTGRES`, `SUPABASE`, `MONGO`, etc.). |
+| `VECTOR_DB_PROVIDER` | `PGVECTOR` | Backend for Semantic Memory (`PGVECTOR`, `CHROMADB`, `PINECONE`). |
+| `MESSAGE_BROKER` | `REDIS` | Queue system for interceptor (`REDIS`, `KAFKA`, `RABBITMQ`). |
 | `REDIS_URL` | `redis://localhost:6379/0` | URL for the Redis instance used for caching, rate limiting, and DLQ. |
+| `POSTGRES_URI` | `""` | Connection URI for the PostgreSQL database (if used). |
+| **Security & Limits** | | |
 | `API_KEY_SECRET` | `""` | Shared secret key to authorize client agent requests at the FastAPI Gateway. |
-| `PROVIDER_ORDER` | `OPENAI,ANTHROPIC,LOCAL_OLLAMA` | Preferred order of model providers for the auto-healing fallback mechanism. |
-| `MONITORING_MODE` | `active` | Set to `passive` for zero-latency sniffer-only mode, or `active` for fail-closed intercept. |
+| `PASSIVE_MONITORING` | `false` | Set to `true` for zero-latency sniffer-only mode, or `false` for fail-closed intercept. |
+| `MAX_PAYLOAD_SIZE` | `10000` | Maximum allowed JSON payload size (bytes) before immediate rejection. |
+| `LLM_RATE_LIMIT_PER_MIN`| `50` | Maximum number of LLM auto-healing attempts per minute. |
+| `CIRCUIT_BREAKER_THRESHOLD`| `5` | Failures required to trip the circuit breaker and halt processing. |
 
 ### Codeless Skill Injection (`skills.yaml`)
 You can inject dynamic JSON schema rules on the fly without changing Python code. The schema is defined in [skills.yaml](file:///Users/atacan/ata-codes/SentinelCell-MAS-Immune-System/skills.yaml):
@@ -337,12 +372,14 @@ Explore our detailed documentation for a deeper dive:
 - **[Vector Database Setup](docs/vector_databases.md)**
 - **[Agnostic Logger & Telemetry](docs/agnostic_logger.md)**
 - **[Architecture Decision Records (ADR)](ADR/)**
+- **[Changelog & Release History](CHANGELOG.md)**
+- **[Security Policy](SECURITY.md)**
 
 ### 🤝 Community & Support
 We welcome contributions and feedback!
 - **Found a bug?** Please open an issue in the [GitHub Issues](https://github.com/atacanymc/SentinelCell-MAS-Immune-System/issues) tab.
 - **Have an idea or question?** Join the conversation in [GitHub Discussions](https://github.com/atacanymc/SentinelCell-MAS-Immune-System/discussions).
-- **Contributing:** Please see our [CONTRIBUTING.md](CONTRIBUTING.md) for details on our development environment setup (pytest, linting) and the process for submitting Pull Requests.
+- **Contributing:** Please see our [CONTRIBUTING.md](CONTRIBUTING.md) for details on our development environment setup and the process for submitting Pull Requests. *Note: We strictly enforce **Conventional Commits** for automated versioning.*
 
 ---
 
@@ -359,6 +396,18 @@ We welcome contributions and feedback!
 #### Q3: I get connection errors for Redis or Postgres?
 > [!WARNING]
 > Make sure you ran the `./setup.sh` deployment wizard. This script configures the required `.env` variables and sets up the docker bridge network (`sentinel_net`) automatically.
+
+#### Q4: I get a "port is already allocated" error when running docker compose up?
+> [!CAUTION]
+> This happens if you already have local services running on the same ports. SentinelCell uses Port `6379` (Redis), `8000` (FastAPI Gateway), and `3000` (React Dashboard). Ensure you stop any local instances of Redis or web servers, or modify the exposed ports in `docker-compose.yml`.
+
+#### Q5: SentinelCell is logging the payloads, but it is not blocking or repairing malicious traffic. Why?
+> [!NOTE]
+> Check your `.env` file for the `PASSIVE_MONITORING` variable. If it is set to `true`, SentinelCell runs in a zero-latency sniffer mode where it only observes and logs traffic. Set `PASSIVE_MONITORING=false` to enable active interception, validation, and auto-healing.
+
+#### Q6: The React Dashboard is running, but no logs or payloads are appearing. The Quarantine room is empty.
+> [!TIP]
+> Ensure that your Multi-Agent System (Producer agents) is routing its HTTP/MQTT requests through the SentinelCell Gateway (`http://localhost:8000`) instead of calling the target consumers directly. Also, verify that the `redis` message broker container is healthy, as the dashboard relies on it for real-time WebSockets.
 
 ---
 
